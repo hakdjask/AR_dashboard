@@ -1737,16 +1737,14 @@ export default function App() {
                                             item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
                                           }`}
                                         >
-                                          <span>
-                                            {item.prefix ? `${item.prefix} ` : ''}{item.label}
-                                          </span>
+                                          <span>{item.label}</span>
                                         </span>
                                         <span
                                           className={`tu-text-[12px] ${
                                             item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
                                           }`}
                                         >
-                                          {item.value}
+                                          {item.prefix ? `${item.prefix} ` : ''}{item.value}
                                         </span>
                                       </div>
                                     ))}
