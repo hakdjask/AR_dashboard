@@ -1528,7 +1528,7 @@ export default function App() {
         <main className="tu-min-w-0 tu-flex-1 tu-px-4 tu-py-5 sm:tu-px-6 lg:tu-px-8">
           <section className="tu-space-y-5">
             <div className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-2.5 tu-shadow-[0_6px_24px_rgba(31,41,55,0.08)] sm:tu-p-3">
-              <div className="tu-flex tu-gap-4 sm:tu-gap-5">
+              <div className="tu-flex tu-items-center tu-gap-1.5">
                 {tabs.map((tab) => {
                   const active = tab.key === activeTab;
                   return (
@@ -1536,14 +1536,13 @@ export default function App() {
                       key={tab.key}
                       type="button"
                       onClick={() => setActiveTab(tab.key)}
-                      className={`tu-relative tu-pb-2 tu-text-[14px] tu-font-medium tu-transition ${
-                        active ? 'tu-text-[#10c562]' : 'tu-text-[#2f3133]'
+                      className={`tu-rounded-[10px] tu-px-4 tu-py-2 tu-text-[14px] tu-font-medium tu-transition-colors ${
+                        active
+                          ? 'tu-bg-[#e8f7ee] tu-text-[#10c562]'
+                          : 'tu-text-[#5f6368] hover:tu-bg-[#f5f6f3] hover:tu-text-[#2d3034]'
                       }`}
                     >
                       {tab.label}
-                      {active ? (
-                        <span className="tu-absolute tu-bottom-0 tu-left-0 tu-h-[2px] tu-w-full tu-rounded-full tu-bg-[#10c562]" />
-                      ) : null}
                     </button>
                   );
                 })}
