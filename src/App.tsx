@@ -33,6 +33,13 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30';
 type TabKey = 'courier' | 'sales';
 type MetricKey = 'netSales' | 'cogs' | 'expenses' | 'netProfit';
+type ComparisonData = {
+  current: string;
+  previous: string;
+  change: string;
+  currentPeriodLabel?: string;
+  previousPeriodLabel?: string;
+};
 
 type PeriodCard = {
   key: PeriodKey;
@@ -72,7 +79,7 @@ const periods: PeriodCard[] = [
     dateLabel: 'May 12, 2024',
     metrics: [
       { key: 'netSales', label: 'Net Sales', value: 'PKR 223,456', delta: '100%' },
-      { key: 'cogs', label: 'COGS', value: 'PKR 50,000', delta: '100%' },
+      { key: 'cogs', label: 'COGS', value: 'PKR 76,544', delta: '8%' },
       { key: 'expenses', label: 'Expenses', value: 'PKR 23,456', delta: '100%' },
       { key: 'netProfit', label: 'Net Profit', value: 'PKR 123,456', delta: '100%' }
     ],
@@ -88,7 +95,7 @@ const periods: PeriodCard[] = [
     dateLabel: 'May 11, 2024',
     metrics: [
       { key: 'netSales', label: 'Net Sales', value: 'PKR 223,456', delta: '100%' },
-      { key: 'cogs', label: 'COGS', value: 'PKR 50,000', delta: '100%' },
+      { key: 'cogs', label: 'COGS', value: 'PKR 76,544', delta: '8%' },
       { key: 'expenses', label: 'Expenses', value: 'PKR 23,456', delta: '100%' },
       { key: 'netProfit', label: 'Net Profit', value: 'PKR 123,456', delta: '100%' }
     ],
@@ -104,7 +111,7 @@ const periods: PeriodCard[] = [
     dateLabel: 'May 05, 2024 - May 12, 2024',
     metrics: [
       { key: 'netSales', label: 'Net Sales', value: 'PKR 223,456', delta: '100%' },
-      { key: 'cogs', label: 'COGS', value: 'PKR 50,000', delta: '100%' },
+      { key: 'cogs', label: 'COGS', value: 'PKR 76,544', delta: '8%' },
       { key: 'expenses', label: 'Expenses', value: 'PKR 23,456', delta: '100%' },
       { key: 'netProfit', label: 'Net Profit', value: 'PKR 123,456', delta: '100%' }
     ],
@@ -120,7 +127,7 @@ const periods: PeriodCard[] = [
     dateLabel: 'May 12, 2024',
     metrics: [
       { key: 'netSales', label: 'Net Sales', value: 'PKR 223,456', delta: '100%' },
-      { key: 'cogs', label: 'COGS', value: 'PKR 50,000', delta: '100%' },
+      { key: 'cogs', label: 'COGS', value: 'PKR 76,544', delta: '8%' },
       { key: 'expenses', label: 'Expenses', value: 'PKR 23,456', delta: '100%' },
       { key: 'netProfit', label: 'Net Profit', value: 'PKR 123,456', delta: '100%' }
     ],
@@ -153,52 +160,52 @@ const metricPopoverContent: Record<
   { label: string; value: string; strong?: boolean; dividerBefore?: boolean }[]
 > = {
   netSales: [
-    { label: 'Gross Sales', value: 'PKR 123,456' },
-    { label: 'Total Taxes', value: 'PKR 223,456' },
-    { label: 'Discounts', value: 'PKR 223,456' },
-    { label: 'Returns', value: 'PKR 223,456' },
-    { label: 'Net Sales', value: 'PKR 100,000', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 100,000', strong: true },
-    { label: 'Gross Profit Margin', value: '50%', strong: true },
-    { label: 'Expenses', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 100,000', strong: true }
+    { label: 'Gross Sales', value: 'PKR 300,000' },
+    { label: 'Total Taxes', value: 'PKR 28,544' },
+    { label: 'Discounts', value: 'PKR 32,000' },
+    { label: 'Returns', value: 'PKR 16,000' },
+    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
+    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
+    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
+    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
+    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
+    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
   ],
   cogs: [
-    { label: 'Gross Sales', value: 'PKR 123,456' },
-    { label: 'Total Taxes', value: 'PKR 223,456' },
-    { label: 'Discounts', value: 'PKR 223,456' },
-    { label: 'Returns', value: 'PKR 223,456' },
-    { label: 'Net Sales', value: 'PKR 100,000', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 100,000', strong: true },
-    { label: 'Gross Profit Margin', value: '50%', strong: true },
-    { label: 'Expenses', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 100,000', strong: true }
+    { label: 'Gross Sales', value: 'PKR 300,000' },
+    { label: 'Total Taxes', value: 'PKR 28,544' },
+    { label: 'Discounts', value: 'PKR 32,000' },
+    { label: 'Returns', value: 'PKR 16,000' },
+    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
+    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
+    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
+    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
+    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
+    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
   ],
   expenses: [
-    { label: 'Gross Sales', value: 'PKR 123,456' },
-    { label: 'Total Taxes', value: 'PKR 223,456' },
-    { label: 'Discounts', value: 'PKR 223,456' },
-    { label: 'Returns', value: 'PKR 223,456' },
-    { label: 'Net Sales', value: 'PKR 100,000', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 100,000', strong: true },
-    { label: 'Gross Profit Margin', value: '50%', strong: true },
-    { label: 'Expenses', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 100,000', strong: true }
+    { label: 'Gross Sales', value: 'PKR 300,000' },
+    { label: 'Total Taxes', value: 'PKR 28,544' },
+    { label: 'Discounts', value: 'PKR 32,000' },
+    { label: 'Returns', value: 'PKR 16,000' },
+    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
+    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
+    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
+    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
+    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
+    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
   ],
   netProfit: [
-    { label: 'Gross Sales', value: 'PKR 123,456' },
-    { label: 'Total Taxes', value: 'PKR 223,456' },
-    { label: 'Discounts', value: 'PKR 223,456' },
-    { label: 'Returns', value: 'PKR 223,456' },
-    { label: 'Net Sales', value: 'PKR 100,000', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 100,000', strong: true },
-    { label: 'Gross Profit Margin', value: '50%', strong: true },
-    { label: 'Expenses', value: 'PKR 223,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 100,000', strong: true }
+    { label: 'Gross Sales', value: 'PKR 300,000' },
+    { label: 'Total Taxes', value: 'PKR 28,544' },
+    { label: 'Discounts', value: 'PKR 32,000' },
+    { label: 'Returns', value: 'PKR 16,000' },
+    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
+    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
+    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
+    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
+    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
+    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
   ]
 };
 
@@ -224,6 +231,13 @@ const storeOptions = [
   'Store Five Name'
 ];
 
+const glanceKpiTooltips: Record<string, string> = {
+  'New Customers': 'New customers acquired during the selected period across the selected stores.',
+  'Average Order Value': 'Average cart value across completed orders in the selected period.',
+  'Customer Lifetime Value': 'Estimated total revenue generated by a customer over their relationship with the brand.',
+  'Customer Retention': 'Share of returning customers retained during the selected period.'
+};
+
 const glanceMetrics = [
   {
     label: 'New Customers',
@@ -231,7 +245,8 @@ const glanceMetrics = [
     sublabel: 'Since Yesterday',
     trend: '7.2%',
     direction: 'up' as const,
-    showStoreSelect: false
+    showStoreSelect: false,
+    comparison: { current: '156', previous: '146', change: '10', currentPeriodLabel: 'Current Period', previousPeriodLabel: 'Previous Period' }
   },
   {
     label: 'Average Order Value',
@@ -239,7 +254,14 @@ const glanceMetrics = [
     sublabel: 'Since Yesterday',
     trend: '7.2%',
     direction: 'up' as const,
-    showStoreSelect: false
+    showStoreSelect: false,
+    comparison: {
+      current: 'PKR 10,500',
+      previous: 'PKR 9,795',
+      change: 'PKR 705',
+      currentPeriodLabel: 'Current Period',
+      previousPeriodLabel: 'Previous Period'
+    }
   },
   {
     label: 'Customer Lifetime Value',
@@ -247,7 +269,14 @@ const glanceMetrics = [
     sublabel: 'Since Yesterday',
     trend: '7.2%',
     direction: 'up' as const,
-    showStoreSelect: false
+    showStoreSelect: false,
+    comparison: {
+      current: 'PKR 19,000',
+      previous: 'PKR 17,725',
+      change: 'PKR 1,275',
+      currentPeriodLabel: 'Current Period',
+      previousPeriodLabel: 'Previous Period'
+    }
   },
   {
     label: 'Customer Retention',
@@ -255,7 +284,8 @@ const glanceMetrics = [
     sublabel: 'Since Yesterday',
     trend: '7.2%',
     direction: 'up' as const,
-    showStoreSelect: true
+    showStoreSelect: true,
+    comparison: { current: '35%', previous: '32.6%', change: '2.4%', currentPeriodLabel: 'Current Period', previousPeriodLabel: 'Previous Period' }
   }
 ];
 
@@ -307,7 +337,7 @@ const salesMetricCards = [
   }
 ];
 
-const salesStoreOptions = ['All Stores', 'Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
+const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
 const salesMetricOptions = ['Gross Revenue', 'Total Orders', 'Average Order Value'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const salesRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
@@ -315,11 +345,42 @@ const locationMetricOptions = ['Orders Volume', 'Gross Revenue', 'Average Order 
 const locationDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const locationRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
 
+const locationKpiTooltips: Record<string, string> = {
+  'Top Performing Location': 'Location generating the highest result in the selected metric and period.',
+  'Most Improved Location': 'Location with the strongest positive change versus the previous period.',
+  'Most Declined Location': 'Location with the steepest drop versus the previous period.',
+  'Average Orders Per Location': 'Average order volume contributed by each active location.'
+};
+
 const locationKpiCards = [
-  { label: 'Top Performing Location', value: 'Karachi', trend: '14.2%', direction: 'up' as const },
-  { label: 'Most Improved Location', value: 'Lahore', trend: '9.8%', direction: 'up' as const },
-  { label: 'Most Declined Location', value: 'Peshawar', trend: '6.1%', direction: 'down' as const },
-  { label: 'Average Orders Per Location', value: '1,000', trend: '4.3%', direction: 'up' as const }
+  {
+    label: 'Top Performing Location',
+    value: 'Karachi',
+    trend: '14.2%',
+    direction: 'up' as const,
+    comparison: { current: 'Karachi', previous: 'Lahore', change: '14.2%' }
+  },
+  {
+    label: 'Most Improved Location',
+    value: 'Lahore',
+    trend: '9.8%',
+    direction: 'up' as const,
+    comparison: { current: 'Lahore', previous: 'Islamabad', change: '9.8%' }
+  },
+  {
+    label: 'Most Declined Location',
+    value: 'Peshawar',
+    trend: '6.1%',
+    direction: 'down' as const,
+    comparison: { current: 'Peshawar', previous: 'Karachi', change: '6.1%' }
+  },
+  {
+    label: 'Average Orders Per Location',
+    value: '1,000',
+    trend: '4.3%',
+    direction: 'up' as const,
+    comparison: { current: '1,000', previous: '959', change: '41' }
+  }
 ];
 
 const locationPerformanceData = [
@@ -357,15 +418,18 @@ const productMetricCards = [
   },
   {
     label: 'Best Selling Product',
-    value: 'Product One'
+    value: 'Core Tee',
+    extraItems: ['Fleece Hoodie', 'Runner Pro']
   },
   {
     label: 'Most Improved Product',
-    value: 'Product Two'
+    value: 'Travel Pack',
+    extraItems: ['Fleece Hoodie', 'Steel Bottle']
   },
   {
     label: 'Most Declined Product',
-    value: 'Product Nine'
+    value: 'Earbuds X',
+    extraItems: ['Smart Watch', 'Runner Pro']
   },
   {
     label: 'Avg. Units Sold Per Order',
@@ -377,16 +441,16 @@ const productMetricCards = [
 ];
 
 const productPerformanceData = [
-  { product: 'Product One', current: 70, previous: 60 },
-  { product: 'Product Two', current: 68, previous: 50 },
-  { product: 'Product Three', current: 60, previous: 54 },
-  { product: 'Product Four', current: 55, previous: 16 },
-  { product: 'Product Five', current: 50, previous: 40 },
-  { product: 'Product Six', current: 49, previous: 61 },
-  { product: 'Product Seven', current: 45, previous: 37 },
-  { product: 'Product Eight', current: 32, previous: 25 },
-  { product: 'Product Nine', current: 29, previous: 35 },
-  { product: 'Product Ten', current: 27, previous: 17 }
+  { product: 'Core Tee', current: 70, previous: 60 },
+  { product: 'Fleece Hoodie', current: 68, previous: 50 },
+  { product: 'Runner Pro', current: 60, previous: 54 },
+  { product: 'Travel Pack', current: 55, previous: 16 },
+  { product: 'Canvas Tote', current: 50, previous: 40 },
+  { product: 'Earbuds X', current: 49, previous: 61 },
+  { product: 'Denim Jacket', current: 45, previous: 37 },
+  { product: 'Leather Wallet', current: 32, previous: 25 },
+  { product: 'Smart Watch', current: 29, previous: 35 },
+  { product: 'Steel Bottle', current: 27, previous: 17 }
 ];
 
 const salesChartLabels = [
@@ -475,12 +539,12 @@ const trendPopoverContent: Record<
   },
   cogs: {
     currentLabel: 'Current COGS',
-    currentValue: 'PKR 50,000',
+    currentValue: 'PKR 76,544',
     currentDate: '30/Sep/25',
     previousLabel: 'Previous COGS',
-    previousValue: 'PKR 54,000',
+    previousValue: 'PKR 83,200',
     previousDate: '29/Sep/25',
-    changeValue: 'PKR 4,000',
+    changeValue: 'PKR 6,656',
     changePercent: '8%',
     direction: 'down'
   },
@@ -511,27 +575,190 @@ const trendPopoverContent: Record<
 const formatCustomDate = (value: string) =>
   new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
+const getFilteredOptions = (options: string[], query: string) => {
+  const trimmedQuery = query.trim().toLowerCase();
+  if (!trimmedQuery) return options;
+  return options.filter((item) => item.toLowerCase().includes(trimmedQuery));
+};
+
+const formatMultiSelectLabel = (selected: string[], placeholder: string, singular: string, plural: string) => {
+  if (selected.length === 0) return placeholder;
+  if (selected.length === 1) return selected[0];
+  return `${selected.length} ${selected.length === 1 ? singular : plural}`;
+};
+
+const toggleMultiSelectValue = (current: string[], value: string) =>
+  current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+
+function InfoTooltip({ text, widthClass = 'tu-w-[190px]' }: { text: string; widthClass?: string }) {
+  return (
+    <div
+      className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover:tu-opacity-100`}
+    >
+      {text}
+    </div>
+  );
+}
+
+function ComparisonPopover({
+  comparison,
+  trend,
+  direction
+}: {
+  comparison: ComparisonData;
+  trend: string;
+  direction: 'up' | 'down';
+}) {
+  const TrendIcon = direction === 'up' ? ArrowUpRight : ArrowDownRight;
+  const trendColor = direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+
+  return (
+    <div className="tu-absolute tu-right-0 tu-bottom-[calc(100%+8px)] tu-z-20 tu-w-[235px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+      <div className="tu-border-b tu-border-[#eceee8] tu-px-4 tu-py-2.5">
+        <h3 className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Current vs Previous Period</h3>
+      </div>
+      <div className="tu-px-4 tu-py-3">
+        <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
+          <div>
+            <p className="tu-text-[11px] tu-text-[#44464b]">Current</p>
+            <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{comparison.current}</p>
+          </div>
+          <p className="tu-text-[11px] tu-text-[#44464b]">{comparison.currentPeriodLabel ?? 'Current Period'}</p>
+        </div>
+        <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
+        <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
+          <div>
+            <p className="tu-text-[11px] tu-text-[#44464b]">Previous</p>
+            <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{comparison.previous}</p>
+          </div>
+          <p className="tu-text-[11px] tu-text-[#44464b]">{comparison.previousPeriodLabel ?? 'Previous Period'}</p>
+        </div>
+        <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
+        <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+          <div>
+            <p className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Change</p>
+            <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{comparison.change}</p>
+          </div>
+          <div className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${trendColor}`}>
+            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+            <span>{trend}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchableDropdownMenu({
+  open,
+  options,
+  selected,
+  onSelect,
+  searchValue,
+  onSearchChange,
+  multiSelect = false,
+  searchable = true,
+  widthClass = 'tu-w-[190px]',
+  showChevronForCustom = false
+}: {
+  open: boolean;
+  options: string[];
+  selected: string | string[];
+  onSelect: (value: string) => void;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  multiSelect?: boolean;
+  searchable?: boolean;
+  widthClass?: string;
+  showChevronForCustom?: boolean;
+}) {
+  if (!open) return null;
+
+  const filteredOptions = searchable ? getFilteredOptions(options, searchValue ?? '') : options;
+  const selectedValues = Array.isArray(selected) ? selected : [selected];
+
+  return (
+    <div
+      className={`tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 ${widthClass} tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]`}
+    >
+      {searchable ? (
+        <div className="tu-relative">
+          <Search className="tu-pointer-events-none tu-absolute tu-left-3 tu-top-1/2 tu-h-3.5 tu-w-3.5 -tu-translate-y-1/2 tu-text-[#9a9ca2]" />
+          <input
+            value={searchValue ?? ''}
+            onChange={(event) => onSearchChange?.(event.target.value)}
+            placeholder="Search"
+            className="tu-h-9 tu-w-full tu-rounded-[10px] tu-border tu-border-[#e1e6de] tu-bg-[#fafbf8] tu-pl-9 tu-pr-3 tu-text-[12px] tu-text-[#2f3133] outline-none placeholder:tu-text-[#9a9ca2] focus:tu-border-[#c6d3c1]"
+          />
+        </div>
+      ) : null}
+
+      <div className={`${searchable ? 'tu-mt-2' : ''} tu-max-h-[220px] tu-space-y-1 tu-overflow-y-auto`}>
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((item) => {
+            const isSelected = selectedValues.includes(item);
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onSelect(item)}
+                className={`tu-flex tu-w-full tu-items-center tu-justify-between tu-rounded-[10px] tu-px-3 tu-py-2.5 tu-text-left tu-text-[13px] tu-transition hover:tu-bg-[#f5f6f3] ${
+                  isSelected ? 'tu-bg-[#f5f6f3] tu-text-[#2a2c2f]' : 'tu-text-[#2f3133]'
+                }`}
+              >
+                <div className="tu-flex tu-items-center tu-gap-2.5">
+                  {multiSelect ? (
+                    <span
+                      className={`tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-[4px] tu-border ${
+                        isSelected ? 'tu-border-[#10c562] tu-bg-[#10c562]' : 'tu-border-[#cfd7cd] tu-bg-white'
+                      }`}
+                    >
+                      {isSelected ? <span className="tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-white" /> : null}
+                    </span>
+                  ) : null}
+                  <span>{item}</span>
+                </div>
+                {showChevronForCustom && item === 'Custom' ? (
+                  <ChevronRight className="tu-h-3.5 tu-w-3.5 tu-text-[#9d9ea2]" />
+                ) : null}
+              </button>
+            );
+          })
+        ) : (
+          <div className="tu-rounded-[10px] tu-bg-[#fafbf8] tu-px-3 tu-py-2.5 tu-text-[12px] tu-text-[#8f9197]">
+            No results found
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('sales');
   const [openDateMenu, setOpenDateMenu] = useState<PeriodKey | null>(null);
+  const [dateMenuSearch, setDateMenuSearch] = useState('');
   const [customDateCard, setCustomDateCard] = useState<PeriodKey | null>(null);
   const [hoveredMetric, setHoveredMetric] = useState<{ period: PeriodKey; metric: MetricKey } | null>(null);
   const [hoveredTrend, setHoveredTrend] = useState<{ period: PeriodKey; metric: MetricKey } | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [openGlanceDateMenu, setOpenGlanceDateMenu] = useState(false);
   const [openStoreMenu, setOpenStoreMenu] = useState(false);
+  const [hoveredGlanceKpi, setHoveredGlanceKpi] = useState<string | null>(null);
   const [selectedGlanceDate, setSelectedGlanceDate] = useState('This Week');
-  const [selectedStore, setSelectedStore] = useState('Select Store');
+  const [selectedStore, setSelectedStore] = useState<string[]>([]);
+  const [glanceMenuSearch, setGlanceMenuSearch] = useState({ date: '', store: '' });
   const [salesMenus, setSalesMenus] = useState<{ store: boolean; metric: boolean; date: boolean; region: boolean }>({
     store: false,
     metric: false,
     date: false,
     region: false
   });
-  const [selectedSalesStore, setSelectedSalesStore] = useState('All Stores');
+  const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>(salesStoreOptions);
   const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Revenue');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
-  const [selectedSalesRegion, setSelectedSalesRegion] = useState('Pakistan');
+  const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>(['Pakistan']);
+  const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '' });
   const [locationMenus, setLocationMenus] = useState<{ metric: boolean; date: boolean; region: boolean }>({
     metric: false,
     date: false,
@@ -539,7 +766,8 @@ export default function App() {
   });
   const [selectedLocationMetric, setSelectedLocationMetric] = useState('Orders Volume');
   const [selectedLocationDate, setSelectedLocationDate] = useState('Last 30 Days');
-  const [selectedLocationRegion, setSelectedLocationRegion] = useState('Pakistan');
+  const [selectedLocationRegion, setSelectedLocationRegion] = useState<string[]>(['Pakistan']);
+  const [locationMenuSearch, setLocationMenuSearch] = useState({ metric: '', date: '', region: '' });
   const [productMenus, setProductMenus] = useState<{ metric: boolean; date: boolean; region: boolean }>({
     metric: false,
     date: false,
@@ -547,9 +775,11 @@ export default function App() {
   });
   const [selectedProductMetric, setSelectedProductMetric] = useState('Units Sold');
   const [selectedProductDate, setSelectedProductDate] = useState('Last 30 Days');
-  const [selectedProductRegion, setSelectedProductRegion] = useState('Pakistan');
+  const [selectedProductRegion, setSelectedProductRegion] = useState<string[]>(['Pakistan']);
+  const [productMenuSearch, setProductMenuSearch] = useState({ metric: '', date: '', region: '' });
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredSalesKpi, setHoveredSalesKpi] = useState<string | null>(null);
+  const [hoveredLocationKpi, setHoveredLocationKpi] = useState<string | null>(null);
   const [hoveredProductKpi, setHoveredProductKpi] = useState<string | null>(null);
   const [cardDates, setCardDates] = useState<
     Record<PeriodKey, { title: string; dateLabel: string; from: string; to: string }>
@@ -580,6 +810,7 @@ export default function App() {
     }));
     setOpenDateMenu(null);
     setCustomDateCard(null);
+    setDateMenuSearch('');
   };
 
   const applyCustomDateRange = (periodKey: PeriodKey) => {
@@ -593,12 +824,23 @@ export default function App() {
     }));
     setOpenDateMenu(null);
     setCustomDateCard(null);
+    setDateMenuSearch('');
   };
+
+  const activeSalesStoreSeries = useMemo(
+    () => storeSeries.filter((series) => selectedSalesStore.includes(series.name)),
+    [selectedSalesStore]
+  );
+
+  const salesStoreSummaryLabel =
+    selectedSalesStore.length === salesStoreOptions.length
+      ? 'All Stores'
+      : formatMultiSelectLabel(selectedSalesStore, 'Select Stores', 'store', 'stores');
 
   const salesChartData = useMemo(
     () => ({
       labels: salesChartLabels,
-      datasets: storeSeries.map((series) => ({
+      datasets: activeSalesStoreSeries.map((series) => ({
         label: series.name,
         data: series.data,
         borderColor: series.color,
@@ -612,7 +854,7 @@ export default function App() {
         tension: 0.38
       }))
     }),
-    []
+    [activeSalesStoreSeries]
   );
 
   const salesChartOptions = useMemo(
@@ -696,7 +938,14 @@ export default function App() {
     []
   );
 
-  const salesTooltipData = hoveredSalesPoint ? dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length] : null;
+  const salesTooltipData = hoveredSalesPoint
+    ? {
+        ...dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length],
+        stores: dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length].stores.filter((store) =>
+          selectedSalesStore.includes(store.name)
+        )
+      }
+    : null;
 
   const locationChartData = useMemo(
     () => ({
@@ -989,6 +1238,7 @@ export default function App() {
                             onClick={() => {
                               setOpenDateMenu(isDateMenuOpen ? null : period.key);
                               setCustomDateCard(null);
+                              setDateMenuSearch('');
                             }}
                             className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#7f838a] hover:tu-text-[#2a2c2f]"
                           >
@@ -996,38 +1246,30 @@ export default function App() {
                             <ChevronDown className="tu-h-3 tu-w-3" />
                           </button>
 
-                          {isDateMenuOpen ? (
-                            <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 tu-w-[170px] tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                              {dateMenu.map((item, index) => (
-                                <button
-                                  key={item}
-                                  type="button"
-                                  onClick={() => {
-                                    if (item === 'Custom') {
-                                      setCustomDateCard(period.key);
-                                      return;
-                                    }
+                          <SearchableDropdownMenu
+                            open={isDateMenuOpen}
+                            options={dateMenu}
+                            selected=""
+                            searchable={false}
+                            widthClass="tu-w-[190px]"
+                            showChevronForCustom
+                            onSelect={(item) => {
+                              if (item === 'Custom') {
+                                setCustomDateCard(period.key);
+                                return;
+                              }
 
-                                    const presetMap = {
-                                      Today: 'today',
-                                      Yesterday: 'yesterday',
-                                      'Last 7 Days': 'last7',
-                                      'Last 30 Days': 'last30',
-                                      'Last 90 Days': 'last90',
-                                      'Last 365 Days': 'last365'
-                                    } as const;
-                                    applyDatePreset(period.key, presetMap[item as keyof typeof presetMap]);
-                                  }}
-                                  className={`tu-flex tu-w-full tu-items-center tu-justify-between tu-px-3.5 tu-py-2.5 tu-text-left tu-text-[13px] tu-text-[#2f3133] hover:tu-bg-[#f5f6f3] ${
-                                    index === 0 ? 'tu-bg-[#f5f6f3]' : ''
-                                  }`}
-                                >
-                                  <span>{item}</span>
-                                  {item === 'Custom' ? <ChevronRight className="tu-h-3.5 tu-w-3.5 tu-text-[#9d9ea2]" /> : null}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
+                              const presetMap = {
+                                Today: 'today',
+                                Yesterday: 'yesterday',
+                                'Last 7 Days': 'last7',
+                                'Last 30 Days': 'last30',
+                                'Last 90 Days': 'last90',
+                                'Last 365 Days': 'last365'
+                              } as const;
+                              applyDatePreset(period.key, presetMap[item as keyof typeof presetMap]);
+                            }}
+                          />
 
                           {customDateCard === period.key ? (
                             <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-40 tu-w-[230px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-3 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
@@ -1133,7 +1375,7 @@ export default function App() {
                               </button>
 
                               {metricHoverOpen ? (
-                                <div className="tu-absolute tu-left-0 tu-top-[calc(100%+8px)] tu-z-20 tu-w-[280px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-3 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)] before:tu-absolute before:tu-left-[34px] before:tu-top-[-7px] before:tu-h-3.5 before:tu-w-3.5 before:tu-rotate-45 before:tu-border-l before:tu-border-t before:tu-border-[#ededed] before:tu-bg-white before:tu-content-['']">
+                                <div className="tu-absolute tu-bottom-[calc(100%+10px)] tu-left-0 tu-z-20 tu-w-[280px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-3 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)] before:tu-absolute before:tu-bottom-[-7px] before:tu-left-[34px] before:tu-h-3.5 before:tu-w-3.5 before:tu-rotate-45 before:tu-border-b before:tu-border-r before:tu-border-[#ededed] before:tu-bg-white before:tu-content-['']">
                                   <div className="tu-space-y-2">
                                     {metricPopoverContent[metric.key].map((item, index) => (
                                       <div
@@ -1163,10 +1405,10 @@ export default function App() {
                               ) : null}
 
                               {trendHoverOpen ? (
-                                <div className="tu-absolute tu-left-0 tu-top-[calc(100%+8px)] tu-z-20 tu-w-[245px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+                                <div className="tu-absolute tu-bottom-[calc(100%+10px)] tu-left-0 tu-z-20 tu-w-[245px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
                                   <div className="tu-border-b tu-border-[#eceee8] tu-px-4 tu-py-2.5">
                                     <h3 className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">
-                                      Current vs Pervious Period
+                                      Current vs Previous Period
                                     </h3>
                                   </div>
                                   <div className="tu-px-4 tu-py-3">
@@ -1254,7 +1496,7 @@ export default function App() {
             </section>
 
             <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
-              <div className="tu-flex tu-flex-col tu-gap-3 lg:tu-flex-row lg:tu-items-start lg:tu-justify-between">
+              <div className="tu-flex tu-flex-col tu-gap-3 tu-pb-2 lg:tu-flex-row lg:tu-items-start lg:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">
                   Key Performance Metrics at a Glance
                 </h2>
@@ -1266,38 +1508,32 @@ export default function App() {
                       onClick={() => {
                         setOpenGlanceDateMenu((current) => !current);
                         setOpenStoreMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, date: '' }));
                       }}
-                      className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#7f838a] hover:tu-text-[#2a2c2f]"
+                      className="tu-inline-flex tu-h-10 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                     >
                       <span>{selectedGlanceDate}</span>
                       <ChevronDown className="tu-h-3 tu-w-3" />
                     </button>
 
-                    {openGlanceDateMenu ? (
-                      <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 tu-w-[170px] tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                        {glanceDateOptions.map((item, index) => (
-                          <button
-                            key={item}
-                            type="button"
-                            onClick={() => {
-                              setSelectedGlanceDate(item);
-                              setOpenGlanceDateMenu(false);
-                            }}
-                            className={`tu-flex tu-w-full tu-items-center tu-justify-between tu-px-3.5 tu-py-2.5 tu-text-left tu-text-[13px] tu-text-[#2f3133] hover:tu-bg-[#f5f6f3] ${
-                              index === 0 ? 'tu-bg-[#f5f6f3]' : ''
-                            }`}
-                          >
-                            <span>{item}</span>
-                            {item === 'Custom' ? <ChevronRight className="tu-h-3.5 tu-w-3.5 tu-text-[#9d9ea2]" /> : null}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
+                    <SearchableDropdownMenu
+                      open={openGlanceDateMenu}
+                      options={glanceDateOptions}
+                      selected={selectedGlanceDate}
+                      searchable={false}
+                      widthClass="tu-w-[190px]"
+                      showChevronForCustom
+                      onSelect={(item) => {
+                        setSelectedGlanceDate(item);
+                        setOpenGlanceDateMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, date: '' }));
+                      }}
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="tu-mt-4 tu-grid tu-gap-3 lg:tu-grid-cols-4">
+              <div className="tu-mt-3 tu-grid tu-gap-3 lg:tu-grid-cols-4">
                 {glanceMetrics.map((metric) => {
                   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                   const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
@@ -1309,7 +1545,12 @@ export default function App() {
                     >
                       <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                         <div className="tu-min-w-0">
-                          <p className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</p>
+                          <div className="tu-group tu-relative tu-inline-block">
+                            <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
+                              {metric.label}
+                            </button>
+                            <InfoTooltip text={glanceKpiTooltips[metric.label]} />
+                          </div>
                           <div className="tu-mt-1">
                             <p className="tu-text-[21px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
                           </div>
@@ -1322,40 +1563,42 @@ export default function App() {
                               onClick={() => {
                                 setOpenStoreMenu((current) => !current);
                                 setOpenGlanceDateMenu(false);
+                                setGlanceMenuSearch((current) => ({ ...current, store: '' }));
                               }}
                               className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#7f838a] hover:tu-text-[#2a2c2f]"
                             >
-                              <span>{selectedStore}</span>
+                              <span>{formatMultiSelectLabel(selectedStore, 'Select Store', 'store', 'stores')}</span>
                               <ChevronDown className="tu-h-3 tu-w-3" />
                             </button>
 
-                            {openStoreMenu ? (
-                              <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 tu-w-[190px] tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                                {storeOptions.map((item, index) => (
-                                  <button
-                                    key={item}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedStore(item);
-                                      setOpenStoreMenu(false);
-                                    }}
-                                    className={`tu-flex tu-w-full tu-items-center tu-justify-between tu-px-3.5 tu-py-2.5 tu-text-left tu-text-[13px] tu-text-[#2f3133] hover:tu-bg-[#f5f6f3] ${
-                                      index === 0 ? 'tu-bg-[#f5f6f3]' : ''
-                                    }`}
-                                  >
-                                    <span>{item}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            ) : null}
+                            <SearchableDropdownMenu
+                              open={openStoreMenu}
+                              options={storeOptions}
+                              selected={selectedStore}
+                              multiSelect
+                              searchValue={glanceMenuSearch.store}
+                              onSearchChange={(value) => setGlanceMenuSearch((current) => ({ ...current, store: value }))}
+                              widthClass="tu-w-[220px]"
+                              onSelect={(item) => setSelectedStore((current) => toggleMultiSelectValue(current, item))}
+                            />
                           </div>
                         ) : null}
                       </div>
                       <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                        <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}>
-                          {metric.trend}
-                          <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                        </span>
+                        <div className="tu-relative">
+                          <button
+                            type="button"
+                            onMouseEnter={() => setHoveredGlanceKpi(metric.label)}
+                            onMouseLeave={() => setHoveredGlanceKpi(null)}
+                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                          >
+                            {metric.trend}
+                            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                          </button>
+                          {hoveredGlanceKpi === metric.label ? (
+                            <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                          ) : null}
+                        </div>
                         <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                       </div>
                     </article>
@@ -1370,52 +1613,74 @@ export default function App() {
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
-                    { key: 'store', value: selectedSalesStore, options: salesStoreOptions },
+                    {
+                      key: 'store',
+                      value: salesStoreSummaryLabel,
+                      options: salesStoreOptions
+                    },
                     { key: 'metric', value: selectedSalesMetric, options: salesMetricOptions },
                     { key: 'date', value: selectedSalesDate, options: salesDateOptions },
-                    { key: 'region', value: selectedSalesRegion, options: salesRegionOptions }
+                    {
+                      key: 'region',
+                      value: formatMultiSelectLabel(selectedSalesRegion, 'All Countries', 'country', 'countries'),
+                      options: salesRegionOptions
+                    }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
                           setSalesMenus((current) => ({
                             store: false,
                             metric: false,
                             date: false,
                             region: false,
                             [menu.key]: !current[menu.key as keyof typeof current]
-                          }))
-                        }
+                          }));
+                          setSalesMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                        }}
                         className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                       >
                         <span>{menu.value}</span>
                         <ChevronDown className="tu-h-3 tu-w-3" />
                       </button>
 
-                      {salesMenus[menu.key as keyof typeof salesMenus] ? (
-                        <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 tu-w-[180px] tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                          {menu.options.map((item, index) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => {
-                                if (menu.key === 'store') setSelectedSalesStore(item);
-                                if (menu.key === 'metric') setSelectedSalesMetric(item);
-                                if (menu.key === 'date') setSelectedSalesDate(item);
-                                if (menu.key === 'region') setSelectedSalesRegion(item);
-                                setSalesMenus({ store: false, metric: false, date: false, region: false });
-                              }}
-                              className={`tu-flex tu-w-full tu-items-center tu-justify-between tu-px-3.5 tu-py-2.5 tu-text-left tu-text-[13px] tu-text-[#2f3133] hover:tu-bg-[#f5f6f3] ${
-                                index === 0 ? 'tu-bg-[#f5f6f3]' : ''
-                              }`}
-                            >
-                              <span>{item}</span>
-                              {item === 'Custom' ? <ChevronRight className="tu-h-3.5 tu-w-3.5 tu-text-[#9d9ea2]" /> : null}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
+                      <SearchableDropdownMenu
+                        open={salesMenus[menu.key as keyof typeof salesMenus]}
+                        options={menu.options}
+                        selected={
+                          menu.key === 'store'
+                            ? selectedSalesStore
+                            : menu.key === 'region'
+                              ? selectedSalesRegion
+                              : menu.key === 'metric'
+                                ? selectedSalesMetric
+                                : selectedSalesDate
+                        }
+                        multiSelect={menu.key === 'store' || menu.key === 'region'}
+                        searchable={menu.key !== 'date'}
+                        searchValue={salesMenuSearch[menu.key as keyof typeof salesMenuSearch]}
+                        onSearchChange={
+                          menu.key !== 'date'
+                            ? (value) => setSalesMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                            : undefined
+                        }
+                        widthClass={menu.key === 'store' || menu.key === 'region' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                        showChevronForCustom={menu.key === 'date'}
+                        onSelect={(item) => {
+                          if (menu.key === 'store') {
+                            setSelectedSalesStore((current) => toggleMultiSelectValue(current, item));
+                            return;
+                          }
+                          if (menu.key === 'region') {
+                            setSelectedSalesRegion((current) => toggleMultiSelectValue(current, item));
+                            return;
+                          }
+                          if (menu.key === 'metric') setSelectedSalesMetric(item);
+                          if (menu.key === 'date') setSelectedSalesDate(item);
+                          setSalesMenus({ store: false, metric: false, date: false, region: false });
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -1445,9 +1710,7 @@ export default function App() {
                             >
                               {metric.label}
                             </button>
-                            <div className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 tu-w-[190px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover:tu-opacity-100">
-                              {salesKpiTooltips[metric.label]}
-                            </div>
+                            <InfoTooltip text={salesKpiTooltips[metric.label]} />
                           </div>
 
                           <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
@@ -1488,39 +1751,7 @@ export default function App() {
                                 </button>
 
                                 {hoveredSalesKpi === metric.label ? (
-                                  <div className="tu-absolute tu-left-0 tu-top-[calc(100%+8px)] tu-z-20 tu-w-[235px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                                    <div className="tu-border-b tu-border-[#eceee8] tu-px-4 tu-py-2.5">
-                                      <h3 className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Current vs Pervious Period</h3>
-                                    </div>
-                                    <div className="tu-px-4 tu-py-3">
-                                      <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
-                                        <div>
-                                          <p className="tu-text-[11px] tu-text-[#44464b]">Current</p>
-                                          <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{metric.comparison!.current}</p>
-                                        </div>
-                                        <p className="tu-text-[11px] tu-text-[#44464b]">Current Period</p>
-                                      </div>
-                                      <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
-                                      <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
-                                        <div>
-                                          <p className="tu-text-[11px] tu-text-[#44464b]">Previous</p>
-                                          <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{metric.comparison!.previous}</p>
-                                        </div>
-                                        <p className="tu-text-[11px] tu-text-[#44464b]">Previous Period</p>
-                                      </div>
-                                      <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
-                                      <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
-                                        <div>
-                                          <p className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Change</p>
-                                          <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{metric.comparison!.change}</p>
-                                        </div>
-                                        <div className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${trendColor}`}>
-                                          <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                          <span>{metric.trend}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
+                                  <ComparisonPopover comparison={metric.comparison!} trend={metric.trend} direction={metric.direction} />
                                 ) : null}
                               </div>
                             ) : null}
@@ -1539,7 +1770,7 @@ export default function App() {
                     <Line data={salesChartData} options={salesChartOptions} />
                   </div>
 
-                  {hoveredSalesPoint && salesTooltipData ? (
+                  {hoveredSalesPoint && salesTooltipData && salesTooltipData.stores.length > 0 ? (
                     <div
                       className="tu-pointer-events-none tu-absolute tu-z-20 tu-w-[420px] tu-rounded-[16px] tu-border tu-border-[#ededed] tu-bg-white tu-p-4 tu-shadow-[0_20px_40px_rgba(31,41,55,0.20)]"
                       style={{
@@ -1581,46 +1812,59 @@ export default function App() {
                   {[
                     { key: 'metric', value: selectedLocationMetric, options: locationMetricOptions },
                     { key: 'date', value: selectedLocationDate, options: locationDateOptions },
-                    { key: 'region', value: selectedLocationRegion, options: locationRegionOptions }
+                    {
+                      key: 'region',
+                      value: formatMultiSelectLabel(selectedLocationRegion, 'All Countries', 'country', 'countries'),
+                      options: locationRegionOptions
+                    }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
                           setLocationMenus((current) => ({
                             metric: false,
                             date: false,
                             region: false,
                             [menu.key]: !current[menu.key as keyof typeof current]
-                          }))
-                        }
+                          }));
+                          setLocationMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                        }}
                         className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                       >
                         <span>{menu.value}</span>
                         <ChevronDown className="tu-h-3 tu-w-3" />
                       </button>
 
-                      {locationMenus[menu.key as keyof typeof locationMenus] ? (
-                        <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 tu-w-[180px] tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                          {menu.options.map((item, index) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => {
-                                if (menu.key === 'metric') setSelectedLocationMetric(item);
-                                if (menu.key === 'date') setSelectedLocationDate(item);
-                                if (menu.key === 'region') setSelectedLocationRegion(item);
-                                setLocationMenus({ metric: false, date: false, region: false });
-                              }}
-                              className={`tu-flex tu-w-full tu-items-center tu-justify-between tu-px-3.5 tu-py-2.5 tu-text-left tu-text-[13px] tu-text-[#2f3133] hover:tu-bg-[#f5f6f3] ${
-                                index === 0 ? 'tu-bg-[#f5f6f3]' : ''
-                              }`}
-                            >
-                              <span>{item}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
+                      <SearchableDropdownMenu
+                        open={locationMenus[menu.key as keyof typeof locationMenus]}
+                        options={menu.options}
+                        selected={
+                          menu.key === 'region'
+                            ? selectedLocationRegion
+                            : menu.key === 'metric'
+                              ? selectedLocationMetric
+                              : selectedLocationDate
+                        }
+                        multiSelect={menu.key === 'region'}
+                        searchable={menu.key !== 'date'}
+                        searchValue={locationMenuSearch[menu.key as keyof typeof locationMenuSearch]}
+                        onSearchChange={
+                          menu.key !== 'date'
+                            ? (value) => setLocationMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                            : undefined
+                        }
+                        widthClass={menu.key === 'region' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                        onSelect={(item) => {
+                          if (menu.key === 'region') {
+                            setSelectedLocationRegion((current) => toggleMultiSelectValue(current, item));
+                            return;
+                          }
+                          if (menu.key === 'metric') setSelectedLocationMetric(item);
+                          if (menu.key === 'date') setSelectedLocationDate(item);
+                          setLocationMenus({ metric: false, date: false, region: false });
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -1636,13 +1880,32 @@ export default function App() {
                       key={metric.label}
                       className="tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]"
                     >
-                      <p className="tu-text-[13px] tu-text-[#8f9197]">{metric.label}</p>
+                      <div className="tu-group tu-relative tu-inline-block">
+                        <button type="button" className="tu-text-[13px] tu-text-[#8f9197]">
+                          {metric.label}
+                        </button>
+                        <InfoTooltip text={locationKpiTooltips[metric.label]} />
+                      </div>
                       <div className="tu-mt-2 tu-flex tu-items-end tu-gap-2">
                         <p className="tu-text-[21px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
-                        <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}>
-                          {metric.trend}
-                          <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                        </span>
+                        <div className="tu-relative">
+                          <button
+                            type="button"
+                            onMouseEnter={() => setHoveredLocationKpi(metric.label)}
+                            onMouseLeave={() => setHoveredLocationKpi(null)}
+                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                          >
+                            {metric.trend}
+                            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                          </button>
+                          {hoveredLocationKpi === metric.label ? (
+                            <ComparisonPopover
+                              comparison={metric.comparison}
+                              trend={metric.trend}
+                              direction={metric.direction}
+                            />
+                          ) : null}
+                        </div>
                       </div>
                     </article>
                   );
@@ -1664,46 +1927,59 @@ export default function App() {
                   {[
                     { key: 'metric', value: selectedProductMetric, options: productMetricOptions },
                     { key: 'date', value: selectedProductDate, options: productDateOptions },
-                    { key: 'region', value: selectedProductRegion, options: productRegionOptions }
+                    {
+                      key: 'region',
+                      value: formatMultiSelectLabel(selectedProductRegion, 'All Countries', 'country', 'countries'),
+                      options: productRegionOptions
+                    }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
                           setProductMenus((current) => ({
                             metric: false,
                             date: false,
                             region: false,
                             [menu.key]: !current[menu.key as keyof typeof current]
-                          }))
-                        }
+                          }));
+                          setProductMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                        }}
                         className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                       >
                         <span>{menu.value}</span>
                         <ChevronDown className="tu-h-3 tu-w-3" />
                       </button>
 
-                      {productMenus[menu.key as keyof typeof productMenus] ? (
-                        <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 tu-w-[180px] tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                          {menu.options.map((item, index) => (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => {
-                                if (menu.key === 'metric') setSelectedProductMetric(item);
-                                if (menu.key === 'date') setSelectedProductDate(item);
-                                if (menu.key === 'region') setSelectedProductRegion(item);
-                                setProductMenus({ metric: false, date: false, region: false });
-                              }}
-                              className={`tu-flex tu-w-full tu-items-center tu-justify-between tu-px-3.5 tu-py-2.5 tu-text-left tu-text-[13px] tu-text-[#2f3133] hover:tu-bg-[#f5f6f3] ${
-                                index === 0 ? 'tu-bg-[#f5f6f3]' : ''
-                              }`}
-                            >
-                              <span>{item}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
+                      <SearchableDropdownMenu
+                        open={productMenus[menu.key as keyof typeof productMenus]}
+                        options={menu.options}
+                        selected={
+                          menu.key === 'region'
+                            ? selectedProductRegion
+                            : menu.key === 'metric'
+                              ? selectedProductMetric
+                              : selectedProductDate
+                        }
+                        multiSelect={menu.key === 'region'}
+                        searchable={menu.key !== 'date'}
+                        searchValue={productMenuSearch[menu.key as keyof typeof productMenuSearch]}
+                        onSearchChange={
+                          menu.key !== 'date'
+                            ? (value) => setProductMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                            : undefined
+                        }
+                        widthClass={menu.key === 'region' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                        onSelect={(item) => {
+                          if (menu.key === 'region') {
+                            setSelectedProductRegion((current) => toggleMultiSelectValue(current, item));
+                            return;
+                          }
+                          if (menu.key === 'metric') setSelectedProductMetric(item);
+                          if (menu.key === 'date') setSelectedProductDate(item);
+                          setProductMenus({ metric: false, date: false, region: false });
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -1727,19 +2003,30 @@ export default function App() {
                             <button type="button" className={`tu-text-[13px] ${index === 0 ? 'tu-text-[#7f9385]' : 'tu-text-[#8f9197]'}`}>
                               {metric.label}
                             </button>
-                            <div className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 tu-w-[190px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover:tu-opacity-100">
-                              {productKpiTooltips[metric.label]}
-                            </div>
+                            <InfoTooltip text={productKpiTooltips[metric.label]} />
                           </div>
 
                           <div className={`tu-flex tu-items-end tu-gap-2 ${index === 0 ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
-                            <p
-                              className={`tu-text-[#333538] ${
-                                index === 0 ? 'tu-text-[24px] tu-font-semibold tu-leading-none' : 'tu-text-[17px] tu-font-medium tu-leading-none'
-                              }`}
-                            >
-                              {metric.value}
-                            </p>
+                            <div className="tu-flex tu-items-end tu-gap-2">
+                              <p
+                                className={`tu-text-[#333538] ${
+                                  index === 0 ? 'tu-text-[24px] tu-font-semibold tu-leading-none' : 'tu-text-[17px] tu-font-medium tu-leading-none'
+                                }`}
+                              >
+                                {metric.value}
+                              </p>
+                              {'extraItems' in metric && metric.extraItems?.length ? (
+                                <div className="tu-group tu-relative tu-inline-flex tu-items-center">
+                                  <button
+                                    type="button"
+                                    className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
+                                  >
+                                    and more
+                                  </button>
+                                  <InfoTooltip text={metric.extraItems.join(', ')} widthClass="tu-min-w-[150px]" />
+                                </div>
+                              ) : null}
+                            </div>
                             {hasTrend ? (
                               <div className="tu-relative">
                                 <button
@@ -1753,39 +2040,7 @@ export default function App() {
                                 </button>
 
                                 {hoveredProductKpi === metric.label ? (
-                                  <div className="tu-absolute tu-left-0 tu-top-[calc(100%+8px)] tu-z-20 tu-w-[235px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                                    <div className="tu-border-b tu-border-[#eceee8] tu-px-4 tu-py-2.5">
-                                      <h3 className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Current vs Pervious Period</h3>
-                                    </div>
-                                    <div className="tu-px-4 tu-py-3">
-                                      <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
-                                        <div>
-                                          <p className="tu-text-[11px] tu-text-[#44464b]">Current</p>
-                                          <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{metric.comparison!.current}</p>
-                                        </div>
-                                        <p className="tu-text-[11px] tu-text-[#44464b]">Current Period</p>
-                                      </div>
-                                      <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
-                                      <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
-                                        <div>
-                                          <p className="tu-text-[11px] tu-text-[#44464b]">Previous</p>
-                                          <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{metric.comparison!.previous}</p>
-                                        </div>
-                                        <p className="tu-text-[11px] tu-text-[#44464b]">Previous Period</p>
-                                      </div>
-                                      <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
-                                      <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
-                                        <div>
-                                          <p className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Change</p>
-                                          <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{metric.comparison!.change}</p>
-                                        </div>
-                                        <div className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${trendColor}`}>
-                                          <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                          <span>{metric.trend}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
+                                  <ComparisonPopover comparison={metric.comparison!} trend={metric.trend!} direction={metric.direction!} />
                                 ) : null}
                               </div>
                             ) : null}
