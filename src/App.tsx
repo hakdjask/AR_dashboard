@@ -33,6 +33,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30';
 type TabKey = 'courier' | 'sales';
 type MetricKey = 'netSales' | 'cogs' | 'expenses' | 'netProfit';
+type StoreChartMetricKey = 'grossRevenue' | 'orderReturns' | 'unitsSold';
 type ComparisonData = {
   current: string;
   previous: string;
@@ -294,54 +295,22 @@ const salesKpiTooltips: Record<string, string> = {
   'Total Revenue': 'Gross revenue generated across all selected stores in the active period.',
   'Highest Store Revenue': 'Store with the strongest revenue contribution in the selected period.',
   'Average Revenue per Store': 'Average revenue contribution across active stores in the selected view.',
-  'Peak Revenue Day': 'Day with the highest gross revenue in the selected date range.'
+  'Peak Revenue Day': 'Day with the highest gross revenue in the selected date range.',
+  'Total Units Sold': 'Total units sold across all selected stores in the active period.',
+  'Top Store by Units Sold': 'Store contributing the highest units sold in the selected period.',
+  'Average Units Sold per Store': 'Average units sold contribution across selected stores.',
+  'Peak Units Sold Day': 'Day with the highest units sold in the selected date range.',
+  'Total Order Returns': 'Total returned orders recorded across selected stores in the active period.',
+  'Highest Store Returns': 'Store recording the highest order returns in the selected period.',
+  'Average Returns per Store': 'Average order returns across selected stores.',
+  'Peak Returns Day': 'Day with the highest returns count in the selected date range.'
 };
 
-const salesMetricCards = [
-  {
-    label: 'Total Orders',
-    value: '35,140',
-    trend: '10.0%',
-    direction: 'up' as const,
-    comparison: { current: '35,140', previous: '31,945', change: '3,195' }
-  },
-  {
-    label: 'Total Revenue',
-    value: 'PKR 20,00,000',
-    trend: '10.0%',
-    direction: 'down' as const,
-    comparison: { current: 'PKR 20,00,000', previous: 'PKR 22,20,000', change: 'PKR 2,20,000' }
-  },
-  {
-    label: 'Highest Store Revenue',
-    value: 'Shopify-01',
-    trend: '7.4%',
-    direction: 'up' as const,
-    comparison: { current: 'Shopify-01', previous: 'Daraz-02', change: '7.4%' },
-    extraStores: ['Daraz-02', 'WOO-01']
-  },
-  {
-    label: 'Average Revenue per Store',
-    value: 'PKR 3,00,000',
-    trend: '10.0%',
-    direction: 'down' as const,
-    comparison: { current: 'PKR 3,00,000', previous: 'PKR 3,33,000', change: 'PKR 33,000' }
-  },
-  {
-    label: 'Peak Revenue Day',
-    value: '13th April 2025',
-    trend: '12.8%',
-    direction: 'up' as const,
-    comparison: { current: '13th April 2025', previous: '9th April 2025', change: '12.8%' },
-    hideTrend: true
-  }
-];
-
 const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
-const salesMetricOptions = ['Gross Revenue', 'Total Orders', 'Average Order Value'];
+const salesMetricOptions = ['Gross Revenue', 'Order Returns', 'Units Sold'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const salesRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
-const locationMetricOptions = ['Orders Volume', 'Gross Revenue', 'Average Order Value'];
+const locationMetricOptions = ['Orders Volume', 'Gross Revenue'];
 const locationDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const locationRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
 
@@ -349,7 +318,8 @@ const locationKpiTooltips: Record<string, string> = {
   'Top Performing Location': 'Location generating the highest result in the selected metric and period.',
   'Most Improved Location': 'Location with the strongest positive change versus the previous period.',
   'Most Declined Location': 'Location with the steepest drop versus the previous period.',
-  'Average Orders Per Location': 'Average order volume contributed by each active location.'
+  'Average Orders Per Location': 'Average order volume contributed by each active location.',
+  'Average Revenue per Location': 'Average revenue contributed by each active location in the selected period.'
 };
 
 const locationKpiCards = [
@@ -384,74 +354,100 @@ const locationKpiCards = [
 ];
 
 const locationPerformanceData = [
-  { location: 'Karachi', current: 400, previous: 350 },
-  { location: 'Lahore', current: 350, previous: 250 },
-  { location: 'Islamabad', current: 300, previous: 340 },
-  { location: 'Peshawar', current: 250, previous: 187 },
-  { location: 'Quetta', current: 200, previous: 240 },
-  { location: 'Gilgit', current: 180, previous: 120 },
-  { location: 'Hub', current: 160, previous: 180 },
-  { location: 'Kashmir', current: 140, previous: 150 },
-  { location: 'Bahawalpur', current: 120, previous: 140 },
-  { location: 'Rawalpindi', current: 100, previous: 55 }
+  { location: 'Karachi', ordersCurrent: 400, ordersPrevious: 350, revenueCurrent: 4200000, revenuePrevious: 3720000 },
+  { location: 'Lahore', ordersCurrent: 350, ordersPrevious: 250, revenueCurrent: 3650000, revenuePrevious: 2840000 },
+  { location: 'Islamabad', ordersCurrent: 300, ordersPrevious: 340, revenueCurrent: 3180000, revenuePrevious: 3520000 },
+  { location: 'Peshawar', ordersCurrent: 250, ordersPrevious: 187, revenueCurrent: 2540000, revenuePrevious: 1960000 },
+  { location: 'Quetta', ordersCurrent: 200, ordersPrevious: 240, revenueCurrent: 2280000, revenuePrevious: 2590000 },
+  { location: 'Gilgit', ordersCurrent: 180, ordersPrevious: 120, revenueCurrent: 2010000, revenuePrevious: 1460000 },
+  { location: 'Hub', ordersCurrent: 160, ordersPrevious: 180, revenueCurrent: 1760000, revenuePrevious: 1930000 },
+  { location: 'Kashmir', ordersCurrent: 140, ordersPrevious: 150, revenueCurrent: 1620000, revenuePrevious: 1710000 },
+  { location: 'Bahawalpur', ordersCurrent: 120, ordersPrevious: 140, revenueCurrent: 1380000, revenuePrevious: 1520000 },
+  { location: 'Rawalpindi', ordersCurrent: 100, ordersPrevious: 55, revenueCurrent: 1140000, revenuePrevious: 760000 }
 ];
 
-const productMetricOptions = ['Units Sold', 'Gross Revenue', 'Orders Volume'];
+const locationMetricConfig: Record<
+  string,
+  {
+    currentKey: 'ordersCurrent' | 'revenueCurrent';
+    previousKey: 'ordersPrevious' | 'revenuePrevious';
+    axisMax: number;
+    stepSize: number;
+    tickFormatter: (value: number) => string;
+  }
+> = {
+  'Orders Volume': {
+    currentKey: 'ordersCurrent',
+    previousKey: 'ordersPrevious',
+    axisMax: 420,
+    stepSize: 100,
+    tickFormatter: (value) => value.toFixed(0)
+  },
+  'Gross Revenue': {
+    currentKey: 'revenueCurrent',
+    previousKey: 'revenuePrevious',
+    axisMax: 4500000,
+    stepSize: 1000000,
+    tickFormatter: (value) => `${(value / 1000000).toFixed(1)}M`
+  }
+};
+
+const productMetricOptions = ['Units Sold', 'Revenue Generated'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const productRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
 
 const productKpiTooltips: Record<string, string> = {
   'Total Units Sold': 'Total units sold across the selected products and period.',
+  'Total Revenue Generated': 'Total revenue generated across the selected products and period.',
   'Best Selling Product': 'Product with the highest units sold in the selected period.',
+  'Top Revenue Product': 'Product generating the highest revenue in the selected period.',
   'Most Improved Product': 'Product with the strongest positive change in units sold.',
+  'Most Improved Revenue Product': 'Product with the strongest positive revenue change in the selected period.',
   'Most Declined Product': 'Product with the sharpest decline in units sold.',
+  'Most Declined Revenue Product': 'Product with the sharpest revenue decline in the selected period.',
   'Avg. Units Sold Per Order': 'Average units sold per order across the selected products.'
+  ,
+  'Avg. Revenue Generated Per Order': 'Average revenue generated per order across the selected products.'
 };
 
-const productMetricCards = [
-  {
-    label: 'Total Units Sold',
-    value: '44,000',
-    trend: '10.0%',
-    direction: 'up' as const,
-    comparison: { current: '44,000', previous: '40,000', change: '4,000' }
-  },
-  {
-    label: 'Best Selling Product',
-    value: 'Core Tee',
-    extraItems: ['Fleece Hoodie', 'Runner Pro']
-  },
-  {
-    label: 'Most Improved Product',
-    value: 'Travel Pack',
-    extraItems: ['Fleece Hoodie', 'Steel Bottle']
-  },
-  {
-    label: 'Most Declined Product',
-    value: 'Earbuds X',
-    extraItems: ['Smart Watch', 'Runner Pro']
-  },
-  {
-    label: 'Avg. Units Sold Per Order',
-    value: '1,000',
-    trend: '10.0%',
-    direction: 'down' as const,
-    comparison: { current: '1,000', previous: '1,110', change: '110' }
-  }
+const productPerformanceData = [
+  { product: 'Core Tee', unitsCurrent: 70, unitsPrevious: 60, revenueCurrent: 980000, revenuePrevious: 845000 },
+  { product: 'Fleece Hoodie', unitsCurrent: 68, unitsPrevious: 50, revenueCurrent: 1240000, revenuePrevious: 910000 },
+  { product: 'Runner Pro', unitsCurrent: 60, unitsPrevious: 54, revenueCurrent: 1120000, revenuePrevious: 1015000 },
+  { product: 'Travel Pack', unitsCurrent: 55, unitsPrevious: 16, revenueCurrent: 1360000, revenuePrevious: 420000 },
+  { product: 'Canvas Tote', unitsCurrent: 50, unitsPrevious: 40, revenueCurrent: 760000, revenuePrevious: 640000 },
+  { product: 'Earbuds X', unitsCurrent: 49, unitsPrevious: 61, revenueCurrent: 1480000, revenuePrevious: 1710000 },
+  { product: 'Denim Jacket', unitsCurrent: 45, unitsPrevious: 37, revenueCurrent: 1180000, revenuePrevious: 980000 },
+  { product: 'Leather Wallet', unitsCurrent: 32, unitsPrevious: 25, revenueCurrent: 540000, revenuePrevious: 410000 },
+  { product: 'Smart Watch', unitsCurrent: 29, unitsPrevious: 35, revenueCurrent: 1320000, revenuePrevious: 1480000 },
+  { product: 'Steel Bottle', unitsCurrent: 27, unitsPrevious: 17, revenueCurrent: 470000, revenuePrevious: 290000 }
 ];
 
-const productPerformanceData = [
-  { product: 'Core Tee', current: 70, previous: 60 },
-  { product: 'Fleece Hoodie', current: 68, previous: 50 },
-  { product: 'Runner Pro', current: 60, previous: 54 },
-  { product: 'Travel Pack', current: 55, previous: 16 },
-  { product: 'Canvas Tote', current: 50, previous: 40 },
-  { product: 'Earbuds X', current: 49, previous: 61 },
-  { product: 'Denim Jacket', current: 45, previous: 37 },
-  { product: 'Leather Wallet', current: 32, previous: 25 },
-  { product: 'Smart Watch', current: 29, previous: 35 },
-  { product: 'Steel Bottle', current: 27, previous: 17 }
-];
+const productMetricConfig: Record<
+  string,
+  {
+    currentKey: 'unitsCurrent' | 'revenueCurrent';
+    previousKey: 'unitsPrevious' | 'revenuePrevious';
+    axisMax: number;
+    stepSize: number;
+    tickFormatter: (value: number) => string;
+  }
+> = {
+  'Units Sold': {
+    currentKey: 'unitsCurrent',
+    previousKey: 'unitsPrevious',
+    axisMax: 75,
+    stepSize: 10,
+    tickFormatter: (value) => value.toFixed(0)
+  },
+  'Revenue Generated': {
+    currentKey: 'revenueCurrent',
+    previousKey: 'revenuePrevious',
+    axisMax: 1600000,
+    stepSize: 200000,
+    tickFormatter: (value) => `${(value / 1000000).toFixed(1)}M`
+  }
+};
 
 const salesChartLabels = [
   '1 Apr',
@@ -472,45 +468,112 @@ const salesChartLabels = [
 ];
 
 const storeSeries = [
-  { name: 'Daraz-02', color: '#22B8C5', data: [71000, 94000, 72000, 83000, 78000, 79000, 66000, 22000, 58000, 29000, 64000, 55000, 73000, 63000, 67000] },
-  { name: 'Shopify-01', color: '#F97316', data: [34000, 95000, 21000, 79000, 41000, 100000, 81000, 70000, 37000, 72000, 27000, 69000, 23000, 53000, 34000] },
-  { name: 'WOO-01', color: '#9D7AE5', data: [91000, 43000, 49000, 40000, 68000, 34000, 71000, 26000, 23000, 21000, 66000, 24000, 74000, 93000, 91000] },
-  { name: 'Shopify-02', color: '#4FE3D5', data: [80000, 22000, 57000, 52000, 78000, 81000, 74000, 40000, 79000, 79000, 54000, 21000, 82000, 81000, 98000] },
-  { name: 'Shopify-03', color: '#D946EF', data: [40000, 41000, 21000, 95000, 61000, 81000, 83000, 92000, 33000, 90000, 97000, 25000, 37000, 33000, 81000] }
+  {
+    name: 'Daraz-02',
+    color: '#22B8C5',
+    grossRevenue: [71000, 94000, 72000, 83000, 78000, 79000, 66000, 22000, 58000, 29000, 64000, 55000, 73000, 63000, 67000],
+    orderReturns: [420, 860, 510, 740, 620, 790, 670, 230, 540, 310, 690, 570, 760, 640, 810],
+    unitsSold: [140, 820, 210, 360, 435, 690, 720, 560, 670, 610, 745, 702, 888, 952, 434]
+  },
+  {
+    name: 'Shopify-01',
+    color: '#F97316',
+    grossRevenue: [34000, 95000, 21000, 79000, 41000, 100000, 81000, 70000, 37000, 72000, 27000, 69000, 23000, 53000, 34000],
+    orderReturns: [280, 910, 190, 760, 340, 980, 820, 690, 260, 720, 210, 660, 180, 470, 290],
+    unitsSold: [520, 890, 430, 810, 560, 940, 860, 780, 510, 805, 440, 730, 460, 610, 525]
+  },
+  {
+    name: 'WOO-01',
+    color: '#9D7AE5',
+    grossRevenue: [91000, 43000, 49000, 40000, 68000, 34000, 71000, 26000, 23000, 21000, 66000, 24000, 74000, 93000, 91000],
+    orderReturns: [760, 330, 420, 390, 610, 280, 670, 240, 210, 190, 640, 220, 710, 880, 790],
+    unitsSold: [860, 610, 640, 590, 760, 540, 790, 470, 430, 410, 772, 450, 804, 895, 870]
+  },
+  {
+    name: 'Shopify-02',
+    color: '#4FE3D5',
+    grossRevenue: [80000, 22000, 57000, 52000, 78000, 81000, 74000, 40000, 79000, 79000, 54000, 21000, 82000, 81000, 98000],
+    orderReturns: [690, 170, 520, 460, 710, 760, 690, 360, 730, 720, 490, 180, 790, 770, 930],
+    unitsSold: [780, 360, 640, 615, 805, 820, 790, 520, 812, 818, 626, 355, 840, 826, 968]
+  },
+  {
+    name: 'Shopify-03',
+    color: '#D946EF',
+    grossRevenue: [40000, 41000, 21000, 95000, 61000, 81000, 83000, 92000, 33000, 90000, 97000, 25000, 37000, 33000, 81000],
+    orderReturns: [310, 340, 180, 900, 560, 760, 790, 870, 250, 850, 920, 210, 300, 260, 780],
+    unitsSold: [540, 560, 390, 910, 700, 815, 836, 902, 500, 888, 940, 410, 520, 485, 820]
+  }
 ];
 
 const dayBreakdown = [
   {
     date: 'May 12, 2023',
     stores: [
-      { name: 'Daraz-02', orders: 98, revenue: 'PKR 1,350,000', color: '#22B8C5' },
-      { name: 'Shopify-01', orders: 47, revenue: 'PKR 2,410,445', color: '#F97316' },
-      { name: 'WOO-01', orders: 47, revenue: 'PKR 1,324,350', color: '#9D7AE5' },
-      { name: 'Shopify-02', orders: 71, revenue: 'PKR 1,311,785', color: '#4FE3D5' },
-      { name: 'Shopify-03', orders: 100, revenue: 'PKR 1,311,785', color: '#D946EF' }
+      { name: 'Daraz-02', totalOrders: 98, grossRevenue: 1350000, orderReturns: 420, unitsSold: 640, color: '#22B8C5' },
+      { name: 'Shopify-01', totalOrders: 47, grossRevenue: 2410445, orderReturns: 280, unitsSold: 520, color: '#F97316' },
+      { name: 'WOO-01', totalOrders: 47, grossRevenue: 1324350, orderReturns: 760, unitsSold: 860, color: '#9D7AE5' },
+      { name: 'Shopify-02', totalOrders: 71, grossRevenue: 1311785, orderReturns: 690, unitsSold: 780, color: '#4FE3D5' },
+      { name: 'Shopify-03', totalOrders: 100, grossRevenue: 1311785, orderReturns: 310, unitsSold: 540, color: '#D946EF' }
     ]
   },
   {
     date: 'May 14, 2023',
     stores: [
-      { name: 'Daraz-02', orders: 84, revenue: 'PKR 1,145,200', color: '#22B8C5' },
-      { name: 'Shopify-01', orders: 42, revenue: 'PKR 2,088,410', color: '#F97316' },
-      { name: 'WOO-01', orders: 50, revenue: 'PKR 1,402,780', color: '#9D7AE5' },
-      { name: 'Shopify-02', orders: 68, revenue: 'PKR 1,274,300', color: '#4FE3D5' },
-      { name: 'Shopify-03', orders: 92, revenue: 'PKR 1,254,600', color: '#D946EF' }
+      { name: 'Daraz-02', totalOrders: 84, grossRevenue: 1145200, orderReturns: 740, unitsSold: 760, color: '#22B8C5' },
+      { name: 'Shopify-01', totalOrders: 42, grossRevenue: 2088410, orderReturns: 340, unitsSold: 560, color: '#F97316' },
+      { name: 'WOO-01', totalOrders: 50, grossRevenue: 1402780, orderReturns: 610, unitsSold: 760, color: '#9D7AE5' },
+      { name: 'Shopify-02', totalOrders: 68, grossRevenue: 1274300, orderReturns: 710, unitsSold: 805, color: '#4FE3D5' },
+      { name: 'Shopify-03', totalOrders: 92, grossRevenue: 1254600, orderReturns: 560, unitsSold: 700, color: '#D946EF' }
     ]
   },
   {
     date: 'May 16, 2023',
     stores: [
-      { name: 'Daraz-02', orders: 76, revenue: 'PKR 1,010,000', color: '#22B8C5' },
-      { name: 'Shopify-01', orders: 51, revenue: 'PKR 2,220,110', color: '#F97316' },
-      { name: 'WOO-01', orders: 45, revenue: 'PKR 1,280,120', color: '#9D7AE5' },
-      { name: 'Shopify-02', orders: 74, revenue: 'PKR 1,410,000', color: '#4FE3D5' },
-      { name: 'Shopify-03', orders: 105, revenue: 'PKR 1,522,900', color: '#D946EF' }
+      { name: 'Daraz-02', totalOrders: 76, grossRevenue: 1010000, orderReturns: 670, unitsSold: 720, color: '#22B8C5' },
+      { name: 'Shopify-01', totalOrders: 51, grossRevenue: 2220110, orderReturns: 820, unitsSold: 860, color: '#F97316' },
+      { name: 'WOO-01', totalOrders: 45, grossRevenue: 1280120, orderReturns: 670, unitsSold: 790, color: '#9D7AE5' },
+      { name: 'Shopify-02', totalOrders: 74, grossRevenue: 1410000, orderReturns: 690, unitsSold: 790, color: '#4FE3D5' },
+      { name: 'Shopify-03', totalOrders: 105, grossRevenue: 1522900, orderReturns: 790, unitsSold: 836, color: '#D946EF' }
     ]
   }
 ];
+
+const storeChartMetricConfig: Record<
+  string,
+  {
+    key: StoreChartMetricKey;
+    label: string;
+    formatValue: (value: number) => string;
+    axisMax: number;
+    stepSize: number;
+    tickFormatter: (value: number) => string;
+  }
+> = {
+  'Gross Revenue': {
+    key: 'grossRevenue',
+    label: 'Gross Revenue',
+    formatValue: (value) => `PKR ${value.toLocaleString('en-US')}`,
+    axisMax: 110000,
+    stepSize: 20000,
+    tickFormatter: (value) => `${(value / 1000).toFixed(1)}`
+  },
+  'Order Returns': {
+    key: 'orderReturns',
+    label: 'Order Returns',
+    formatValue: (value) => value.toLocaleString('en-US'),
+    axisMax: 1000,
+    stepSize: 200,
+    tickFormatter: (value) => value.toFixed(0)
+  },
+  'Units Sold': {
+    key: 'unitsSold',
+    label: 'Units Sold',
+    formatValue: (value) => value.toLocaleString('en-US'),
+    axisMax: 1000,
+    stepSize: 200,
+    tickFormatter: (value) => value.toFixed(0)
+  }
+};
 
 const trendPopoverContent: Record<
   MetricKey,
@@ -831,6 +894,132 @@ export default function App() {
     () => storeSeries.filter((series) => selectedSalesStore.includes(series.name)),
     [selectedSalesStore]
   );
+  const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
+  const dynamicSalesMetricCards = useMemo(() => {
+    if (selectedSalesMetric === 'Units Sold') {
+      return [
+        {
+          label: 'Total Orders',
+          value: '35,140',
+          trend: '10.0%',
+          direction: 'up' as const,
+          comparison: { current: '35,140', previous: '31,945', change: '3,195' }
+        },
+        {
+          label: 'Total Units Sold',
+          value: '91,800',
+          trend: '11.6%',
+          direction: 'up' as const,
+          comparison: { current: '91,800', previous: '82,280', change: '9,520' }
+        },
+        {
+          label: 'Top Store by Units Sold',
+          value: 'Shopify-03',
+          trend: '8.1%',
+          direction: 'up' as const,
+          comparison: { current: 'Shopify-03', previous: 'WOO-01', change: '8.1%' },
+          extraStores: ['WOO-01', 'Shopify-02']
+        },
+        {
+          label: 'Average Units Sold per Store',
+          value: '18,360',
+          trend: '6.9%',
+          direction: 'up' as const,
+          comparison: { current: '18,360', previous: '17,176', change: '1,184' }
+        },
+        {
+          label: 'Peak Units Sold Day',
+          value: '21st April 2025',
+          trend: '9.4%',
+          direction: 'up' as const,
+          comparison: { current: '21st April 2025', previous: '18th April 2025', change: '9.4%' },
+          hideTrend: true
+        }
+      ];
+    }
+
+    if (selectedSalesMetric === 'Order Returns') {
+      return [
+        {
+          label: 'Total Orders',
+          value: '35,140',
+          trend: '10.0%',
+          direction: 'up' as const,
+          comparison: { current: '35,140', previous: '31,945', change: '3,195' }
+        },
+        {
+          label: 'Total Order Returns',
+          value: '8,420',
+          trend: '7.8%',
+          direction: 'down' as const,
+          comparison: { current: '8,420', previous: '9,130', change: '710' }
+        },
+        {
+          label: 'Highest Store Returns',
+          value: 'Shopify-02',
+          trend: '5.2%',
+          direction: 'down' as const,
+          comparison: { current: 'Shopify-02', previous: 'Shopify-03', change: '5.2%' },
+          extraStores: ['Shopify-03', 'WOO-01']
+        },
+        {
+          label: 'Average Returns per Store',
+          value: '1,684',
+          trend: '4.1%',
+          direction: 'down' as const,
+          comparison: { current: '1,684', previous: '1,826', change: '142' }
+        },
+        {
+          label: 'Peak Returns Day',
+          value: '11th April 2025',
+          trend: '6.2%',
+          direction: 'down' as const,
+          comparison: { current: '11th April 2025', previous: '14th April 2025', change: '6.2%' },
+          hideTrend: true
+        }
+      ];
+    }
+
+    return [
+      {
+        label: 'Total Orders',
+        value: '35,140',
+        trend: '10.0%',
+        direction: 'up' as const,
+        comparison: { current: '35,140', previous: '31,945', change: '3,195' }
+      },
+      {
+        label: 'Total Revenue',
+        value: 'PKR 20,00,000',
+        trend: '10.0%',
+        direction: 'down' as const,
+        comparison: { current: 'PKR 20,00,000', previous: 'PKR 22,20,000', change: 'PKR 2,20,000' }
+      },
+      {
+        label: 'Highest Store Revenue',
+        value: 'Shopify-01',
+        trend: '7.4%',
+        direction: 'up' as const,
+        comparison: { current: 'Shopify-01', previous: 'Daraz-02', change: '7.4%' },
+        extraStores: ['Daraz-02', 'WOO-01']
+      },
+      {
+        label: 'Average Revenue per Store',
+        value: 'PKR 3,00,000',
+        trend: '10.0%',
+        direction: 'down' as const,
+        comparison: { current: 'PKR 3,00,000', previous: 'PKR 3,33,000', change: 'PKR 33,000' }
+      },
+      {
+        label: 'Peak Revenue Day',
+        value: '13th April 2025',
+        trend: '12.8%',
+        direction: 'up' as const,
+        comparison: { current: '13th April 2025', previous: '9th April 2025', change: '12.8%' },
+        hideTrend: true
+      }
+    ];
+  }, [selectedSalesMetric]);
 
   const salesStoreSummaryLabel =
     selectedSalesStore.length === salesStoreOptions.length
@@ -842,7 +1031,7 @@ export default function App() {
       labels: salesChartLabels,
       datasets: activeSalesStoreSeries.map((series) => ({
         label: series.name,
-        data: series.data,
+        data: series[selectedStoreMetricConfig.key],
         borderColor: series.color,
         backgroundColor: series.color,
         pointBackgroundColor: series.color,
@@ -854,7 +1043,7 @@ export default function App() {
         tension: 0.38
       }))
     }),
-    [activeSalesStoreSeries]
+    [activeSalesStoreSeries, selectedStoreMetricConfig]
   );
 
   const salesChartOptions = useMemo(
@@ -904,15 +1093,15 @@ export default function App() {
         },
         y: {
           min: 0,
-          max: 110000,
+          max: selectedStoreMetricConfig.axisMax,
           ticks: {
-            stepSize: 20000,
+            stepSize: selectedStoreMetricConfig.stepSize,
             color: '#7D828A',
             font: {
               family: 'Poppins',
               size: 10
             },
-            callback: (value: string | number) => `${(Number(value) / 1000).toFixed(1)}`
+            callback: (value: string | number) => selectedStoreMetricConfig.tickFormatter(Number(value))
           },
           grid: {
             color: '#EEF0EB'
@@ -935,7 +1124,7 @@ export default function App() {
         }
       }
     }),
-    []
+    [selectedStoreMetricConfig]
   );
 
   const salesTooltipData = hoveredSalesPoint
@@ -943,9 +1132,28 @@ export default function App() {
         ...dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length],
         stores: dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length].stores.filter((store) =>
           selectedSalesStore.includes(store.name)
-        )
+        ),
+        metric: selectedStoreMetricConfig
       }
     : null;
+
+  const selectedLocationMetricConfig = locationMetricConfig[selectedLocationMetric];
+  const dynamicLocationKpiCards = useMemo(() => {
+    if (selectedLocationMetric === 'Gross Revenue') {
+      return locationKpiCards.map((metric, index) =>
+        index === 3
+          ? {
+              ...metric,
+              label: 'Average Revenue per Location',
+              value: 'PKR 2,137,000',
+              comparison: { current: 'PKR 2,137,000', previous: 'PKR 1,984,000', change: 'PKR 153,000' }
+            }
+          : metric
+      );
+    }
+
+    return locationKpiCards;
+  }, [selectedLocationMetric]);
 
   const locationChartData = useMemo(
     () => ({
@@ -953,21 +1161,21 @@ export default function App() {
       datasets: [
         {
           label: 'June',
-          data: locationPerformanceData.map((item) => item.current),
+          data: locationPerformanceData.map((item) => item[selectedLocationMetricConfig.currentKey]),
           backgroundColor: '#10c562',
           borderRadius: 6,
           maxBarThickness: 34
         },
         {
           label: 'May',
-          data: locationPerformanceData.map((item) => item.previous),
+          data: locationPerformanceData.map((item) => item[selectedLocationMetricConfig.previousKey]),
           backgroundColor: '#c9c9c9',
           borderRadius: 6,
           maxBarThickness: 34
         }
       ]
     }),
-    []
+    [selectedLocationMetricConfig]
   );
 
   const locationChartOptions = useMemo(
@@ -1003,19 +1211,89 @@ export default function App() {
         },
         y: {
           beginAtZero: true,
-          max: 420,
+          max: selectedLocationMetricConfig.axisMax,
           ticks: {
-            stepSize: 100,
+            stepSize: selectedLocationMetricConfig.stepSize,
             color: '#7D828A',
-            font: { family: 'Poppins', size: 11 }
+            font: { family: 'Poppins', size: 11 },
+            callback: (value: string | number) => selectedLocationMetricConfig.tickFormatter(Number(value))
           },
           grid: { color: '#EEF0EB' },
           border: { display: false }
         }
       }
     }),
-    []
+    [selectedLocationMetricConfig]
   );
+
+  const selectedProductMetricConfig = productMetricConfig[selectedProductMetric];
+  const dynamicProductMetricCards = useMemo(() => {
+    if (selectedProductMetric === 'Revenue Generated') {
+      return [
+        {
+          label: 'Total Revenue Generated',
+          value: 'PKR 11,500,000',
+          trend: '12.4%',
+          direction: 'up' as const,
+          comparison: { current: 'PKR 11,500,000', previous: 'PKR 10,230,000', change: 'PKR 1,270,000' }
+        },
+        {
+          label: 'Top Revenue Product',
+          value: 'Earbuds X',
+          extraItems: ['Travel Pack', 'Smart Watch']
+        },
+        {
+          label: 'Most Improved Revenue Product',
+          value: 'Travel Pack',
+          extraItems: ['Steel Bottle', 'Fleece Hoodie']
+        },
+        {
+          label: 'Most Declined Revenue Product',
+          value: 'Smart Watch',
+          extraItems: ['Earbuds X', 'Canvas Tote']
+        },
+        {
+          label: 'Avg. Revenue Generated Per Order',
+          value: 'PKR 26,500',
+          trend: '8.6%',
+          direction: 'up' as const,
+          comparison: { current: 'PKR 26,500', previous: 'PKR 24,400', change: 'PKR 2,100' }
+        }
+      ];
+    }
+
+    return [
+      {
+        label: 'Total Units Sold',
+        value: '44,000',
+        trend: '10.0%',
+        direction: 'up' as const,
+        comparison: { current: '44,000', previous: '40,000', change: '4,000' }
+      },
+      {
+        label: 'Best Selling Product',
+        value: 'Core Tee',
+        extraItems: ['Fleece Hoodie', 'Runner Pro']
+      },
+      {
+        label: 'Most Improved Product',
+        value: 'Travel Pack',
+        extraItems: ['Fleece Hoodie', 'Steel Bottle']
+      },
+      {
+        label: 'Most Declined Product',
+        value: 'Earbuds X',
+        extraItems: ['Smart Watch', 'Runner Pro']
+      },
+      {
+        label: 'Avg. Units Sold Per Order',
+        value: '1,000',
+        trend: '10.0%',
+        direction: 'down' as const,
+        comparison: { current: '1,000', previous: '1,110', change: '110' }
+      }
+    ];
+  }, [selectedProductMetric]);
 
   const productChartData = useMemo(
     () => ({
@@ -1023,21 +1301,21 @@ export default function App() {
       datasets: [
         {
           label: 'April',
-          data: productPerformanceData.map((item) => item.current),
+          data: productPerformanceData.map((item) => item[selectedProductMetricConfig.currentKey]),
           backgroundColor: '#10c562',
           borderRadius: 6,
           maxBarThickness: 34
         },
         {
           label: 'May',
-          data: productPerformanceData.map((item) => item.previous),
+          data: productPerformanceData.map((item) => item[selectedProductMetricConfig.previousKey]),
           backgroundColor: '#c9c9c9',
           borderRadius: 6,
           maxBarThickness: 34
         }
       ]
     }),
-    []
+    [selectedProductMetricConfig]
   );
 
   const productChartOptions = useMemo(
@@ -1073,18 +1351,19 @@ export default function App() {
         },
         y: {
           beginAtZero: true,
-          max: 75,
+          max: selectedProductMetricConfig.axisMax,
           ticks: {
-            stepSize: 10,
+            stepSize: selectedProductMetricConfig.stepSize,
             color: '#7D828A',
-            font: { family: 'Poppins', size: 11 }
+            font: { family: 'Poppins', size: 11 },
+            callback: (value: string | number) => selectedProductMetricConfig.tickFormatter(Number(value))
           },
           grid: { color: '#EEF0EB' },
           border: { display: false }
         }
       }
     }),
-    []
+    [selectedProductMetricConfig]
   );
 
   return (
@@ -1689,7 +1968,7 @@ export default function App() {
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
                 <article className="tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)]">
                   <div className="tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
-                    {salesMetricCards.map((metric, index) => {
+                    {dynamicSalesMetricCards.map((metric, index) => {
                       const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                       const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
                       const primaryMetric = index === 0;
@@ -1781,20 +2060,24 @@ export default function App() {
                       <div className="tu-flex tu-justify-end">
                         <h3 className="tu-text-[14px] tu-font-semibold tu-text-[#333538]">{salesTooltipData.date}</h3>
                       </div>
-                      <div className="tu-mt-4 tu-grid tu-grid-cols-[1.3fr_0.7fr_1.2fr] tu-gap-4 tu-text-[10px] tu-font-semibold tu-uppercase tu-tracking-[0.04em] tu-text-[#9a9ca2]">
+                      <div className="tu-mt-4 tu-grid tu-grid-cols-[1.3fr_0.7fr_1fr] tu-gap-4 tu-text-[10px] tu-font-semibold tu-uppercase tu-tracking-[0.04em] tu-text-[#9a9ca2]">
                         <span />
                         <span className="tu-whitespace-nowrap">Total Orders</span>
-                        <span>Gross Revenue</span>
+                        <span>{salesTooltipData.metric.label}</span>
                       </div>
                       <div className="tu-mt-3 tu-space-y-2.5">
                         {salesTooltipData.stores.map((store) => (
-                          <div key={`${salesTooltipData.date}-${store.name}`} className="tu-grid tu-grid-cols-[1.3fr_0.7fr_1.2fr] tu-gap-4 tu-items-center">
+                          <div key={`${salesTooltipData.date}-${store.name}`} className="tu-grid tu-grid-cols-[1.3fr_0.7fr_1fr] tu-gap-4 tu-items-center">
                             <div className="tu-flex tu-items-center tu-gap-2.5">
                               <span className="tu-h-2.5 tu-w-2.5 tu-rounded-full" style={{ backgroundColor: store.color }} />
                               <span className="tu-text-[13px] tu-text-[#4b4e53]">{store.name}</span>
                             </div>
-                            <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{store.orders}</span>
-                            <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{store.revenue}</span>
+                            <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                              {store.totalOrders.toLocaleString('en-US')}
+                            </span>
+                            <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                              {salesTooltipData.metric.formatValue(store[salesTooltipData.metric.key])}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -1871,7 +2154,7 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-3 lg:tu-grid-cols-4">
-                {locationKpiCards.map((metric) => {
+                {dynamicLocationKpiCards.map((metric) => {
                   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                   const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
 
@@ -1988,11 +2271,12 @@ export default function App() {
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
                 <article className="tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)]">
                   <div className="tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
-                    {productMetricCards.map((metric, index) => {
+                    {dynamicProductMetricCards.map((metric, index) => {
                       const hasTrend = 'trend' in metric;
                       const trendDirection = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                       const trendColor = hasTrend && metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
                       const TrendIcon = trendDirection;
+                      const primaryMetric = index === 0;
 
                       return (
                         <div
@@ -2000,17 +2284,24 @@ export default function App() {
                           className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
                         >
                           <div className="tu-group tu-relative tu-inline-block">
-                            <button type="button" className={`tu-text-[13px] ${index === 0 ? 'tu-text-[#7f9385]' : 'tu-text-[#8f9197]'}`}>
+                            <button
+                              type="button"
+                              className={`${
+                                primaryMetric
+                                  ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
+                                  : 'tu-text-[13px] tu-text-[#8f9197]'
+                              }`}
+                            >
                               {metric.label}
                             </button>
                             <InfoTooltip text={productKpiTooltips[metric.label]} />
                           </div>
 
-                          <div className={`tu-flex tu-items-end tu-gap-2 ${index === 0 ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
+                          <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
                             <div className="tu-flex tu-items-end tu-gap-2">
                               <p
                                 className={`tu-text-[#333538] ${
-                                  index === 0 ? 'tu-text-[24px] tu-font-semibold tu-leading-none' : 'tu-text-[17px] tu-font-medium tu-leading-none'
+                                  primaryMetric ? 'tu-text-[24px] tu-font-semibold tu-leading-none' : 'tu-text-[17px] tu-font-medium tu-leading-none'
                                 }`}
                               >
                                 {metric.value}
