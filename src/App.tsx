@@ -73,6 +73,71 @@ const dateMenu = [
   'Custom'
 ];
 
+const salesOverviewBreakdownValues: Record<
+  PeriodKey,
+  {
+    grossSales: string;
+    totalTaxes: string;
+    discounts: string;
+    returns: string;
+    netSales: string;
+    cogs: string;
+    grossProfit: string;
+    grossProfitMargin: string;
+    expenses: string;
+    netProfit: string;
+  }
+> = {
+  today: {
+    grossSales: 'PKR 300,000',
+    totalTaxes: 'PKR 28,544',
+    discounts: 'PKR 32,000',
+    returns: 'PKR 16,000',
+    netSales: 'PKR 223,456',
+    cogs: 'PKR 76,544',
+    grossProfit: 'PKR 146,912',
+    grossProfitMargin: '65.7%',
+    expenses: 'PKR 23,456',
+    netProfit: 'PKR 123,456'
+  },
+  yesterday: {
+    grossSales: 'PKR 286,000',
+    totalTaxes: 'PKR 27,020',
+    discounts: 'PKR 29,000',
+    returns: 'PKR 17,000',
+    netSales: 'PKR 212,980',
+    cogs: 'PKR 83,200',
+    grossProfit: 'PKR 129,780',
+    grossProfitMargin: '60.9%',
+    expenses: 'PKR 22,128',
+    netProfit: 'PKR 107,652'
+  },
+  last7: {
+    grossSales: 'PKR 1,965,000',
+    totalTaxes: 'PKR 178,540',
+    discounts: 'PKR 162,000',
+    returns: 'PKR 84,000',
+    netSales: 'PKR 1,540,460',
+    cogs: 'PKR 528,140',
+    grossProfit: 'PKR 1,012,320',
+    grossProfitMargin: '65.7%',
+    expenses: 'PKR 164,880',
+    netProfit: 'PKR 847,440'
+  },
+  last30: {
+    grossSales: 'PKR 8,420,000',
+    totalTaxes: 'PKR 734,280',
+    discounts: 'PKR 810,000',
+    returns: 'PKR 365,000',
+    netSales: 'PKR 6,510,720',
+    cogs: 'PKR 2,214,040',
+    grossProfit: 'PKR 4,296,680',
+    grossProfitMargin: '66.0%',
+    expenses: 'PKR 698,540',
+    netProfit: 'PKR 3,598,140'
+  }
+};
+
 const periods: PeriodCard[] = [
   {
     key: 'today',
@@ -86,8 +151,8 @@ const periods: PeriodCard[] = [
     ],
     footer: [
       { label: 'Orders', value: '200' },
-      { label: 'Units Sold', value: '200' },
-      { label: 'Refunds', value: '200' }
+      { label: 'Units Sold', value: '412' },
+      { label: 'Refunds', value: '16' }
     ]
   },
   {
@@ -95,15 +160,15 @@ const periods: PeriodCard[] = [
     title: 'Yesterday',
     dateLabel: 'May 11, 2024',
     metrics: [
-      { key: 'netSales', label: 'Net Sales', value: 'PKR 223,456', delta: '100%' },
-      { key: 'cogs', label: 'COGS', value: 'PKR 76,544', delta: '8%' },
-      { key: 'expenses', label: 'Expenses', value: 'PKR 23,456', delta: '100%' },
-      { key: 'netProfit', label: 'Net Profit', value: 'PKR 123,456', delta: '100%' }
+      { key: 'netSales', label: 'Net Sales', value: 'PKR 212,980', delta: '92%' },
+      { key: 'cogs', label: 'COGS', value: 'PKR 83,200', delta: '6%' },
+      { key: 'expenses', label: 'Expenses', value: 'PKR 22,128', delta: '4%' },
+      { key: 'netProfit', label: 'Net Profit', value: 'PKR 107,652', delta: '9%' }
     ],
     footer: [
-      { label: 'Orders', value: '200' },
-      { label: 'Units Sold', value: '200' },
-      { label: 'Refunds', value: '200' }
+      { label: 'Orders', value: '184' },
+      { label: 'Units Sold', value: '396' },
+      { label: 'Refunds', value: '17' }
     ]
   },
   {
@@ -111,15 +176,15 @@ const periods: PeriodCard[] = [
     title: 'Last 7 Days',
     dateLabel: 'May 05, 2024 - May 12, 2024',
     metrics: [
-      { key: 'netSales', label: 'Net Sales', value: 'PKR 223,456', delta: '100%' },
-      { key: 'cogs', label: 'COGS', value: 'PKR 76,544', delta: '8%' },
-      { key: 'expenses', label: 'Expenses', value: 'PKR 23,456', delta: '100%' },
-      { key: 'netProfit', label: 'Net Profit', value: 'PKR 123,456', delta: '100%' }
+      { key: 'netSales', label: 'Net Sales', value: 'PKR 1,540,460', delta: '18%' },
+      { key: 'cogs', label: 'COGS', value: 'PKR 528,140', delta: '7%' },
+      { key: 'expenses', label: 'Expenses', value: 'PKR 164,880', delta: '5%' },
+      { key: 'netProfit', label: 'Net Profit', value: 'PKR 847,440', delta: '16%' }
     ],
     footer: [
-      { label: 'Orders', value: '200' },
-      { label: 'Units Sold', value: '200' },
-      { label: 'Refunds', value: '200' }
+      { label: 'Orders', value: '1,382' },
+      { label: 'Units Sold', value: '2,946' },
+      { label: 'Refunds', value: '84' }
     ]
   },
   {
@@ -127,15 +192,15 @@ const periods: PeriodCard[] = [
     title: 'Last 30 Days',
     dateLabel: 'May 12, 2024',
     metrics: [
-      { key: 'netSales', label: 'Net Sales', value: 'PKR 223,456', delta: '100%' },
-      { key: 'cogs', label: 'COGS', value: 'PKR 76,544', delta: '8%' },
-      { key: 'expenses', label: 'Expenses', value: 'PKR 23,456', delta: '100%' },
-      { key: 'netProfit', label: 'Net Profit', value: 'PKR 123,456', delta: '100%' }
+      { key: 'netSales', label: 'Net Sales', value: 'PKR 6,510,720', delta: '24%' },
+      { key: 'cogs', label: 'COGS', value: 'PKR 2,214,040', delta: '11%' },
+      { key: 'expenses', label: 'Expenses', value: 'PKR 698,540', delta: '8%' },
+      { key: 'netProfit', label: 'Net Profit', value: 'PKR 3,598,140', delta: '21%' }
     ],
     footer: [
-      { label: 'Orders', value: '200' },
-      { label: 'Units Sold', value: '200' },
-      { label: 'Refunds', value: '200' }
+      { label: 'Orders', value: '5,944' },
+      { label: 'Units Sold', value: '12,388' },
+      { label: 'Refunds', value: '365' }
     ]
   }
 ];
@@ -156,58 +221,53 @@ const metricTrendStyles: Record<MetricKey, { delta: string; direction: 'up' | 'd
   netProfit: { delta: '14%', direction: 'up' }
 };
 
-const metricPopoverContent: Record<
-  MetricKey,
-  { label: string; value: string; strong?: boolean; dividerBefore?: boolean }[]
-> = {
-  netSales: [
-    { label: 'Gross Sales', value: 'PKR 300,000' },
-    { label: 'Total Taxes', value: 'PKR 28,544' },
-    { label: 'Discounts', value: 'PKR 32,000' },
-    { label: 'Returns', value: 'PKR 16,000' },
-    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
-    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
-    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
-  ],
-  cogs: [
-    { label: 'Gross Sales', value: 'PKR 300,000' },
-    { label: 'Total Taxes', value: 'PKR 28,544' },
-    { label: 'Discounts', value: 'PKR 32,000' },
-    { label: 'Returns', value: 'PKR 16,000' },
-    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
-    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
-    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
-  ],
-  expenses: [
-    { label: 'Gross Sales', value: 'PKR 300,000' },
-    { label: 'Total Taxes', value: 'PKR 28,544' },
-    { label: 'Discounts', value: 'PKR 32,000' },
-    { label: 'Returns', value: 'PKR 16,000' },
-    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
-    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
-    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
-  ],
-  netProfit: [
-    { label: 'Gross Sales', value: 'PKR 300,000' },
-    { label: 'Total Taxes', value: 'PKR 28,544' },
-    { label: 'Discounts', value: 'PKR 32,000' },
-    { label: 'Returns', value: 'PKR 16,000' },
-    { label: 'Net Sales', value: 'PKR 223,456', strong: true, dividerBefore: true },
-    { label: 'COGS', value: 'PKR 76,544', dividerBefore: true },
-    { label: 'Gross Profit', value: 'PKR 146,912', strong: true },
-    { label: 'Gross Profit Margin', value: '65.7%', strong: true },
-    { label: 'Expenses', value: 'PKR 23,456', dividerBefore: true },
-    { label: 'Net Profit', value: 'PKR 123,456', strong: true }
-  ]
+type MetricPopoverRow = {
+  label: string;
+  value: string;
+  medium?: boolean;
+  dividerBefore?: boolean;
+  prefix?: string;
+};
+
+const getMetricPopoverContent = (periodKey: PeriodKey, metricKey: MetricKey): MetricPopoverRow[] => {
+  const values = salesOverviewBreakdownValues[periodKey];
+
+  if (metricKey === 'netSales') {
+    return [
+      { label: 'Gross Sales', value: values.grossSales },
+      { label: 'Total Taxes', value: values.totalTaxes, prefix: '-' },
+      { label: 'Discounts', value: values.discounts, prefix: '-' },
+      { label: 'Returns', value: values.returns, prefix: '-' },
+      { label: 'Net Sales', value: values.netSales, medium: true, dividerBefore: true }
+    ];
+  }
+
+  if (metricKey === 'cogs') {
+    return [
+      { label: 'Revenue', value: values.netSales },
+      { label: 'COGS', value: values.cogs, prefix: '-' },
+      { label: 'Gross Profit', value: values.grossProfit, medium: true, dividerBefore: true },
+      { label: 'Gross Profit Margin', value: values.grossProfitMargin, medium: true }
+    ];
+  }
+
+  if (metricKey === 'expenses') {
+    return [];
+  }
+
+  return [
+    { label: 'Gross Sales', value: values.grossSales },
+    { label: 'Total Taxes', value: values.totalTaxes, prefix: '-' },
+    { label: 'Discounts', value: values.discounts, prefix: '-' },
+    { label: 'Returns', value: values.returns, prefix: '-' },
+    { label: 'Net Sales', value: values.netSales, medium: true, dividerBefore: true },
+    { label: 'Revenue', value: values.netSales, dividerBefore: true },
+    { label: 'COGS', value: values.cogs, prefix: '-' },
+    { label: 'Gross Profit', value: values.grossProfit, medium: true, dividerBefore: true },
+    { label: 'Gross Profit Margin', value: values.grossProfitMargin, medium: true },
+    { label: 'Expenses', value: values.expenses, prefix: '-', dividerBefore: true },
+    { label: 'Net Profit', value: values.netProfit, medium: true, dividerBefore: true }
+  ];
 };
 
 const metricTooltips: Record<MetricKey, string> = {
@@ -1612,8 +1672,12 @@ export default function App() {
                       <div className="tu-mt-3 tu-grid tu-grid-cols-2 tu-gap-x-3 tu-gap-y-3">
                         {period.metrics.map((metric) => {
                           const trend = metricTrendStyles[metric.key];
+                          const metricPopoverRows = getMetricPopoverContent(period.key, metric.key);
                           const metricHoverOpen =
-                            hoveredMetric?.period === period.key && hoveredMetric.metric === metric.key;
+                            metric.key !== 'expenses' &&
+                            metricPopoverRows.length > 0 &&
+                            hoveredMetric?.period === period.key &&
+                            hoveredMetric.metric === metric.key;
                           const trendHoverOpen =
                             hoveredTrend?.period === period.key && hoveredTrend.metric === metric.key;
                           const TrendIcon = trend.direction === 'up' ? ArrowUpRight : ArrowDownRight;
@@ -1654,25 +1718,33 @@ export default function App() {
                               </button>
 
                               {metricHoverOpen ? (
-                                <div className="tu-absolute tu-bottom-[calc(100%+10px)] tu-left-0 tu-z-20 tu-w-[280px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-3 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)] before:tu-absolute before:tu-bottom-[-7px] before:tu-left-[34px] before:tu-h-3.5 before:tu-w-3.5 before:tu-rotate-45 before:tu-border-b before:tu-border-r before:tu-border-[#ededed] before:tu-bg-white before:tu-content-['']">
-                                  <div className="tu-space-y-2">
-                                    {metricPopoverContent[metric.key].map((item, index) => (
+                                <div
+                                  className={`tu-absolute tu-z-20 tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)] ${
+                                    metric.key === 'netProfit'
+                                      ? 'tu-left-auto tu-right-0 tu-top-[calc(100%+10px)] before:tu-top-[-7px] before:tu-right-[34px] before:tu-border-l before:tu-border-t'
+                                      : 'tu-bottom-[calc(100%+10px)] tu-left-0 before:tu-bottom-[-7px] before:tu-left-[34px] before:tu-border-b before:tu-border-r'
+                                  } before:tu-absolute before:tu-h-3.5 before:tu-w-3.5 before:tu-rotate-45 before:tu-border-[#ededed] before:tu-bg-white before:tu-content-['']`}
+                                >
+                                  <div className="tu-space-y-1.5">
+                                    {metricPopoverRows.map((item) => (
                                       <div
                                         key={`${metric.key}-${item.label}`}
                                         className={`tu-flex tu-items-end tu-justify-between tu-gap-3 ${
-                                          item.dividerBefore ? 'tu-border-t tu-border-[#eceee8] tu-pt-2' : ''
+                                          item.dividerBefore ? 'tu-border-t tu-border-[#eceee8] tu-pt-1.5' : ''
                                         }`}
                                       >
                                         <span
-                                          className={`tu-text-[11px] ${
-                                            item.strong ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
+                                          className={`tu-text-[12px] ${
+                                            item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
                                           }`}
                                         >
-                                          <span className="tu-underline tu-underline-offset-2">{item.label}</span>
+                                          <span>
+                                            {item.prefix ? `${item.prefix} ` : ''}{item.label}
+                                          </span>
                                         </span>
                                         <span
-                                          className={`tu-text-[11px] ${
-                                            item.strong ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
+                                          className={`tu-text-[12px] ${
+                                            item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
                                           }`}
                                         >
                                           {item.value}
