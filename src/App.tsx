@@ -599,12 +599,12 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Avg. Units Sold per Order = Total Units Sold / Total Orders' }
     ]
   },
-  'Avg. Revenue Generated Per Order': {
-    title: 'Avg. Revenue Generated Per Order',
+  'Avg. Revenue Per Product': {
+    title: 'Avg. Revenue Per Product',
     blocks: [
-      { type: 'text', text: 'Average revenue generated per order across the selected products.' },
+      { type: 'text', text: 'Average revenue generated per product across the selected products.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Avg. Revenue per Order = Total Revenue Generated / Total Orders' }
+      { type: 'formula', text: 'Avg. Revenue per Product = Total Revenue Generated / Total Products' }
     ]
   }
 };
@@ -871,6 +871,25 @@ const formatLocationFilterLabel = (selected: string[]) => {
   }
   if (selected.length === 1) return selected[0];
   return `${selected.length} selected`;
+};
+
+const formatStoreMetricValue = (metric: string, value: number) =>
+  metric === 'Gross Revenue' ? `PKR ${value.toLocaleString('en-US')}` : value.toLocaleString('en-US');
+
+const formatStoreMetricDelta = (metric: string, value: number) =>
+  metric === 'Gross Revenue' ? `PKR ${Math.abs(value).toLocaleString('en-US')}` : Math.abs(value).toLocaleString('en-US');
+
+const getStoreMetricDirection = (metric: string, current: number, previous: number) => {
+  if (metric === 'Order Returns') {
+    return current <= previous ? ('down' as const) : ('up' as const);
+  }
+
+  return current >= previous ? ('up' as const) : ('down' as const);
+};
+
+const getPercentDelta = (current: number, previous: number) => {
+  if (previous === 0) return current === 0 ? 0 : 100;
+  return (Math.abs(current - previous) / previous) * 100;
 };
 
 function InfoTooltip({
@@ -1289,130 +1308,127 @@ export default function App() {
   );
   const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
   const dynamicSalesMetricCards = useMemo(() => {
-    if (selectedSalesMetric === 'Units Sold') {
-      return [
-        {
-          label: 'Total Orders',
-          value: '35,140',
-          trend: '10.0%',
-          direction: 'up' as const,
-          comparison: { current: '35,140', previous: '31,945', change: '3,195' }
-        },
-        {
-          label: 'Total Units Sold',
-          value: '91,800',
-          trend: '11.6%',
-          direction: 'up' as const,
-          comparison: { current: '91,800', previous: '82,280', change: '9,520' }
-        },
-        {
-          label: 'Top Store by Units Sold',
-          value: 'Shopify-03',
-          trend: '8.1%',
-          direction: 'up' as const,
-          comparison: { current: 'Shopify-03', previous: 'WOO-01', change: '8.1%' },
-          extraStores: ['WOO-01', 'Shopify-02']
-        },
-        {
-          label: 'Average Units Sold per Store',
-          value: '18,360',
-          trend: '6.9%',
-          direction: 'up' as const,
-          comparison: { current: '18,360', previous: '17,176', change: '1,184' }
-        },
-        {
-          label: 'Peak Units Sold Day',
-          value: '21st April 2025',
-          trend: '9.4%',
-          direction: 'up' as const,
-          comparison: { current: '21st April 2025', previous: '18th April 2025', change: '9.4%' },
-          hideTrend: true
-        }
-      ];
-    }
+    const currentSnapshot = dayBreakdown[dayBreakdown.length - 1]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
+    const previousSnapshot = dayBreakdown[dayBreakdown.length - 2]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
 
-    if (selectedSalesMetric === 'Order Returns') {
-      return [
-        {
-          label: 'Total Orders',
-          value: '35,140',
-          trend: '10.0%',
-          direction: 'up' as const,
-          comparison: { current: '35,140', previous: '31,945', change: '3,195' }
-        },
-        {
-          label: 'Total Order Returns',
-          value: '8,420',
-          trend: '7.8%',
-          direction: 'down' as const,
-          comparison: { current: '8,420', previous: '9,130', change: '710' }
-        },
-        {
-          label: 'Highest Store Returns',
-          value: 'Shopify-02',
-          trend: '5.2%',
-          direction: 'down' as const,
-          comparison: { current: 'Shopify-02', previous: 'Shopify-03', change: '5.2%' },
-          extraStores: ['Shopify-03', 'WOO-01']
-        },
-        {
-          label: 'Average Returns per Store',
-          value: '1,684',
-          trend: '4.1%',
-          direction: 'down' as const,
-          comparison: { current: '1,684', previous: '1,826', change: '142' }
-        },
-        {
-          label: 'Peak Returns Day',
-          value: '11th April 2025',
-          trend: '6.2%',
-          direction: 'down' as const,
-          comparison: { current: '11th April 2025', previous: '14th April 2025', change: '6.2%' },
-          hideTrend: true
-        }
-      ];
-    }
+    const totalOrdersCurrent = currentSnapshot.reduce((sum, store) => sum + store.totalOrders, 0);
+    const totalOrdersPrevious = previousSnapshot.reduce((sum, store) => sum + store.totalOrders, 0);
+    const totalOrdersDirection = totalOrdersCurrent >= totalOrdersPrevious ? ('up' as const) : ('down' as const);
+    const totalOrdersTrend = `${getPercentDelta(totalOrdersCurrent, totalOrdersPrevious).toFixed(1)}%`;
+
+    const metricKey = selectedStoreMetricConfig.key;
+    const metricLabelMap = {
+      grossRevenue: {
+        total: 'Total Revenue',
+        top: 'Highest Store Revenue',
+        average: 'Average Revenue per Store',
+        peak: 'Peak Revenue Day'
+      },
+      orderReturns: {
+        total: 'Total Order Returns',
+        top: 'Highest Store Returns',
+        average: 'Average Returns per Store',
+        peak: 'Peak Returns Day'
+      },
+      unitsSold: {
+        total: 'Total Units Sold',
+        top: 'Top Store by Units Sold',
+        average: 'Average Units Sold per Store',
+        peak: 'Peak Units Sold Day'
+      }
+    } as const;
+
+    const metricLabels = metricLabelMap[metricKey];
+    const currentMetricTotal = currentSnapshot.reduce((sum, store) => sum + store[metricKey], 0);
+    const previousMetricTotal = previousSnapshot.reduce((sum, store) => sum + store[metricKey], 0);
+    const metricDirection = getStoreMetricDirection(selectedSalesMetric, currentMetricTotal, previousMetricTotal);
+    const metricTrend = `${getPercentDelta(currentMetricTotal, previousMetricTotal).toFixed(1)}%`;
+
+    const currentAverage = currentSnapshot.length > 0 ? currentMetricTotal / currentSnapshot.length : 0;
+    const previousAverage = previousSnapshot.length > 0 ? previousMetricTotal / previousSnapshot.length : 0;
+    const averageDirection = getStoreMetricDirection(selectedSalesMetric, currentAverage, previousAverage);
+    const averageTrend = `${getPercentDelta(currentAverage, previousAverage).toFixed(1)}%`;
+
+    const sortedCurrentStores = [...currentSnapshot].sort((a, b) => b[metricKey] - a[metricKey]);
+    const sortedPreviousStores = [...previousSnapshot].sort((a, b) => b[metricKey] - a[metricKey]);
+    const topStoreCurrent = sortedCurrentStores[0];
+    const topStorePrevious = sortedPreviousStores[0];
+    const topStoreDirection = getStoreMetricDirection(
+      selectedSalesMetric,
+      topStoreCurrent?.[metricKey] ?? 0,
+      topStorePrevious?.[metricKey] ?? 0
+    );
+    const topStoreTrend = `${getPercentDelta(topStoreCurrent?.[metricKey] ?? 0, topStorePrevious?.[metricKey] ?? 0).toFixed(1)}%`;
+
+    const aggregateSeries = salesChartLabels.map((_, index) =>
+      activeSalesStoreSeries.reduce((sum, store) => sum + store[metricKey][index], 0)
+    );
+    const rankedPeakDays = aggregateSeries
+      .map((value, index) => ({ value, label: salesChartLabels[index] }))
+      .sort((a, b) => b.value - a.value);
+    const topPeakDay = rankedPeakDays[0] ?? { value: 0, label: '-' };
+    const previousPeakDay = rankedPeakDays[1] ?? topPeakDay;
 
     return [
       {
         label: 'Total Orders',
-        value: '35,140',
-        trend: '10.0%',
-        direction: 'up' as const,
-        comparison: { current: '35,140', previous: '31,945', change: '3,195' }
+        value: totalOrdersCurrent.toLocaleString('en-US'),
+        trend: totalOrdersTrend,
+        direction: totalOrdersDirection,
+        comparison: {
+          current: totalOrdersCurrent.toLocaleString('en-US'),
+          previous: totalOrdersPrevious.toLocaleString('en-US'),
+          change: Math.abs(totalOrdersCurrent - totalOrdersPrevious).toLocaleString('en-US')
+        }
       },
       {
-        label: 'Total Revenue',
-        value: 'PKR 20,00,000',
-        trend: '10.0%',
-        direction: 'down' as const,
-        comparison: { current: 'PKR 20,00,000', previous: 'PKR 22,20,000', change: 'PKR 2,20,000' }
+        label: metricLabels.total,
+        value: formatStoreMetricValue(selectedSalesMetric, currentMetricTotal),
+        trend: metricTrend,
+        direction: metricDirection,
+        comparison: {
+          current: formatStoreMetricValue(selectedSalesMetric, currentMetricTotal),
+          previous: formatStoreMetricValue(selectedSalesMetric, previousMetricTotal),
+          change: formatStoreMetricDelta(selectedSalesMetric, currentMetricTotal - previousMetricTotal)
+        }
       },
       {
-        label: 'Highest Store Revenue',
-        value: 'Shopify-01',
-        trend: '7.4%',
-        direction: 'up' as const,
-        comparison: { current: 'Shopify-01', previous: 'Daraz-02', change: '7.4%' },
-        extraStores: ['Daraz-02', 'WOO-01']
+        label: metricLabels.top,
+        value: topStoreCurrent?.name ?? 'No store selected',
+        trend: topStoreTrend,
+        direction: topStoreDirection,
+        comparison: {
+          current: topStoreCurrent?.name ?? 'No store selected',
+          previous: topStorePrevious?.name ?? 'No previous store',
+          change: topStoreTrend
+        },
+        extraStores: sortedCurrentStores.slice(1, 3).map((store) => store.name)
       },
       {
-        label: 'Average Revenue per Store',
-        value: 'PKR 3,00,000',
-        trend: '10.0%',
-        direction: 'down' as const,
-        comparison: { current: 'PKR 3,00,000', previous: 'PKR 3,33,000', change: 'PKR 33,000' }
+        label: metricLabels.average,
+        value: formatStoreMetricValue(selectedSalesMetric, Math.round(currentAverage)),
+        trend: averageTrend,
+        direction: averageDirection,
+        comparison: {
+          current: formatStoreMetricValue(selectedSalesMetric, Math.round(currentAverage)),
+          previous: formatStoreMetricValue(selectedSalesMetric, Math.round(previousAverage)),
+          change: formatStoreMetricDelta(selectedSalesMetric, Math.round(currentAverage - previousAverage))
+        }
       },
       {
-        label: 'Peak Revenue Day',
-        value: '13th April 2025',
-        trend: '12.8%',
-        direction: 'up' as const,
-        comparison: { current: '13th April 2025', previous: '9th April 2025', change: '12.8%' },
+        label: metricLabels.peak,
+        value: topPeakDay.label,
+        trend: `${getPercentDelta(topPeakDay.value, previousPeakDay.value).toFixed(1)}%`,
+        direction: getStoreMetricDirection(selectedSalesMetric, topPeakDay.value, previousPeakDay.value),
+        comparison: {
+          current: topPeakDay.label,
+          previous: previousPeakDay.label,
+          change: `${getPercentDelta(topPeakDay.value, previousPeakDay.value).toFixed(1)}%`
+        },
         hideTrend: true
       }
     ];
-  }, [selectedSalesMetric]);
+  }, [activeSalesStoreSeries, selectedSalesMetric, selectedSalesStore, selectedStoreMetricConfig]);
 
   const salesStoreSummaryLabel =
     selectedSalesStore.length === salesStoreOptions.length
@@ -1652,7 +1668,7 @@ export default function App() {
           extraItems: ['Earbuds X', 'Canvas Tote']
         },
         {
-          label: 'Avg. Revenue Generated Per Order',
+          label: 'Avg. Revenue Per Product',
           value: 'PKR 26,500',
           trend: '8.6%',
           direction: 'up' as const,
@@ -2435,7 +2451,7 @@ export default function App() {
                               >
                                 {metric.value}
                               </p>
-                              {metric.label === 'Highest Store Revenue' && metric.extraStores?.length ? (
+                              {metric.extraStores?.length ? (
                                 <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                   <button
                                     type="button"
