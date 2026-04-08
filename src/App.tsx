@@ -557,7 +557,7 @@ const locationMetricConfig: Record<
     previousKey: 'ordersPrevious' | 'revenuePrevious';
     axisMax: number;
     stepSize: number;
-    tickFormatter: (value: number) => string;
+  tickFormatter: (value: number) => string;
     tooltipFormatter: (value: number) => string;
   }
 > = {
