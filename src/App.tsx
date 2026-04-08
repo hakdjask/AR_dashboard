@@ -558,6 +558,7 @@ const locationMetricConfig: Record<
     axisMax: number;
     stepSize: number;
     tickFormatter: (value: number) => string;
+    tooltipFormatter: (value: number) => string;
   }
 > = {
   'Orders Volume': {
@@ -565,14 +566,16 @@ const locationMetricConfig: Record<
     previousKey: 'ordersPrevious',
     axisMax: 420,
     stepSize: 100,
-    tickFormatter: (value) => value.toFixed(0)
+    tickFormatter: (value) => value.toFixed(0),
+    tooltipFormatter: (value) => value.toLocaleString('en-US')
   },
   'Gross Revenue': {
     currentKey: 'revenueCurrent',
     previousKey: 'revenuePrevious',
     axisMax: 4500000,
     stepSize: 1000000,
-    tickFormatter: (value) => `PKR ${(value / 1000000).toFixed(1)}M`
+    tickFormatter: (value) => `PKR ${(value / 1000000).toFixed(1)}M`,
+    tooltipFormatter: (value) => `PKR ${value.toLocaleString('en-US')}`
   }
 };
 
@@ -627,6 +630,7 @@ const productMetricConfig: Record<
     axisMax: number;
     stepSize: number;
     tickFormatter: (value: number) => string;
+    tooltipFormatter: (value: number) => string;
   }
 > = {
   'Units Sold': {
@@ -634,14 +638,16 @@ const productMetricConfig: Record<
     previousKey: 'unitsPrevious',
     axisMax: 75,
     stepSize: 10,
-    tickFormatter: (value) => value.toFixed(0)
+    tickFormatter: (value) => value.toFixed(0),
+    tooltipFormatter: (value) => value.toLocaleString('en-US')
   },
   'Revenue Generated': {
     currentKey: 'revenueCurrent',
     previousKey: 'revenuePrevious',
     axisMax: 1600000,
     stepSize: 200000,
-    tickFormatter: (value) => `PKR ${(value / 1000000).toFixed(1)}M`
+    tickFormatter: (value) => `PKR ${(value / 1000000).toFixed(1)}M`,
+    tooltipFormatter: (value) => `PKR ${value.toLocaleString('en-US')}`
   }
 };
 
@@ -1585,6 +1591,12 @@ export default function App() {
             },
             padding: 18
           }
+        },
+        tooltip: {
+          callbacks: {
+            label: (context: { dataset: { label?: string }; parsed: { y: number | null } }) =>
+              `${context.dataset.label ?? ''}: ${selectedLocationMetricConfig.tooltipFormatter(context.parsed.y ?? 0)}`
+          }
         }
       },
       scales: {
@@ -1724,6 +1736,12 @@ export default function App() {
               size: 12
             },
             padding: 18
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: (context: { dataset: { label?: string }; parsed: { y: number | null } }) =>
+              `${context.dataset.label ?? ''}: ${selectedProductMetricConfig.tooltipFormatter(context.parsed.y ?? 0)}`
           }
         }
       },
