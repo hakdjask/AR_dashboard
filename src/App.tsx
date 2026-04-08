@@ -14,6 +14,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Bell,
+  ChevronLeft,
   ChevronDown,
   ChevronRight,
   LayoutGrid,
@@ -453,10 +454,35 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
 const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
 const salesMetricOptions = ['Gross Revenue', 'Order Returns', 'Units Sold'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
-const salesRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
 const locationMetricOptions = ['Orders Volume', 'Gross Revenue'];
 const locationDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
-const locationRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
+const pakistanLocationHierarchy = [
+  {
+    province: 'Sindh',
+    cities: ['Karachi', 'Hyderabad', 'Sukkur', 'Larkana', 'Mirpur Khas']
+  },
+  {
+    province: 'Punjab',
+    cities: ['Lahore', 'Rawalpindi', 'Faisalabad', 'Multan', 'Bahawalpur']
+  },
+  {
+    province: 'Balochistan',
+    cities: ['Quetta', 'Gwadar', 'Khuzdar', 'Turbat', 'Hub']
+  },
+  {
+    province: 'Khyber Pakhtunkhwa',
+    cities: ['Peshawar', 'Mardan', 'Abbottabad', 'Swat', 'Kohat']
+  },
+  {
+    province: 'Azad Jammu & Kashmir',
+    cities: ['Muzaffarabad', 'Mirpur', 'Kotli', 'Bagh', 'Rawalakot']
+  },
+  {
+    province: 'Gilgit Baltistan',
+    cities: ['Gilgit', 'Skardu', 'Hunza', 'Khaplu', 'Ghizer']
+  }
+] as const;
+const pakistanProvinceOptions = pakistanLocationHierarchy.map((item) => item.province);
 
 const locationKpiTooltips: Record<string, string | TooltipContent> = {
   'Top Performing City': 'City generating the highest result in the selected metric and period.',
@@ -552,7 +578,6 @@ const locationMetricConfig: Record<
 
 const productMetricOptions = ['Units Sold', 'Revenue Generated'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
-const productRegionOptions = ['Pakistan', 'UAE', 'Saudi Arabia', 'UK'];
 
 const productKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Units Sold': 'Total units sold across the selected products and period.',
@@ -824,6 +849,24 @@ const formatMultiSelectLabel = (selected: string[], placeholder: string, singula
 const toggleMultiSelectValue = (current: string[], value: string) =>
   current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
 
+const setMultiSelectGroup = (current: string[], values: string[]) => {
+  const allSelected = values.every((value) => current.includes(value));
+  if (allSelected) {
+    return current.filter((item) => !values.includes(item));
+  }
+
+  return [...new Set([...current, ...values])];
+};
+
+const formatLocationFilterLabel = (selected: string[]) => {
+  if (selected.length === 0) return 'All Locations';
+  if (selected.length === pakistanProvinceOptions.length && pakistanProvinceOptions.every((item) => selected.includes(item))) {
+    return 'All Provinces';
+  }
+  if (selected.length === 1) return selected[0];
+  return `${selected.length} selected`;
+};
+
 function InfoTooltip({
   text,
   widthClass = 'tu-w-[190px]'
@@ -1002,6 +1045,142 @@ function SearchableDropdownMenu({
   );
 }
 
+function HierarchicalLocationDropdown({
+  open,
+  selected,
+  onChange,
+  searchValue,
+  onSearchChange,
+  activeProvince,
+  onProvinceChange,
+  widthClass = 'tu-w-[240px]'
+}: {
+  open: boolean;
+  selected: string[];
+  onChange: (value: string[]) => void;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  activeProvince: string | null;
+  onProvinceChange: (value: string | null) => void;
+  widthClass?: string;
+}) {
+  if (!open) return null;
+
+  const provinceRecord = pakistanLocationHierarchy.find((item) => item.province === activeProvince);
+  const currentOptions = provinceRecord ? provinceRecord.cities : pakistanProvinceOptions;
+  const filteredOptions = getFilteredOptions(currentOptions as unknown as string[], searchValue);
+  const selectAllItems = [...currentOptions];
+  const allCurrentSelected = selectAllItems.every((item) => selected.includes(item));
+  const searchPlaceholder = provinceRecord ? `Search ${provinceRecord.province} cities` : 'Search provinces';
+
+  return (
+    <div
+      className={`tu-absolute tu-right-0 tu-top-[calc(100%+8px)] tu-z-30 ${widthClass} tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]`}
+    >
+      <div className="tu-sticky tu-top-0 tu-z-10 tu-rounded-[10px] tu-bg-white">
+        <div className="tu-flex tu-items-center tu-justify-between tu-gap-2 tu-px-1 tu-pb-2">
+          {provinceRecord ? (
+            <button
+              type="button"
+              onClick={() => {
+                onProvinceChange(null);
+                onSearchChange('');
+              }}
+              className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c] hover:tu-text-[#2a2c2f]"
+            >
+              <ChevronLeft className="tu-h-3.5 tu-w-3.5" />
+              <span>Provinces</span>
+            </button>
+          ) : (
+            <span className="tu-text-[11px] tu-font-semibold tu-uppercase tu-tracking-[0.12em] tu-text-[#8f9197]">
+              Provinces
+            </span>
+          )}
+          <span className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">
+            {provinceRecord ? provinceRecord.province : `${pakistanProvinceOptions.length} total`}
+          </span>
+        </div>
+
+        <div className="tu-relative">
+          <Search className="tu-pointer-events-none tu-absolute tu-left-3 tu-top-1/2 tu-h-3.5 tu-w-3.5 -tu-translate-y-1/2 tu-text-[#9a9ca2]" />
+          <input
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={searchPlaceholder}
+            className="tu-h-8 tu-w-full tu-rounded-[10px] tu-border tu-border-[#e1e6de] tu-bg-[#fafbf8] tu-pl-9 tu-pr-3 tu-text-[12px] tu-text-[#2f3133] outline-none placeholder:tu-text-[#9a9ca2] focus:tu-border-[#c6d3c1]"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onChange(setMultiSelectGroup(selected, selectAllItems as unknown as string[]))}
+          className="tu-mt-2 tu-flex tu-w-full tu-items-center tu-gap-2.5 tu-rounded-[10px] tu-bg-[#f5f6f3] tu-px-3 tu-py-2 tu-text-left tu-text-[12px] tu-font-medium tu-text-[#2f3133]"
+        >
+          <span
+            className={`tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-[4px] tu-border ${
+              allCurrentSelected ? 'tu-border-[#10c562] tu-bg-[#10c562]' : 'tu-border-[#cfd7cd] tu-bg-white'
+            }`}
+          >
+            {allCurrentSelected ? <span className="tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-white" /> : null}
+          </span>
+          <span>{provinceRecord ? `Select All Cities` : 'Select All Provinces'}</span>
+        </button>
+      </div>
+
+      <div className="tu-mt-2 tu-max-h-[180px] tu-space-y-1 tu-overflow-y-auto">
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((item) => {
+            const isSelected = selected.includes(item);
+            const provinceItem = pakistanLocationHierarchy.find((entry) => entry.province === item);
+
+            return (
+              <div
+                key={item}
+                className={`tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-px-3 tu-py-2 tu-transition hover:tu-bg-[#f5f6f3] ${
+                  isSelected ? 'tu-bg-[#f5f6f3]' : ''
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onChange(toggleMultiSelectValue(selected, item))}
+                  className="tu-flex tu-min-w-0 tu-flex-1 tu-items-center tu-gap-2.5 tu-text-left tu-text-[12px] tu-text-[#2f3133]"
+                >
+                  <span
+                    className={`tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-[4px] tu-border ${
+                      isSelected ? 'tu-border-[#10c562] tu-bg-[#10c562]' : 'tu-border-[#cfd7cd] tu-bg-white'
+                    }`}
+                  >
+                    {isSelected ? <span className="tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-white" /> : null}
+                  </span>
+                  <span className="tu-truncate">{item}</span>
+                </button>
+
+                {provinceItem ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onProvinceChange(provinceItem.province);
+                      onSearchChange('');
+                    }}
+                    className="tu-ml-2 tu-inline-flex tu-h-6 tu-w-6 tu-items-center tu-justify-center tu-rounded-[8px] tu-text-[#8f9197] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    aria-label={`Show cities in ${provinceItem.province}`}
+                  >
+                    <ChevronRight className="tu-h-3.5 tu-w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            );
+          })
+        ) : (
+          <div className="tu-rounded-[10px] tu-bg-[#fafbf8] tu-px-3 tu-py-2.5 tu-text-[12px] tu-text-[#8f9197]">
+            No results found
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('sales');
   const [openDateMenu, setOpenDateMenu] = useState<PeriodKey | null>(null);
@@ -1025,8 +1204,9 @@ export default function App() {
   const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>(salesStoreOptions);
   const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Revenue');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
-  const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>(['Pakistan']);
+  const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '' });
+  const [salesRegionProvince, setSalesRegionProvince] = useState<string | null>(null);
   const [locationMenus, setLocationMenus] = useState<{ metric: boolean; date: boolean; region: boolean }>({
     metric: false,
     date: false,
@@ -1034,8 +1214,9 @@ export default function App() {
   });
   const [selectedLocationMetric, setSelectedLocationMetric] = useState('Orders Volume');
   const [selectedLocationDate, setSelectedLocationDate] = useState('Last 30 Days');
-  const [selectedLocationRegion, setSelectedLocationRegion] = useState<string[]>(['Pakistan']);
+  const [selectedLocationRegion, setSelectedLocationRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [locationMenuSearch, setLocationMenuSearch] = useState({ metric: '', date: '', region: '' });
+  const [locationRegionProvince, setLocationRegionProvince] = useState<string | null>(null);
   const [productMenus, setProductMenus] = useState<{ metric: boolean; date: boolean; region: boolean }>({
     metric: false,
     date: false,
@@ -1043,8 +1224,9 @@ export default function App() {
   });
   const [selectedProductMetric, setSelectedProductMetric] = useState('Units Sold');
   const [selectedProductDate, setSelectedProductDate] = useState('Last 30 Days');
-  const [selectedProductRegion, setSelectedProductRegion] = useState<string[]>(['Pakistan']);
+  const [selectedProductRegion, setSelectedProductRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [productMenuSearch, setProductMenuSearch] = useState({ metric: '', date: '', region: '' });
+  const [productRegionProvince, setProductRegionProvince] = useState<string | null>(null);
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredSalesKpi, setHoveredSalesKpi] = useState<string | null>(null);
   const [hoveredLocationKpi, setHoveredLocationKpi] = useState<string | null>(null);
@@ -2127,8 +2309,8 @@ export default function App() {
                     { key: 'date', value: selectedSalesDate, options: salesDateOptions },
                     {
                       key: 'region',
-                      value: formatMultiSelectLabel(selectedSalesRegion, 'All Countries', 'country', 'countries'),
-                      options: salesRegionOptions
+                      value: formatLocationFilterLabel(selectedSalesRegion),
+                      options: []
                     }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
@@ -2143,6 +2325,7 @@ export default function App() {
                             [menu.key]: !current[menu.key as keyof typeof current]
                           }));
                           setSalesMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                          if (menu.key === 'region') setSalesRegionProvince(null);
                         }}
                         className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                       >
@@ -2150,42 +2333,42 @@ export default function App() {
                         <ChevronDown className="tu-h-3 tu-w-3" />
                       </button>
 
-                      <SearchableDropdownMenu
-                        open={salesMenus[menu.key as keyof typeof salesMenus]}
-                        options={menu.options}
-                        selected={
-                          menu.key === 'store'
-                            ? selectedSalesStore
-                            : menu.key === 'region'
-                              ? selectedSalesRegion
-                              : menu.key === 'metric'
-                                ? selectedSalesMetric
-                                : selectedSalesDate
-                        }
-                        multiSelect={menu.key === 'store' || menu.key === 'region'}
-                        searchable={menu.key !== 'date'}
-                        searchValue={salesMenuSearch[menu.key as keyof typeof salesMenuSearch]}
-                        onSearchChange={
-                          menu.key !== 'date'
-                            ? (value) => setSalesMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                            : undefined
-                        }
-                        widthClass={menu.key === 'store' || menu.key === 'region' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
-                        showChevronForCustom={menu.key === 'date'}
-                        onSelect={(item) => {
-                          if (menu.key === 'store') {
-                            setSelectedSalesStore((current) => toggleMultiSelectValue(current, item));
-                            return;
+                      {menu.key === 'region' ? (
+                        <HierarchicalLocationDropdown
+                          open={salesMenus.region}
+                          selected={selectedSalesRegion}
+                          onChange={setSelectedSalesRegion}
+                          searchValue={salesMenuSearch.region}
+                          onSearchChange={(value) => setSalesMenuSearch((current) => ({ ...current, region: value }))}
+                          activeProvince={salesRegionProvince}
+                          onProvinceChange={setSalesRegionProvince}
+                        />
+                      ) : (
+                        <SearchableDropdownMenu
+                          open={salesMenus[menu.key as keyof typeof salesMenus]}
+                          options={menu.options}
+                          selected={menu.key === 'store' ? selectedSalesStore : menu.key === 'metric' ? selectedSalesMetric : selectedSalesDate}
+                          multiSelect={menu.key === 'store'}
+                          searchable={menu.key !== 'date'}
+                          searchValue={salesMenuSearch[menu.key as keyof typeof salesMenuSearch]}
+                          onSearchChange={
+                            menu.key !== 'date'
+                              ? (value) => setSalesMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                              : undefined
                           }
-                          if (menu.key === 'region') {
-                            setSelectedSalesRegion((current) => toggleMultiSelectValue(current, item));
-                            return;
-                          }
-                          if (menu.key === 'metric') setSelectedSalesMetric(item);
-                          if (menu.key === 'date') setSelectedSalesDate(item);
-                          setSalesMenus({ store: false, metric: false, date: false, region: false });
-                        }}
-                      />
+                          widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                          showChevronForCustom={menu.key === 'date'}
+                          onSelect={(item) => {
+                            if (menu.key === 'store') {
+                              setSelectedSalesStore((current) => toggleMultiSelectValue(current, item));
+                              return;
+                            }
+                            if (menu.key === 'metric') setSelectedSalesMetric(item);
+                            if (menu.key === 'date') setSelectedSalesDate(item);
+                            setSalesMenus({ store: false, metric: false, date: false, region: false });
+                          }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2328,8 +2511,8 @@ export default function App() {
                     { key: 'date', value: selectedLocationDate, options: locationDateOptions },
                     {
                       key: 'region',
-                      value: formatMultiSelectLabel(selectedLocationRegion, 'All Countries', 'country', 'countries'),
-                      options: locationRegionOptions
+                      value: formatLocationFilterLabel(selectedLocationRegion),
+                      options: []
                     }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
@@ -2343,6 +2526,7 @@ export default function App() {
                             [menu.key]: !current[menu.key as keyof typeof current]
                           }));
                           setLocationMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                          if (menu.key === 'region') setLocationRegionProvince(null);
                         }}
                         className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                       >
@@ -2350,35 +2534,36 @@ export default function App() {
                         <ChevronDown className="tu-h-3 tu-w-3" />
                       </button>
 
-                      <SearchableDropdownMenu
-                        open={locationMenus[menu.key as keyof typeof locationMenus]}
-                        options={menu.options}
-                        selected={
-                          menu.key === 'region'
-                            ? selectedLocationRegion
-                            : menu.key === 'metric'
-                              ? selectedLocationMetric
-                              : selectedLocationDate
-                        }
-                        multiSelect={menu.key === 'region'}
-                        searchable={menu.key !== 'date'}
-                        searchValue={locationMenuSearch[menu.key as keyof typeof locationMenuSearch]}
-                        onSearchChange={
-                          menu.key !== 'date'
-                            ? (value) => setLocationMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                            : undefined
-                        }
-                        widthClass={menu.key === 'region' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
-                        onSelect={(item) => {
-                          if (menu.key === 'region') {
-                            setSelectedLocationRegion((current) => toggleMultiSelectValue(current, item));
-                            return;
+                      {menu.key === 'region' ? (
+                        <HierarchicalLocationDropdown
+                          open={locationMenus.region}
+                          selected={selectedLocationRegion}
+                          onChange={setSelectedLocationRegion}
+                          searchValue={locationMenuSearch.region}
+                          onSearchChange={(value) => setLocationMenuSearch((current) => ({ ...current, region: value }))}
+                          activeProvince={locationRegionProvince}
+                          onProvinceChange={setLocationRegionProvince}
+                        />
+                      ) : (
+                        <SearchableDropdownMenu
+                          open={locationMenus[menu.key as keyof typeof locationMenus]}
+                          options={menu.options}
+                          selected={menu.key === 'metric' ? selectedLocationMetric : selectedLocationDate}
+                          searchable={menu.key !== 'date'}
+                          searchValue={locationMenuSearch[menu.key as keyof typeof locationMenuSearch]}
+                          onSearchChange={
+                            menu.key !== 'date'
+                              ? (value) => setLocationMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                              : undefined
                           }
-                          if (menu.key === 'metric') setSelectedLocationMetric(item);
-                          if (menu.key === 'date') setSelectedLocationDate(item);
-                          setLocationMenus({ metric: false, date: false, region: false });
-                        }}
-                      />
+                          widthClass="tu-w-[190px]"
+                          onSelect={(item) => {
+                            if (menu.key === 'metric') setSelectedLocationMetric(item);
+                            if (menu.key === 'date') setSelectedLocationDate(item);
+                            setLocationMenus({ metric: false, date: false, region: false });
+                          }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2446,8 +2631,8 @@ export default function App() {
                     { key: 'date', value: selectedProductDate, options: productDateOptions },
                     {
                       key: 'region',
-                      value: formatMultiSelectLabel(selectedProductRegion, 'All Countries', 'country', 'countries'),
-                      options: productRegionOptions
+                      value: formatLocationFilterLabel(selectedProductRegion),
+                      options: []
                     }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
@@ -2461,6 +2646,7 @@ export default function App() {
                             [menu.key]: !current[menu.key as keyof typeof current]
                           }));
                           setProductMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                          if (menu.key === 'region') setProductRegionProvince(null);
                         }}
                         className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                       >
@@ -2468,35 +2654,36 @@ export default function App() {
                         <ChevronDown className="tu-h-3 tu-w-3" />
                       </button>
 
-                      <SearchableDropdownMenu
-                        open={productMenus[menu.key as keyof typeof productMenus]}
-                        options={menu.options}
-                        selected={
-                          menu.key === 'region'
-                            ? selectedProductRegion
-                            : menu.key === 'metric'
-                              ? selectedProductMetric
-                              : selectedProductDate
-                        }
-                        multiSelect={menu.key === 'region'}
-                        searchable={menu.key !== 'date'}
-                        searchValue={productMenuSearch[menu.key as keyof typeof productMenuSearch]}
-                        onSearchChange={
-                          menu.key !== 'date'
-                            ? (value) => setProductMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                            : undefined
-                        }
-                        widthClass={menu.key === 'region' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
-                        onSelect={(item) => {
-                          if (menu.key === 'region') {
-                            setSelectedProductRegion((current) => toggleMultiSelectValue(current, item));
-                            return;
+                      {menu.key === 'region' ? (
+                        <HierarchicalLocationDropdown
+                          open={productMenus.region}
+                          selected={selectedProductRegion}
+                          onChange={setSelectedProductRegion}
+                          searchValue={productMenuSearch.region}
+                          onSearchChange={(value) => setProductMenuSearch((current) => ({ ...current, region: value }))}
+                          activeProvince={productRegionProvince}
+                          onProvinceChange={setProductRegionProvince}
+                        />
+                      ) : (
+                        <SearchableDropdownMenu
+                          open={productMenus[menu.key as keyof typeof productMenus]}
+                          options={menu.options}
+                          selected={menu.key === 'metric' ? selectedProductMetric : selectedProductDate}
+                          searchable={menu.key !== 'date'}
+                          searchValue={productMenuSearch[menu.key as keyof typeof productMenuSearch]}
+                          onSearchChange={
+                            menu.key !== 'date'
+                              ? (value) => setProductMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                              : undefined
                           }
-                          if (menu.key === 'metric') setSelectedProductMetric(item);
-                          if (menu.key === 'date') setSelectedProductDate(item);
-                          setProductMenus({ metric: false, date: false, region: false });
-                        }}
-                      />
+                          widthClass="tu-w-[190px]"
+                          onSelect={(item) => {
+                            if (menu.key === 'metric') setSelectedProductMetric(item);
+                            if (menu.key === 'date') setSelectedProductDate(item);
+                            setProductMenus({ metric: false, date: false, region: false });
+                          }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
