@@ -811,14 +811,6 @@ const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'spacer' },
       { type: 'formula', text: 'Under Threshold = Products where Current Stock <= Reorder Point' }
     ]
-  },
-  'Inbound / Outbound Quantities': {
-    title: 'Inbound / Outbound Quantities',
-    blocks: [
-      { type: 'text', text: 'Total inbound and outbound unit movement across selected filters.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Inventory Throughput = Inbound Qty + Outbound Qty' }
-    ]
   }
 };
 const pakistanLocationHierarchy = [
@@ -1908,7 +1900,7 @@ export default function App() {
     const aggregate = (
       metricKey: keyof Pick<
         InventoryStoreSnapshot,
-        'totalInventoryValue' | 'totalProducts' | 'stockoutProducts' | 'reorderProducts' | 'inboundQuantity' | 'outboundQuantity'
+        'totalInventoryValue' | 'totalProducts' | 'stockoutProducts' | 'reorderProducts'
       >
     ) => {
       const current = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].current * multiplier.current, 0);
@@ -1920,10 +1912,6 @@ export default function App() {
     const totalProducts = aggregate('totalProducts');
     const stockoutProducts = aggregate('stockoutProducts');
     const reorderProducts = aggregate('reorderProducts');
-    const inboundQuantity = aggregate('inboundQuantity');
-    const outboundQuantity = aggregate('outboundQuantity');
-    const throughputCurrent = inboundQuantity.current + outboundQuantity.current;
-    const throughputPrevious = inboundQuantity.previous + outboundQuantity.previous;
 
     return [
       {
@@ -1970,18 +1958,6 @@ export default function App() {
           change: Math.abs(reorderProducts.current - reorderProducts.previous).toLocaleString('en-US')
         }
       },
-      {
-        label: 'Inbound / Outbound Quantities',
-        value: `In ${inboundQuantity.current.toLocaleString('en-US')} • Out ${outboundQuantity.current.toLocaleString('en-US')}`,
-        trend: `${getPercentDelta(throughputCurrent, throughputPrevious).toFixed(1)}%`,
-        direction: throughputCurrent >= throughputPrevious ? ('up' as const) : ('down' as const),
-        hideTrend: true,
-        comparison: {
-          current: `In ${inboundQuantity.current.toLocaleString('en-US')} • Out ${outboundQuantity.current.toLocaleString('en-US')}`,
-          previous: `In ${inboundQuantity.previous.toLocaleString('en-US')} • Out ${outboundQuantity.previous.toLocaleString('en-US')}`,
-          change: Math.abs(throughputCurrent - throughputPrevious).toLocaleString('en-US')
-        }
-      }
     ];
   }, [activeInventorySnapshots, selectedInventoryDate]);
 
@@ -2950,7 +2926,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
+                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
                         {dynamicInventoryMetricCards.map((metric, index) => {
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                           const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
@@ -2970,8 +2946,8 @@ export default function App() {
                                   <span
                                     className={`${
                                       primaryMetric
-                                        ? 'tu-text-[11px] tu-font-semibold tu-uppercase tu-tracking-[0.16em] tu-text-[#10c562]'
-                                        : 'tu-text-[12px] tu-font-medium tu-text-[#8f9197]'
+                                        ? 'tu-text-[13px] tu-font-semibold tu-uppercase tu-tracking-[0.18em] tu-text-[#10c562]'
+                                        : 'tu-text-[14px] tu-font-medium tu-text-[#8f9197]'
                                     }`}
                                   >
                                     {metric.label}
@@ -2981,38 +2957,36 @@ export default function App() {
                                     widthClass={metric.label.includes('Inbound') ? 'tu-w-[280px]' : 'tu-w-[220px]'}
                                   />
                                 </div>
-                                <span className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[10px] tu-font-medium tu-text-[#7f838a] tu-opacity-0 transition-opacity group-hover:tu-opacity-100">
+                                <span className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#7f838a] tu-opacity-0 transition-opacity group-hover:tu-opacity-100">
                                   <span>Reports</span>
-                                  <ChevronRight className="tu-h-3 tu-w-3" />
+                                  <ChevronRight className="tu-h-4 tu-w-4" />
                                 </span>
                               </div>
 
                               <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
                                 <p
-                                  className="tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]"
+                                  className="tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#333538]"
                                 >
                                   {metric.value}
                                 </p>
                               </div>
 
-                              {!metric.hideTrend ? (
-                                <div className="tu-mt-4 tu-flex tu-items-center tu-gap-2">
-                                  <div className="tu-relative">
-                                    <div
-                                      onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
-                                      onMouseLeave={() => setHoveredInventoryKpi(null)}
-                                      className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
-                                    >
-                                      {metric.trend}
-                                      <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                    </div>
-                                    {hoveredInventoryKpi === metric.label ? (
-                                      <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
-                                    ) : null}
+                              <div className="tu-mt-4 tu-flex tu-items-center tu-gap-2">
+                                <div className="tu-relative">
+                                  <div
+                                    onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
+                                    onMouseLeave={() => setHoveredInventoryKpi(null)}
+                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[15px] tu-font-medium ${trendColor}`}
+                                  >
+                                    {metric.trend}
+                                    <TrendIcon className="tu-h-[18px] tu-w-[18px]" />
                                   </div>
-                                  <span className="tu-text-[12px] tu-text-[#8f949b]">vs previous period</span>
+                                  {hoveredInventoryKpi === metric.label ? (
+                                    <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                  ) : null}
                                 </div>
-                              ) : null}
+                                <span className="tu-text-[15px] tu-text-[#8f949b]">vs previous period</span>
+                              </div>
                             </div>
                           );
                         })}
@@ -3148,10 +3122,10 @@ export default function App() {
                         <a
                           href="#"
                           onClick={(event) => event.preventDefault()}
-                          className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                          className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
                         >
                           <span>See reports</span>
-                          <ChevronRight className="tu-h-3.5 tu-w-3.5" />
+                          <ChevronRight className="tu-h-4 tu-w-4" />
                         </a>
                         {inventoryMovementKpis.map((metric, index) => {
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
@@ -3168,8 +3142,8 @@ export default function App() {
                                   <span
                                     className={`${
                                       primaryMetric
-                                        ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
-                                        : 'tu-text-[13px] tu-font-normal tu-text-[#8f9197]'
+                                        ? 'tu-text-[13px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
+                                        : 'tu-text-[14px] tu-font-normal tu-text-[#8f9197]'
                                     }`}
                                   >
                                     {metric.label}
@@ -3183,8 +3157,8 @@ export default function App() {
                                   <p
                                     className={`tu-text-[#333538] ${
                                       primaryMetric
-                                        ? 'tu-text-[24px] tu-font-semibold tu-leading-none'
-                                        : 'tu-text-[17px] tu-font-medium tu-leading-none'
+                                        ? 'tu-text-[26px] tu-font-semibold tu-leading-none'
+                                        : 'tu-text-[19px] tu-font-medium tu-leading-none'
                                     }`}
                                   >
                                     {metric.value}
@@ -3194,10 +3168,10 @@ export default function App() {
                                       type="button"
                                       onMouseEnter={() => setHoveredInventoryMovementKpi(metric.label)}
                                       onMouseLeave={() => setHoveredInventoryMovementKpi(null)}
-                                      className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                      className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[13px] tu-font-medium ${trendColor}`}
                                     >
                                       {metric.trend}
-                                      <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                      <TrendIcon className="tu-h-4 tu-w-4" />
                                     </button>
                                     {hoveredInventoryMovementKpi === metric.label ? (
                                       <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
@@ -4417,3 +4391,4 @@ export default function App() {
     </div>
   );
 }
+
