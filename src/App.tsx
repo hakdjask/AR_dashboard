@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BarElement,
   CategoryScale,
@@ -12,11 +12,14 @@ import {
 } from 'chart.js';
 import {
   ArrowDownRight,
+  ArrowUpDown,
   ArrowUpRight,
+  BarChart3,
   Bell,
   ChevronLeft,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   LayoutGrid,
   Menu,
   Package2,
@@ -32,7 +35,7 @@ import { Bar, Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
 
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30';
-type TabKey = 'courier' | 'sales';
+type TabKey = 'courier' | 'sales' | 'inventory';
 type MetricKey = 'netSales' | 'cogs' | 'expenses' | 'netProfit';
 type StoreChartMetricKey = 'grossRevenue' | 'orderReturns' | 'unitsSold';
 type ComparisonData = {
@@ -61,7 +64,8 @@ type PeriodCard = {
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'courier', label: 'Courier' },
-  { key: 'sales', label: 'Sales' }
+  { key: 'sales', label: 'Sales' },
+  { key: 'inventory', label: 'Inventory' }
 ];
 
 const dateMenu = [
@@ -454,8 +458,344 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
 const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
 const salesMetricOptions = ['Gross Revenue', 'Order Returns', 'Units Sold'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
+const inventoryDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
+const inventoryStatusOptions = ['On-hand', 'Committed', 'Available', 'Inbound', 'Unfulfillable'];
+const inventoryGroupByOptions = ['Days', 'Weeks', 'Months', 'Years'];
+const inventoryLocationOptions = [
+  'Main Warehouse',
+  'Retail Backroom',
+  'Transit Hub',
+  'Returns Bay',
+  'Overflow Rack'
+];
+const inventoryMovementStoreOptions = [...salesStoreOptions];
+const inventoryMovementLocationOptions = [...inventoryLocationOptions];
+const inventoryMovementMaxDataPoints = 365;
+const inventoryMovementBaseIndexes = Array.from({ length: inventoryMovementMaxDataPoints }, (_, index) => index);
+
+type InventoryStatusKey = 'onHand' | 'committed' | 'available' | 'inbound' | 'unfulfillable';
+type InventoryMovementStoreData = {
+  store: string;
+  location: string;
+  series: Record<InventoryStatusKey, { current: number[]; previous: number[] }>;
+};
+
+type InventoryHealthProduct = {
+  id: string;
+  name: string;
+  sku: string;
+  image: string;
+  store: string;
+  location: string;
+  onHandQuantity: number;
+  committedQuantity: number;
+  availableQuantity: number;
+  inventoryAging: number;
+  deadStocks: number;
+  salesVelocity: number;
+  daysUntilStockout: number;
+  overstockPercentage: number;
+  overstockValue: number;
+};
+
+const inventoryStatusLabelMap: Record<InventoryStatusKey, string> = {
+  onHand: 'On-hand',
+  committed: 'Committed',
+  available: 'Available',
+  inbound: 'Inbound',
+  unfulfillable: 'Unfulfillable'
+};
+
+const inventoryStatusFromLabel: Record<string, InventoryStatusKey> = {
+  'On-hand': 'onHand',
+  Committed: 'committed',
+  Available: 'available',
+  Inbound: 'inbound',
+  Unfulfillable: 'unfulfillable',
+  Unfulfilled: 'unfulfillable'
+};
+
+const inventoryStoreLocations: Record<string, string> = {
+  'Daraz-02': 'Main Warehouse',
+  'Shopify-01': 'Retail Backroom',
+  'WOO-01': 'Transit Hub',
+  'Shopify-02': 'Returns Bay',
+  'Shopify-03': 'Overflow Rack'
+};
+
+const inventoryHealthHeaderTooltips: Record<string, string | TooltipContent> = {
+  product: 'Product details including image, product title, and SKU identifier.',
+  onHandQuantity: 'Total physical stock currently present in inventory locations.',
+  committedQuantity: 'Stock reserved for open orders and unavailable for new orders.',
+  availableQuantity: {
+    title: 'Available Quantity',
+    blocks: [
+      { type: 'text', text: 'Sellable quantity after removing committed inventory from on-hand quantity.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Available Quantity = On-hand Quantity - Committed Quantity' }
+    ]
+  },
+  inventoryAging: 'Units aging between 1 and 90 days in inventory.',
+  deadStocks: {
+    title: 'Dead Stocks (Aging >90)',
+    blocks: [
+      { type: 'text', text: 'Units that have remained unsold in inventory for more than 90 days.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Dead Stocks = Quantity where Aging Days > 90' }
+    ]
+  },
+  salesVelocity: {
+    title: 'Sales Velocity',
+    blocks: [
+      { type: 'text', text: 'Average units sold per day in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Sales Velocity = Units Sold / Number of Days' }
+    ]
+  },
+  daysUntilStockout: {
+    title: 'Days Until Stockout',
+    blocks: [
+      { type: 'text', text: 'Estimated days remaining before available inventory reaches zero.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Days Until Stockout = Available Quantity / Sales Velocity' }
+    ]
+  },
+  overstockPercentage: {
+    title: 'Overstock Percentage',
+    blocks: [
+      { type: 'text', text: 'Excess stock above an estimated 45-day demand window.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Overstock % = ((On-hand - 45-Day Demand) / 45-Day Demand) x 100' }
+    ]
+  }
+};
+
+const generateInventoryHealthImage = (name: string, seed: number) => {
+  const colors = ['#DBFCE7', '#E0F2FE', '#FEF3C7', '#FCE7F3', '#EDE9FE', '#D1FAE5'];
+  const bg = colors[seed % colors.length];
+  const initials = name
+    .split(' ')
+    .slice(0, 2)
+    .map((part) => part.charAt(0))
+    .join('')
+    .toUpperCase();
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' rx='10' fill='${bg}'/><text x='20' y='25' text-anchor='middle' font-family='Poppins, Arial' font-size='13' font-weight='700' fill='#1f2937'>${initials}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 100 }, (_, index) => {
+  const productIndex = index + 1;
+  const store = salesStoreOptions[index % salesStoreOptions.length];
+  const location = inventoryLocationOptions[index % inventoryLocationOptions.length];
+  const seasonal = Math.sin((index + 1) * 0.63) * 0.22 + 1;
+  const onHandQuantity = Math.max(35, Math.round((120 + (index % 11) * 17) * seasonal));
+  const committedQuantity = Math.max(8, Math.round(onHandQuantity * (0.12 + (index % 5) * 0.06)));
+  const availableQuantity = Math.max(0, onHandQuantity - committedQuantity);
+  const inventoryAging = Math.max(10, Math.round(onHandQuantity * (0.2 + ((index + 3) % 6) * 0.08)));
+  const deadStocks = Math.max(0, Math.round(onHandQuantity * (0.03 + ((index + 5) % 4) * 0.05)));
+  const salesVelocity = Number((2.1 + (index % 7) * 0.55 + Math.sin(index * 0.31)).toFixed(1));
+  const daysUntilStockout = salesVelocity > 0 ? Math.max(1, Math.round(availableQuantity / salesVelocity)) : 0;
+  const projected45DayDemand = Math.max(1, Math.round(salesVelocity * 45));
+  const overstockUnits = Math.max(0, onHandQuantity - projected45DayDemand);
+  const overstockPercentage = Number(((overstockUnits / projected45DayDemand) * 100).toFixed(1));
+  const overstockValue = overstockUnits * (950 + (index % 9) * 140);
+  const productName = `Inventory Product ${productIndex.toString().padStart(3, '0')}`;
+
+  return {
+    id: `ih-${productIndex.toString().padStart(3, '0')}`,
+    name: productName,
+    sku: `SKU-${(43000 + productIndex).toString()}`,
+    image: generateInventoryHealthImage(productName, index),
+    store,
+    location,
+    onHandQuantity,
+    committedQuantity,
+    availableQuantity,
+    inventoryAging,
+    deadStocks,
+    salesVelocity,
+    daysUntilStockout,
+    overstockPercentage,
+    overstockValue
+  };
+});
+
+const deterministicNoise = (seed: number) => {
+  const raw = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return raw - Math.floor(raw);
+};
+
+const generateMovementSeries = (base: number, maxCap: number, storeFactor: number, statusFactor: number) =>
+  inventoryMovementBaseIndexes.reduce<number[]>((accumulator, index) => {
+    const previous = accumulator[index - 1] ?? base;
+    const lowFreqWave = Math.sin((index + storeFactor * 4) * 0.17) * base * 0.24;
+    const midFreqWave = Math.cos((index + statusFactor * 9) * 0.39) * base * 0.18;
+    const highFreqWave = Math.sin((index + storeFactor + statusFactor) * 0.81) * base * 0.12;
+    const drift = (deterministicNoise((index + 3) * (storeFactor + 5) * (statusFactor + 7)) - 0.5) * base * 0.48;
+    const spikeSeed = deterministicNoise((index + 17) * (storeFactor + 11) * (statusFactor + 13));
+    const spike =
+      spikeSeed > 0.86
+        ? (deterministicNoise((index + 29) * (storeFactor + 2) * (statusFactor + 19)) - 0.5) * base * 1.1
+        : 0;
+    const step = lowFreqWave + midFreqWave + highFreqWave + drift + spike;
+    const smoothed = previous * 0.42 + (base + step) * 0.58;
+    accumulator.push(Math.min(maxCap, Math.max(0, Math.round(smoothed))));
+    return accumulator;
+  }, []);
+
+const inventoryMovementData: InventoryMovementStoreData[] = salesStoreOptions.map((store, storeIndex) => {
+  const statusConfig: Record<InventoryStatusKey, { base: number; max: number }> = {
+    onHand: { base: 120, max: 780 },
+    committed: { base: 82, max: 640 },
+    available: { base: 98, max: 710 },
+    inbound: { base: 66, max: 560 },
+    unfulfillable: { base: 24, max: 320 }
+  };
+
+  const series = (Object.keys(statusConfig) as InventoryStatusKey[]).reduce(
+    (accumulator, statusKey, statusIndex) => {
+      const { base, max } = statusConfig[statusKey];
+      const current = generateMovementSeries(base, max, storeIndex, statusIndex);
+      const previous = generateMovementSeries(
+        base * (0.9 + deterministicNoise((storeIndex + 1) * (statusIndex + 3) * 17) * 0.3),
+        max,
+        storeIndex + 5,
+        statusIndex + 4
+      ).map((value, index) => {
+        const swing = (deterministicNoise((index + 37) * (storeIndex + 3) * (statusIndex + 17)) - 0.5) * base * 0.34;
+        return Math.min(max, Math.max(0, Math.round(value + swing)));
+      });
+      accumulator[statusKey] = { current, previous };
+      return accumulator;
+    },
+    {} as Record<InventoryStatusKey, { current: number[]; previous: number[] }>
+  );
+
+  return {
+    store,
+    location: inventoryStoreLocations[store],
+    series
+  };
+});
+
+const inventoryMovementKpiTooltips: Record<string, string | TooltipContent> = {
+  'On-hand': 'Total stock physically available at storage locations in the selected period.',
+  Committed: 'Stock reserved for open orders and therefore unavailable for new allocations.',
+  Available: {
+    title: 'Available',
+    blocks: [
+      { type: 'text', text: 'Sellable stock after subtracting committed quantities from on-hand inventory.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Available = On-hand - Committed' }
+    ]
+  },
+  Inbound: 'Inventory expected to arrive from purchase orders or transfers.',
+  Unfulfilled: 'Demand that could not be served due to inventory constraints in the selected period.'
+};
+
+const inventoryDateScale: Record<string, number> = {
+  'Last 7 Days': 0.86,
+  'Last 30 Days': 1,
+  'Last 90 Days': 1.72,
+  'Last 365 Days': 4.65,
+  Custom: 1.1
+};
 const locationMetricOptions = ['Orders Volume', 'Gross Revenue'];
 const locationDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
+
+type InventoryStoreSnapshot = {
+  store: string;
+  region: string;
+  totalInventoryValue: { current: number; previous: number };
+  totalProducts: { current: number; previous: number };
+  stockoutProducts: { current: number; previous: number };
+  reorderProducts: { current: number; previous: number };
+  inboundQuantity: { current: number; previous: number };
+  outboundQuantity: { current: number; previous: number };
+};
+
+const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
+  {
+    store: 'Daraz-02',
+    region: 'Sindh',
+    totalInventoryValue: { current: 3820000, previous: 3490000 },
+    totalProducts: { current: 1150, previous: 1070 },
+    stockoutProducts: { current: 26, previous: 31 },
+    reorderProducts: { current: 74, previous: 65 },
+    inboundQuantity: { current: 2940, previous: 2680 },
+    outboundQuantity: { current: 2570, previous: 2410 }
+  },
+  {
+    store: 'Shopify-01',
+    region: 'Punjab',
+    totalInventoryValue: { current: 4250000, previous: 3920000 },
+    totalProducts: { current: 1290, previous: 1215 },
+    stockoutProducts: { current: 21, previous: 25 },
+    reorderProducts: { current: 66, previous: 61 },
+    inboundQuantity: { current: 3310, previous: 3020 },
+    outboundQuantity: { current: 2890, previous: 2700 }
+  },
+  {
+    store: 'WOO-01',
+    region: 'Khyber Pakhtunkhwa',
+    totalInventoryValue: { current: 2910000, previous: 2780000 },
+    totalProducts: { current: 980, previous: 940 },
+    stockoutProducts: { current: 32, previous: 36 },
+    reorderProducts: { current: 71, previous: 67 },
+    inboundQuantity: { current: 2480, previous: 2320 },
+    outboundQuantity: { current: 2190, previous: 2080 }
+  },
+  {
+    store: 'Shopify-02',
+    region: 'Balochistan',
+    totalInventoryValue: { current: 3380000, previous: 3090000 },
+    totalProducts: { current: 1085, previous: 1032 },
+    stockoutProducts: { current: 24, previous: 29 },
+    reorderProducts: { current: 58, previous: 54 },
+    inboundQuantity: { current: 2670, previous: 2440 },
+    outboundQuantity: { current: 2410, previous: 2260 }
+  },
+  {
+    store: 'Shopify-03',
+    region: 'Gilgit Baltistan',
+    totalInventoryValue: { current: 3590000, previous: 3310000 },
+    totalProducts: { current: 1210, previous: 1158 },
+    stockoutProducts: { current: 19, previous: 23 },
+    reorderProducts: { current: 61, previous: 55 },
+    inboundQuantity: { current: 3180, previous: 2870 },
+    outboundQuantity: { current: 2760, previous: 2620 }
+  }
+];
+
+const inventoryDateMultipliers: Record<string, { current: number; previous: number }> = {
+  'Last 7 Days': { current: 0.25, previous: 0.22 },
+  'Last 30 Days': { current: 1, previous: 0.93 },
+  'Last 90 Days': { current: 2.8, previous: 2.55 },
+  'Last 365 Days': { current: 11.4, previous: 10.8 },
+  Custom: { current: 1, previous: 0.95 }
+};
+
+const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
+  'Total Inventory Value': 'Total monetary value of available inventory in the selected period and filters.',
+  'Total Products': 'Total unique products currently tracked in inventory across selected stores and locations.',
+  'Stockout Products': 'Products that reached zero available stock at least once during the selected period.',
+  'Products In Reorder Threshold': {
+    title: 'Products In Reorder Threshold',
+    blocks: [
+      { type: 'text', text: 'Products whose available stock is at or below the reorder level.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Under Threshold = Products where Current Stock <= Reorder Point' }
+    ]
+  },
+  'Inbound / Outbound Quantities': {
+    title: 'Inbound / Outbound Quantities',
+    blocks: [
+      { type: 'text', text: 'Total inbound and outbound unit movement across selected filters.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Inventory Throughput = Inbound Qty + Outbound Qty' }
+    ]
+  }
+};
 const pakistanLocationHierarchy = [
   {
     province: 'Sindh',
@@ -840,6 +1180,22 @@ const trendPopoverContent: Record<
 const formatCustomDate = (value: string) =>
   new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
+const getOrdinalSuffix = (day: number) => {
+  const modHundred = day % 100;
+  if (modHundred >= 11 && modHundred <= 13) return 'th';
+  if (day % 10 === 1) return 'st';
+  if (day % 10 === 2) return 'nd';
+  if (day % 10 === 3) return 'rd';
+  return 'th';
+};
+
+const formatTooltipPeriodDate = (date: Date) => {
+  const day = date.getDate();
+  const month = date.toLocaleDateString('en-US', { month: 'long' });
+  const year = date.getFullYear();
+  return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
+};
+
 const getFilteredOptions = (options: string[], query: string) => {
   const trimmedQuery = query.trim().toLowerCase();
   if (!trimmedQuery) return options;
@@ -901,7 +1257,7 @@ function InfoTooltip({
 }) {
   return (
     <div
-      className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover:tu-opacity-100`}
+      className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
     >
       {typeof text === 'string' ? (
         text
@@ -1226,6 +1582,64 @@ export default function App() {
     date: false,
     region: false
   });
+  const [inventoryMenus, setInventoryMenus] = useState<{ store: boolean; date: boolean; region: boolean }>({
+    store: false,
+    date: false,
+    region: false
+  });
+  const [selectedInventoryStore, setSelectedInventoryStore] = useState<string[]>(salesStoreOptions);
+  const [selectedInventoryDate, setSelectedInventoryDate] = useState('Last 30 Days');
+  const [selectedInventoryRegion, setSelectedInventoryRegion] = useState<string[]>([...inventoryLocationOptions]);
+  const [inventoryMenuSearch, setInventoryMenuSearch] = useState({ store: '', date: '', region: '' });
+  const [inventoryMovementMenus, setInventoryMovementMenus] = useState<{
+    store: boolean;
+    date: boolean;
+    region: boolean;
+    status: boolean;
+    groupBy: boolean;
+  }>({
+    store: false,
+    date: false,
+    region: false,
+    status: false,
+    groupBy: false
+  });
+  const [selectedInventoryMovementStore, setSelectedInventoryMovementStore] = useState<string[]>([...salesStoreOptions]);
+  const [selectedInventoryMovementDate, setSelectedInventoryMovementDate] = useState('Last 30 Days');
+  const [selectedInventoryMovementRegion, setSelectedInventoryMovementRegion] = useState<string[]>([...inventoryLocationOptions]);
+  const [selectedInventoryStatus, setSelectedInventoryStatus] = useState('On-hand');
+  const [selectedInventoryGroupBy, setSelectedInventoryGroupBy] = useState('Days');
+  const [inventoryMovementMenuSearch, setInventoryMovementMenuSearch] = useState({
+    store: '',
+    date: '',
+    region: '',
+    status: '',
+    groupBy: ''
+  });
+  const [inventoryHealthMenus, setInventoryHealthMenus] = useState<{ store: boolean; location: boolean; date: boolean }>({
+    store: false,
+    location: false,
+    date: false
+  });
+  const [selectedInventoryHealthStore, setSelectedInventoryHealthStore] = useState<string[]>([...salesStoreOptions]);
+  const [selectedInventoryHealthLocation, setSelectedInventoryHealthLocation] = useState<string[]>([...inventoryLocationOptions]);
+  const [selectedInventoryHealthDate, setSelectedInventoryHealthDate] = useState('Last 30 Days');
+  const [inventoryHealthMenuSearch, setInventoryHealthMenuSearch] = useState({ store: '', location: '', date: '' });
+  const [inventoryHealthSearchTerm, setInventoryHealthSearchTerm] = useState('');
+  const [inventoryHealthSort, setInventoryHealthSort] = useState<{
+    key:
+      | 'name'
+      | 'onHandQuantity'
+      | 'committedQuantity'
+      | 'availableQuantity'
+      | 'inventoryAging'
+      | 'deadStocks'
+      | 'salesVelocity'
+      | 'daysUntilStockout'
+      | 'overstockPercentage';
+    direction: 'asc' | 'desc';
+  }>({ key: 'name', direction: 'asc' });
+  const [visibleInventoryHealthRows, setVisibleInventoryHealthRows] = useState(20);
   const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>(salesStoreOptions);
   const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Revenue');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
@@ -1253,6 +1667,13 @@ export default function App() {
   const [productMenuSearch, setProductMenuSearch] = useState({ metric: '', date: '', region: '' });
   const [productRegionProvince, setProductRegionProvince] = useState<string | null>(null);
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
+  const [hoveredInventoryKpi, setHoveredInventoryKpi] = useState<string | null>(null);
+  const [hoveredInventoryMovementKpi, setHoveredInventoryMovementKpi] = useState<string | null>(null);
+  const [hoveredInventoryMovementPoint, setHoveredInventoryMovementPoint] = useState<{
+    x: number;
+    y: number;
+    index: number;
+  } | null>(null);
   const [hoveredSalesKpi, setHoveredSalesKpi] = useState<string | null>(null);
   const [hoveredLocationKpi, setHoveredLocationKpi] = useState<string | null>(null);
   const [hoveredProductKpi, setHoveredProductKpi] = useState<string | null>(null);
@@ -1434,6 +1855,478 @@ export default function App() {
     selectedSalesStore.length === salesStoreOptions.length
       ? 'All Stores'
       : formatMultiSelectLabel(selectedSalesStore, 'Select Stores', 'store', 'stores');
+
+  const inventoryStoreSummaryLabel =
+    selectedInventoryStore.length === salesStoreOptions.length
+      ? 'All Stores'
+      : formatMultiSelectLabel(selectedInventoryStore, 'Select Stores', 'store', 'stores');
+
+  const inventoryLocationSummaryLabel =
+    selectedInventoryRegion.length === inventoryLocationOptions.length
+      ? 'Inventory Locations'
+      : formatMultiSelectLabel(selectedInventoryRegion, 'Inventory Locations', 'location', 'locations');
+
+  const activeInventorySnapshots = useMemo(
+    () =>
+      inventoryStoreSnapshots.filter(
+        (snapshot) =>
+          selectedInventoryStore.includes(snapshot.store) &&
+          selectedInventoryRegion.includes(inventoryStoreLocations[snapshot.store])
+      ),
+    [selectedInventoryRegion, selectedInventoryStore]
+  );
+
+  const dynamicInventoryMetricCards = useMemo(() => {
+    const multiplier = inventoryDateMultipliers[selectedInventoryDate] ?? inventoryDateMultipliers['Last 30 Days'];
+
+    const aggregate = (
+      metricKey: keyof Pick<
+        InventoryStoreSnapshot,
+        'totalInventoryValue' | 'totalProducts' | 'stockoutProducts' | 'reorderProducts' | 'inboundQuantity' | 'outboundQuantity'
+      >
+    ) => {
+      const current = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].current * multiplier.current, 0);
+      const previous = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].previous * multiplier.previous, 0);
+      return { current: Math.round(current), previous: Math.round(previous) };
+    };
+
+    const inventoryValue = aggregate('totalInventoryValue');
+    const totalProducts = aggregate('totalProducts');
+    const stockoutProducts = aggregate('stockoutProducts');
+    const reorderProducts = aggregate('reorderProducts');
+
+    return [
+      {
+        label: 'Total Inventory Value',
+        value: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
+        trend: `${getPercentDelta(inventoryValue.current, inventoryValue.previous).toFixed(1)}%`,
+        direction: inventoryValue.current >= inventoryValue.previous ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
+          previous: `PKR ${inventoryValue.previous.toLocaleString('en-US')}`,
+          change: `PKR ${Math.abs(inventoryValue.current - inventoryValue.previous).toLocaleString('en-US')}`
+        }
+      },
+      {
+        label: 'Total Products',
+        value: totalProducts.current.toLocaleString('en-US'),
+        trend: `${getPercentDelta(totalProducts.current, totalProducts.previous).toFixed(1)}%`,
+        direction: totalProducts.current >= totalProducts.previous ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: totalProducts.current.toLocaleString('en-US'),
+          previous: totalProducts.previous.toLocaleString('en-US'),
+          change: Math.abs(totalProducts.current - totalProducts.previous).toLocaleString('en-US')
+        }
+      },
+      {
+        label: 'Stockout Products',
+        value: stockoutProducts.current.toLocaleString('en-US'),
+        trend: `${getPercentDelta(stockoutProducts.current, stockoutProducts.previous).toFixed(1)}%`,
+        direction: stockoutProducts.current >= stockoutProducts.previous ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: stockoutProducts.current.toLocaleString('en-US'),
+          previous: stockoutProducts.previous.toLocaleString('en-US'),
+          change: Math.abs(stockoutProducts.current - stockoutProducts.previous).toLocaleString('en-US')
+        }
+      },
+      {
+        label: 'Products In Reorder Threshold',
+        value: reorderProducts.current.toLocaleString('en-US'),
+        trend: `${getPercentDelta(reorderProducts.current, reorderProducts.previous).toFixed(1)}%`,
+        direction: reorderProducts.current >= reorderProducts.previous ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: reorderProducts.current.toLocaleString('en-US'),
+          previous: reorderProducts.previous.toLocaleString('en-US'),
+          change: Math.abs(reorderProducts.current - reorderProducts.previous).toLocaleString('en-US')
+        }
+      }
+    ];
+  }, [activeInventorySnapshots, selectedInventoryDate]);
+
+  const inventoryMovementStoreSummaryLabel =
+    selectedInventoryMovementStore.length === salesStoreOptions.length
+      ? 'All Stores'
+      : formatMultiSelectLabel(selectedInventoryMovementStore, 'Select Stores', 'store', 'stores');
+
+  const inventoryMovementLocationSummaryLabel =
+    selectedInventoryMovementRegion.length === inventoryLocationOptions.length
+      ? 'Inventory Locations'
+      : formatMultiSelectLabel(selectedInventoryMovementRegion, 'Inventory Locations', 'location', 'locations');
+
+  const activeInventoryMovementStores = useMemo(
+    () =>
+      inventoryMovementData.filter(
+        (store) =>
+          selectedInventoryMovementStore.includes(store.store) && selectedInventoryMovementRegion.includes(store.location)
+      ),
+    [selectedInventoryMovementRegion, selectedInventoryMovementStore]
+  );
+
+  const activeInventoryStatusKey = inventoryStatusFromLabel[selectedInventoryStatus] ?? 'onHand';
+
+  const inventoryMovementDateAdjusted = useMemo(() => {
+    const dayCountMap: Record<string, number> = {
+      'Last 7 Days': 7,
+      'Last 30 Days': 30,
+      'Last 90 Days': 90,
+      'Last 365 Days': 365,
+      Custom: 30
+    };
+    const totalDays = dayCountMap[selectedInventoryMovementDate] ?? 30;
+    const baseScale = inventoryDateScale[selectedInventoryMovementDate] ?? 1;
+    const currentMultiplier = baseScale;
+    const previousMultiplier = Math.max(0.6, baseScale * 0.87);
+    const startIndex = Math.max(0, inventoryMovementMaxDataPoints - totalDays);
+
+    const aggregateCurrent = inventoryMovementBaseIndexes.map((index) =>
+      activeInventoryMovementStores.reduce(
+        (sum, store) => sum + store.series[activeInventoryStatusKey].current[index] * currentMultiplier,
+        0
+      )
+    );
+    const aggregatePrevious = inventoryMovementBaseIndexes.map((index) =>
+      activeInventoryMovementStores.reduce(
+        (sum, store) => sum + store.series[activeInventoryStatusKey].previous[index] * previousMultiplier,
+        0
+      )
+    );
+
+    const endDate = new Date();
+    endDate.setHours(0, 0, 0, 0);
+    const currentDates = Array.from({ length: totalDays }, (_, index) => {
+      const date = new Date(endDate);
+      date.setDate(endDate.getDate() - (totalDays - 1 - index));
+      return date;
+    });
+    const previousDates = currentDates.map((date) => {
+      const previousDate = new Date(date);
+      previousDate.setDate(date.getDate() - totalDays);
+      return previousDate;
+    });
+
+    return {
+      labels: currentDates.map((date) => date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })),
+      currentDates,
+      previousDates,
+      current: aggregateCurrent.slice(startIndex).map((value) => Math.round(value)),
+      previous: aggregatePrevious.slice(startIndex).map((value) => Math.round(value))
+    };
+  }, [activeInventoryMovementStores, activeInventoryStatusKey, selectedInventoryMovementDate]);
+
+  const inventoryMovementGrouped = useMemo(() => {
+    const sourceLabels = inventoryMovementDateAdjusted.labels;
+    const sourceCurrentDates = inventoryMovementDateAdjusted.currentDates;
+    const sourcePreviousDates = inventoryMovementDateAdjusted.previousDates;
+    const sourceCurrent = inventoryMovementDateAdjusted.current;
+    const sourcePrevious = inventoryMovementDateAdjusted.previous;
+
+    const groupSizeMap: Record<string, number> = {
+      Days: 1,
+      Weeks: 3,
+      Months: 5,
+      Years: Math.ceil(sourceLabels.length / 2)
+    };
+
+    const groupSize = groupSizeMap[selectedInventoryGroupBy] ?? 1;
+    const labels: string[] = [];
+    const currentDates: Date[] = [];
+    const previousDates: Date[] = [];
+    const current: number[] = [];
+    const previous: number[] = [];
+
+    for (let index = 0; index < sourceLabels.length; index += groupSize) {
+      const labelSlice = sourceLabels.slice(index, index + groupSize);
+      const currentDateSlice = sourceCurrentDates.slice(index, index + groupSize);
+      const previousDateSlice = sourcePreviousDates.slice(index, index + groupSize);
+      const currentSlice = sourceCurrent.slice(index, index + groupSize);
+      const previousSlice = sourcePrevious.slice(index, index + groupSize);
+      const bucket = Math.floor(index / groupSize) + 1;
+
+      if (selectedInventoryGroupBy === 'Days') labels.push(labelSlice[0]);
+      if (selectedInventoryGroupBy === 'Weeks') labels.push(`Week ${bucket}`);
+      if (selectedInventoryGroupBy === 'Months') labels.push(`Month ${bucket}`);
+      if (selectedInventoryGroupBy === 'Years') labels.push(`Year ${bucket}`);
+
+      currentDates.push(currentDateSlice[currentDateSlice.length - 1] ?? sourceCurrentDates[sourceCurrentDates.length - 1]);
+      previousDates.push(previousDateSlice[previousDateSlice.length - 1] ?? sourcePreviousDates[sourcePreviousDates.length - 1]);
+      current.push(currentSlice.reduce((sum, value) => sum + value, 0));
+      previous.push(previousSlice.reduce((sum, value) => sum + value, 0));
+    }
+
+    return { labels, currentDates, previousDates, current, previous };
+  }, [inventoryMovementDateAdjusted, selectedInventoryGroupBy]);
+
+  const inventoryMovementChartData = useMemo(
+    () => ({
+      labels: inventoryMovementGrouped.labels,
+      datasets: [
+        {
+          label: 'Current Period',
+          data: inventoryMovementGrouped.current,
+          borderColor: '#10c562',
+          backgroundColor: '#10c562',
+          pointBackgroundColor: '#10c562',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: 2.8,
+          pointHoverRadius: 4.5,
+          borderWidth: 2.1,
+          tension: 0.38
+        },
+        {
+          label: 'Previous Period',
+          data: inventoryMovementGrouped.previous,
+          borderColor: 'rgba(156,163,175,0.55)',
+          backgroundColor: 'rgba(156,163,175,0.55)',
+          pointBackgroundColor: 'rgba(156,163,175,0.55)',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: 2.8,
+          pointHoverRadius: 4.5,
+          borderWidth: 2.1,
+          tension: 0.38,
+          borderDash: [7, 6]
+        }
+      ]
+    }),
+    [inventoryMovementGrouped]
+  );
+
+  const inventoryMovementChartOptions = useMemo(() => {
+    const allValues = [...inventoryMovementGrouped.current, ...inventoryMovementGrouped.previous];
+    const maxValue = allValues.length > 0 ? Math.max(...allValues) : 100;
+    const roundedMax = Math.ceil(maxValue / 50) * 50;
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index' as const,
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          position: 'top' as const,
+          align: 'center' as const,
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle' as const,
+            boxWidth: 8,
+            boxHeight: 8,
+            color: '#3A3D42',
+            font: {
+              family: 'Poppins',
+              size: 12
+            },
+            padding: 18
+          }
+        },
+        tooltip: {
+          enabled: false
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#5F6368',
+            font: {
+              family: 'Poppins',
+              size: 11
+            },
+            maxRotation: 0,
+            minRotation: 0,
+            callback: (value: string | number, index: number) =>
+              selectedInventoryGroupBy === 'Days' && index % 2 === 1 ? '' : inventoryMovementGrouped.labels[index] ?? value
+          },
+          border: {
+            display: false
+          }
+        },
+        y: {
+          min: 0,
+          max: roundedMax,
+          ticks: {
+            stepSize: Math.max(10, Math.ceil(roundedMax / 5 / 10) * 10),
+            color: '#7D828A',
+            font: {
+              family: 'Poppins',
+              size: 10
+            },
+            callback: (value: string | number) => Number(value).toLocaleString('en-US')
+          },
+          grid: {
+            color: '#EEF0EB'
+          },
+          border: {
+            display: false
+          }
+        }
+      },
+      onHover: (_event: unknown, elements: { index: number; element: { x: number; y: number } }[]) => {
+        if (elements.length > 0) {
+          const active = elements[0];
+          setHoveredInventoryMovementPoint({
+            x: active.element.x,
+            y: active.element.y,
+            index: active.index
+          });
+        } else {
+          setHoveredInventoryMovementPoint(null);
+        }
+      }
+    };
+  }, [inventoryMovementGrouped, selectedInventoryGroupBy]);
+
+  const inventoryMovementKpis = useMemo(() => {
+    const buildKpi = (statusKey: InventoryStatusKey) => {
+      const aggregateCurrent = activeInventoryMovementStores.reduce(
+        (sum, store) => sum + store.series[statusKey].current.reduce((a, b) => a + b, 0),
+        0
+      );
+      const aggregatePrevious = activeInventoryMovementStores.reduce(
+        (sum, store) => sum + store.series[statusKey].previous.reduce((a, b) => a + b, 0),
+        0
+      );
+
+      const label = statusKey === 'unfulfillable' ? 'Unfulfilled' : inventoryStatusLabelMap[statusKey];
+      return {
+        label,
+        value: aggregateCurrent.toLocaleString('en-US'),
+        trend: `${getPercentDelta(aggregateCurrent, aggregatePrevious).toFixed(1)}%`,
+        direction: aggregateCurrent >= aggregatePrevious ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: aggregateCurrent.toLocaleString('en-US'),
+          previous: aggregatePrevious.toLocaleString('en-US'),
+          change: Math.abs(aggregateCurrent - aggregatePrevious).toLocaleString('en-US')
+        }
+      };
+    };
+
+    return [
+      buildKpi('onHand'),
+      buildKpi('committed'),
+      buildKpi('available'),
+      buildKpi('inbound'),
+      buildKpi('unfulfillable')
+    ];
+  }, [activeInventoryMovementStores]);
+
+  const inventoryMovementTooltipData = hoveredInventoryMovementPoint
+    ? {
+        label: inventoryMovementGrouped.labels[hoveredInventoryMovementPoint.index] ?? '-',
+        currentDate: inventoryMovementGrouped.currentDates[hoveredInventoryMovementPoint.index] ?? new Date(),
+        previousDate: inventoryMovementGrouped.previousDates[hoveredInventoryMovementPoint.index] ?? new Date(),
+        current: inventoryMovementGrouped.current[hoveredInventoryMovementPoint.index] ?? 0,
+        previous: inventoryMovementGrouped.previous[hoveredInventoryMovementPoint.index] ?? 0,
+        change:
+          (inventoryMovementGrouped.current[hoveredInventoryMovementPoint.index] ?? 0) -
+          (inventoryMovementGrouped.previous[hoveredInventoryMovementPoint.index] ?? 0),
+        changePercent: `${getPercentDelta(
+          inventoryMovementGrouped.current[hoveredInventoryMovementPoint.index] ?? 0,
+          inventoryMovementGrouped.previous[hoveredInventoryMovementPoint.index] ?? 0
+        ).toFixed(1)}%`
+      }
+    : null;
+
+  const inventoryHealthStoreSummaryLabel =
+    selectedInventoryHealthStore.length === salesStoreOptions.length
+      ? 'All Stores'
+      : formatMultiSelectLabel(selectedInventoryHealthStore, 'Select Stores', 'store', 'stores');
+
+  const inventoryHealthLocationSummaryLabel =
+    selectedInventoryHealthLocation.length === inventoryLocationOptions.length
+      ? 'Inventory Locations'
+      : formatMultiSelectLabel(selectedInventoryHealthLocation, 'Inventory Locations', 'location', 'locations');
+
+  const inventoryHealthFilteredProducts = useMemo(() => {
+    const query = inventoryHealthSearchTerm.trim().toLowerCase();
+    return inventoryHealthProducts.filter((product) => {
+      const matchesStore = selectedInventoryHealthStore.includes(product.store);
+      const matchesLocation = selectedInventoryHealthLocation.includes(product.location);
+      const matchesSearch =
+        !query || product.name.toLowerCase().includes(query) || product.sku.toLowerCase().includes(query);
+      return matchesStore && matchesLocation && matchesSearch;
+    });
+  }, [inventoryHealthSearchTerm, selectedInventoryHealthLocation, selectedInventoryHealthStore]);
+
+  const inventoryHealthSortedProducts = useMemo(() => {
+    const sorted = [...inventoryHealthFilteredProducts];
+    const directionMultiplier = inventoryHealthSort.direction === 'asc' ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      if (inventoryHealthSort.key === 'name') return a.name.localeCompare(b.name) * directionMultiplier;
+      const aValue = a[inventoryHealthSort.key];
+      const bValue = b[inventoryHealthSort.key];
+      return (Number(aValue) - Number(bValue)) * directionMultiplier;
+    });
+
+    return sorted;
+  }, [inventoryHealthFilteredProducts, inventoryHealthSort]);
+
+  const inventoryHealthVisibleProducts = useMemo(
+    () => inventoryHealthSortedProducts.slice(0, visibleInventoryHealthRows),
+    [inventoryHealthSortedProducts, visibleInventoryHealthRows]
+  );
+
+  useEffect(() => {
+    setVisibleInventoryHealthRows(20);
+  }, [
+    inventoryHealthSearchTerm,
+    inventoryHealthSort.direction,
+    inventoryHealthSort.key,
+    selectedInventoryHealthDate,
+    selectedInventoryHealthLocation,
+    selectedInventoryHealthStore
+  ]);
+
+  const handleInventoryHealthSort = (
+    key:
+      | 'name'
+      | 'onHandQuantity'
+      | 'committedQuantity'
+      | 'availableQuantity'
+      | 'inventoryAging'
+      | 'deadStocks'
+      | 'salesVelocity'
+      | 'daysUntilStockout'
+      | 'overstockPercentage'
+  ) => {
+    setInventoryHealthSort((current) => {
+      if (current.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const handleInventoryHealthScroll = (event: { currentTarget: HTMLDivElement }) => {
+    const target = event.currentTarget;
+    const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 18;
+    if (!nearBottom) return;
+    setVisibleInventoryHealthRows((current) =>
+      Math.min(current + 20, inventoryHealthSortedProducts.length)
+    );
+  };
+
+  const renderInventoryHealthSortIcon = (
+    key:
+      | 'name'
+      | 'onHandQuantity'
+      | 'committedQuantity'
+      | 'availableQuantity'
+      | 'inventoryAging'
+      | 'deadStocks'
+      | 'salesVelocity'
+      | 'daysUntilStockout'
+      | 'overstockPercentage'
+  ) => {
+    if (inventoryHealthSort.key !== key) return <ArrowUpDown className="tu-h-3.5 tu-w-3.5 tu-text-[#9ba1a8]" />;
+    if (inventoryHealthSort.direction === 'asc') return <ChevronUp className="tu-h-3.5 tu-w-3.5 tu-text-[#5f656c]" />;
+    return <ChevronDown className="tu-h-3.5 tu-w-3.5 tu-text-[#5f656c]" />;
+  };
 
   const salesChartData = useMemo(
     () => ({
@@ -1911,6 +2804,647 @@ export default function App() {
             </div>
 
             <div>
+              {activeTab === 'inventory' ? (
+                <>
+                <section className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                  <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                    <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Insights</h2>
+
+                    <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                      {[
+                        {
+                          key: 'store',
+                          value: inventoryStoreSummaryLabel,
+                          options: salesStoreOptions
+                        },
+                        { key: 'date', value: selectedInventoryDate, options: inventoryDateOptions },
+                        {
+                          key: 'region',
+                          value: inventoryLocationSummaryLabel,
+                          options: inventoryLocationOptions
+                        }
+                      ].map((menu) => (
+                        <div key={menu.key} className="tu-relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInventoryMenus((current) => ({
+                                store: false,
+                                date: false,
+                                region: false,
+                                [menu.key]: !current[menu.key as keyof typeof current]
+                              }));
+                              setInventoryMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            }}
+                            className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                          >
+                            <span>{menu.value}</span>
+                            <ChevronDown className="tu-h-3 tu-w-3" />
+                          </button>
+
+                          <SearchableDropdownMenu
+                            open={inventoryMenus[menu.key as keyof typeof inventoryMenus]}
+                            options={menu.options}
+                            selected={menu.key === 'store' ? selectedInventoryStore : menu.key === 'region' ? selectedInventoryRegion : selectedInventoryDate}
+                            multiSelect={menu.key === 'store' || menu.key === 'region'}
+                            searchable={menu.key !== 'date'}
+                            searchValue={inventoryMenuSearch[menu.key as keyof typeof inventoryMenuSearch]}
+                            onSearchChange={
+                              menu.key !== 'date'
+                                ? (value) => setInventoryMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                                : undefined
+                            }
+                            widthClass={menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'region' ? 'tu-w-[230px]' : 'tu-w-[190px]'}
+                            showChevronForCustom={menu.key === 'date'}
+                            onSelect={(item) => {
+                              if (menu.key === 'store') {
+                                setSelectedInventoryStore((current) => toggleMultiSelectValue(current, item));
+                                return;
+                              }
+                              if (menu.key === 'region') {
+                                setSelectedInventoryRegion((current) => toggleMultiSelectValue(current, item));
+                                return;
+                              }
+                              if (menu.key === 'date') setSelectedInventoryDate(item);
+                              setInventoryMenus({ store: false, date: false, region: false });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
+                        {dynamicInventoryMetricCards.map((metric, index) => {
+                          const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                          const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                          const primaryMetric = index === 0;
+
+                          return (
+                            <div
+                              key={metric.label}
+                              role="button"
+                              tabIndex={0}
+                              className={`tu-group tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#e5e9e2] tu-bg-white tu-p-4 tu-transition-colors hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] ${
+                                primaryMetric ? 'tu-shadow-[0_8px_24px_rgba(16,197,98,0.08)]' : 'tu-shadow-[0_6px_20px_rgba(31,41,55,0.06)]'
+                              }`}
+                            >
+                              <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
+                                <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                  <span
+                                    className={`${
+                                      primaryMetric
+                                        ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.18em] tu-text-[#10c562]'
+                                        : 'tu-text-[13px] tu-font-medium tu-text-[#8f9197]'
+                                    }`}
+                                  >
+                                    {metric.label}
+                                  </span>
+                                  <InfoTooltip
+                                    text={inventoryKpiTooltips[metric.label]}
+                                    widthClass={metric.label.includes('Inbound') ? 'tu-w-[280px]' : 'tu-w-[220px]'}
+                                  />
+                                </div>
+                                <span className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-medium tu-text-[#7f838a] tu-opacity-0 transition-opacity group-hover:tu-opacity-100">
+                                  <span>Reports</span>
+                                  <ChevronRight className="tu-h-3.5 tu-w-3.5" />
+                                </span>
+                              </div>
+
+                              <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
+                                <p
+                                  className="tu-text-[28px] tu-font-semibold tu-leading-none tu-text-[#333538]"
+                                >
+                                  {metric.value}
+                                </p>
+                              </div>
+
+                              <div className="tu-mt-4 tu-flex tu-items-center tu-gap-2">
+                                <div className="tu-relative">
+                                  <div
+                                    onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
+                                    onMouseLeave={() => setHoveredInventoryKpi(null)}
+                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[14px] tu-font-medium ${trendColor}`}
+                                  >
+                                    {metric.trend}
+                                    <TrendIcon className="tu-h-4 tu-w-4" />
+                                  </div>
+                                  {hoveredInventoryKpi === metric.label ? (
+                                    <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                  ) : null}
+                                </div>
+                                <span className="tu-text-[14px] tu-text-[#8f949b]">vs previous period</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                  </div>
+                </section>
+                <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                  <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                    <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Movements</h2>
+
+                    <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setInventoryMovementMenus((current) => ({
+                              store: false,
+                              date: false,
+                              region: false,
+                              status: false,
+                              groupBy: !current.groupBy
+                            }))
+                          }
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          <BarChart3 className="tu-h-3.5 tu-w-3.5" />
+                          <span>{`Group by: ${selectedInventoryGroupBy}`}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+                        <SearchableDropdownMenu
+                          open={inventoryMovementMenus.groupBy}
+                          options={inventoryGroupByOptions}
+                          selected={selectedInventoryGroupBy}
+                          searchable={false}
+                          onSelect={(item) => {
+                            setSelectedInventoryGroupBy(item);
+                            setInventoryMovementMenus((current) => ({ ...current, groupBy: false }));
+                          }}
+                        />
+                      </div>
+                      <span className="tu-mx-0.5 tu-text-[#c2c8c0]">|</span>
+                      {[
+                        { key: 'date', value: selectedInventoryMovementDate, options: inventoryDateOptions },
+                        {
+                          key: 'region',
+                          value: inventoryMovementLocationSummaryLabel,
+                          options: inventoryMovementLocationOptions
+                        },
+                        {
+                          key: 'store',
+                          value: inventoryMovementStoreSummaryLabel,
+                          options: inventoryMovementStoreOptions
+                        },
+                        {
+                          key: 'status',
+                          value: `Inventory Stages: ${selectedInventoryStatus}`,
+                          options: inventoryStatusOptions
+                        }
+                      ].map((menu) => (
+                        <div key={menu.key} className="tu-relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInventoryMovementMenus((current) => ({
+                                store: false,
+                                date: false,
+                                region: false,
+                                status: false,
+                                groupBy: false,
+                                [menu.key]: !current[menu.key as keyof typeof current]
+                              }));
+                              setInventoryMovementMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            }}
+                            className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                          >
+                            <span>{menu.value}</span>
+                            <ChevronDown className="tu-h-3 tu-w-3" />
+                          </button>
+
+                          <SearchableDropdownMenu
+                            open={inventoryMovementMenus[menu.key as keyof typeof inventoryMovementMenus]}
+                            options={menu.options}
+                            selected={
+                              menu.key === 'store'
+                                ? selectedInventoryMovementStore
+                                : menu.key === 'region'
+                                  ? selectedInventoryMovementRegion
+                                  : menu.key === 'date'
+                                    ? selectedInventoryMovementDate
+                                    : selectedInventoryStatus
+                            }
+                            multiSelect={menu.key === 'store' || menu.key === 'region'}
+                            searchable={menu.key !== 'date'}
+                            searchValue={inventoryMovementMenuSearch[menu.key as keyof typeof inventoryMovementMenuSearch]}
+                            onSearchChange={
+                              menu.key !== 'date'
+                                ? (value) => setInventoryMovementMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                                : undefined
+                            }
+                            widthClass={menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'status' ? 'tu-w-[240px]' : 'tu-w-[190px]'}
+                            showChevronForCustom={menu.key === 'date'}
+                            onSelect={(item) => {
+                              if (menu.key === 'store') {
+                                setSelectedInventoryMovementStore((current) => toggleMultiSelectValue(current, item));
+                                return;
+                              }
+                              if (menu.key === 'region') {
+                                setSelectedInventoryMovementRegion((current) => toggleMultiSelectValue(current, item));
+                                return;
+                              }
+                              if (menu.key === 'date') setSelectedInventoryMovementDate(item);
+                              if (menu.key === 'status') setSelectedInventoryStatus(item);
+                              setInventoryMovementMenus({
+                                store: false,
+                                date: false,
+                                region: false,
+                                status: false,
+                                groupBy: false
+                              });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-items-start xl:tu-grid-cols-[300px_minmax(0,1fr)]">
+                    <article
+                      role="button"
+                      tabIndex={0}
+                      className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)]"
+                    >
+                      <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
+                        <a
+                          href="#"
+                          onClick={(event) => event.preventDefault()}
+                          className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                        >
+                          <span>See reports</span>
+                          <ChevronRight className="tu-h-3.5 tu-w-3.5" />
+                        </a>
+                        {inventoryMovementKpis.map((metric, index) => {
+                          const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                          const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                          const primaryMetric = index === 0;
+
+                          return (
+                            <div
+                              key={metric.label}
+                              className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
+                            >
+                              <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
+                                <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                  <span
+                                    className={`${
+                                      primaryMetric
+                                        ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
+                                        : 'tu-text-[13px] tu-font-normal tu-text-[#8f9197]'
+                                    }`}
+                                  >
+                                    {metric.label}
+                                  </span>
+                                  <InfoTooltip text={inventoryMovementKpiTooltips[metric.label]} widthClass="tu-w-[240px]" />
+                                </div>
+                              </div>
+
+                              <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
+                                <div className="tu-flex tu-items-end tu-gap-2">
+                                  <p
+                                    className={`tu-text-[#333538] ${
+                                      primaryMetric
+                                        ? 'tu-text-[24px] tu-font-semibold tu-leading-none'
+                                        : 'tu-text-[17px] tu-font-medium tu-leading-none'
+                                    }`}
+                                  >
+                                    {metric.value}
+                                  </p>
+                                  <div className="tu-relative">
+                                    <button
+                                      type="button"
+                                      onMouseEnter={() => setHoveredInventoryMovementKpi(metric.label)}
+                                      onMouseLeave={() => setHoveredInventoryMovementKpi(null)}
+                                      className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                    >
+                                      {metric.trend}
+                                      <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                    </button>
+                                    {hoveredInventoryMovementKpi === metric.label ? (
+                                      <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </article>
+
+                    <div
+                      className="tu-relative tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]"
+                      onMouseLeave={() => setHoveredInventoryMovementPoint(null)}
+                    >
+                      <div className="tu-h-[420px]">
+                        <Line data={inventoryMovementChartData} options={inventoryMovementChartOptions} />
+                      </div>
+
+                      {hoveredInventoryMovementPoint && inventoryMovementTooltipData ? (
+                        <div
+                          className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#e5e9e2] tu-bg-white tu-p-4 tu-shadow-[0_18px_40px_rgba(31,41,55,0.16)]"
+                          style={{
+                            left: Math.min(Math.max(hoveredInventoryMovementPoint.x - 143, 12), 640),
+                            top: Math.max(hoveredInventoryMovementPoint.y - 146, 12)
+                          }}
+                        >
+                          <h3 className="tu-text-[14px] tu-font-semibold tu-leading-5 tu-text-[#333538]">Current vs Previous Period</h3>
+                          <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
+
+                          <div className="tu-space-y-3">
+                            <div>
+                              <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                                <span className="tu-text-[12px] tu-text-[#44464b]">Current</span>
+                                <span className="tu-text-[12px] tu-text-[#44464b]">
+                                  {formatTooltipPeriodDate(inventoryMovementTooltipData.currentDate)}
+                                </span>
+                              </div>
+                              <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                                {inventoryMovementTooltipData.current.toLocaleString('en-US')}
+                              </p>
+                            </div>
+
+                            <div className="tu-h-px tu-bg-[#eceee8]" />
+
+                            <div>
+                              <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                                <span className="tu-text-[12px] tu-text-[#44464b]">Previous</span>
+                                <span className="tu-text-[12px] tu-text-[#44464b]">
+                                  {formatTooltipPeriodDate(inventoryMovementTooltipData.previousDate)}
+                                </span>
+                              </div>
+                              <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                                {inventoryMovementTooltipData.previous.toLocaleString('en-US')}
+                              </p>
+                            </div>
+
+                            <div className="tu-h-px tu-bg-[#eceee8]" />
+
+                            <div className="tu-flex tu-items-end tu-justify-between tu-gap-3">
+                              <div>
+                                <p className="tu-text-[12px] tu-font-semibold tu-text-[#333538]">Change</p>
+                                <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                                  {Math.abs(inventoryMovementTooltipData.change).toLocaleString('en-US')}
+                                </p>
+                              </div>
+                              <span
+                                className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${
+                                  inventoryMovementTooltipData.change >= 0 ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]'
+                                }`}
+                              >
+                                {inventoryMovementTooltipData.change >= 0 ? (
+                                  <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                                ) : (
+                                  <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                                )}
+                                {inventoryMovementTooltipData.changePercent}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </section>
+                <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                  <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                    <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Health Tracking</h2>
+
+                    <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                      {[
+                        { key: 'store', value: inventoryHealthStoreSummaryLabel, options: salesStoreOptions },
+                        {
+                          key: 'location',
+                          value: inventoryHealthLocationSummaryLabel,
+                          options: inventoryLocationOptions
+                        },
+                        { key: 'date', value: selectedInventoryHealthDate, options: inventoryDateOptions }
+                      ].map((menu) => (
+                        <div key={menu.key} className="tu-relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInventoryHealthMenus((current) => ({
+                                store: false,
+                                location: false,
+                                date: false,
+                                [menu.key]: !current[menu.key as keyof typeof current]
+                              }));
+                              setInventoryHealthMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            }}
+                            className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                          >
+                            <span>{menu.value}</span>
+                            <ChevronDown className="tu-h-3 tu-w-3" />
+                          </button>
+
+                          <SearchableDropdownMenu
+                            open={inventoryHealthMenus[menu.key as keyof typeof inventoryHealthMenus]}
+                            options={menu.options}
+                            selected={
+                              menu.key === 'store'
+                                ? selectedInventoryHealthStore
+                                : menu.key === 'location'
+                                  ? selectedInventoryHealthLocation
+                                  : selectedInventoryHealthDate
+                            }
+                            multiSelect={menu.key === 'store' || menu.key === 'location'}
+                            searchable={menu.key !== 'date'}
+                            searchValue={inventoryHealthMenuSearch[menu.key as keyof typeof inventoryHealthMenuSearch]}
+                            onSearchChange={
+                              menu.key !== 'date'
+                                ? (value) => setInventoryHealthMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                                : undefined
+                            }
+                            widthClass={
+                              menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'location' ? 'tu-w-[230px]' : 'tu-w-[190px]'
+                            }
+                            showChevronForCustom={menu.key === 'date'}
+                            onSelect={(item) => {
+                              if (menu.key === 'store') {
+                                setSelectedInventoryHealthStore((current) => toggleMultiSelectValue(current, item));
+                                return;
+                              }
+                              if (menu.key === 'location') {
+                                setSelectedInventoryHealthLocation((current) => toggleMultiSelectValue(current, item));
+                                return;
+                              }
+                              if (menu.key === 'date') setSelectedInventoryHealthDate(item);
+                              setInventoryHealthMenus({ store: false, location: false, date: false });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="tu-mt-4 tu-relative">
+                    <Search className="tu-pointer-events-none tu-absolute tu-left-3 tu-top-1/2 tu-h-3.5 tu-w-3.5 -tu-translate-y-1/2 tu-text-[#9a9ca2]" />
+                    <input
+                      value={inventoryHealthSearchTerm}
+                      onChange={(event) => setInventoryHealthSearchTerm(event.target.value)}
+                      placeholder="Search Product"
+                      className="tu-h-10 tu-w-full tu-rounded-[10px] tu-border tu-border-[#e1e6de] tu-bg-[#fafbf8] tu-pl-9 tu-pr-3 tu-text-[13px] tu-text-[#2f3133] outline-none placeholder:tu-text-[#9a9ca2] focus:tu-border-[#c6d3c1]"
+                    />
+                  </div>
+
+                  <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8]">
+                    <div className="tu-max-h-[520px] tu-overflow-y-auto" onScroll={handleInventoryHealthScroll}>
+                      <table className="tu-min-w-[1450px] tu-w-full tu-border-collapse">
+                        <thead className="tu-sticky tu-top-0 tu-z-10 tu-bg-[#f8faf7]">
+                          <tr className="tu-border-b tu-border-[#e8ece5]">
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('name')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Products</span>
+                                {renderInventoryHealthSortIcon('name')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.product} widthClass="tu-w-[230px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('onHandQuantity')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>On-hand Quantity</span>
+                                {renderInventoryHealthSortIcon('onHandQuantity')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.onHandQuantity} widthClass="tu-w-[230px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('committedQuantity')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Committed Quantity</span>
+                                {renderInventoryHealthSortIcon('committedQuantity')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.committedQuantity} widthClass="tu-w-[230px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('availableQuantity')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Available Quantity</span>
+                                {renderInventoryHealthSortIcon('availableQuantity')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.availableQuantity} widthClass="tu-w-[270px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('inventoryAging')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Inventory Aging (1-90 days)</span>
+                                {renderInventoryHealthSortIcon('inventoryAging')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.inventoryAging} widthClass="tu-w-[230px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('deadStocks')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Dead Stocks (Aging &gt;90)</span>
+                                {renderInventoryHealthSortIcon('deadStocks')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.deadStocks} widthClass="tu-w-[300px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('salesVelocity')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Sales Velocity</span>
+                                {renderInventoryHealthSortIcon('salesVelocity')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.salesVelocity} widthClass="tu-w-[280px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('daysUntilStockout')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Days Until Stockout</span>
+                                {renderInventoryHealthSortIcon('daysUntilStockout')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.daysUntilStockout} widthClass="tu-w-[290px]" />
+                              </button>
+                            </th>
+                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
+                              <button
+                                type="button"
+                                onClick={() => handleInventoryHealthSort('overstockPercentage')}
+                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                              >
+                                <span>Overstock % (value)</span>
+                                {renderInventoryHealthSortIcon('overstockPercentage')}
+                                <InfoTooltip text={inventoryHealthHeaderTooltips.overstockPercentage} widthClass="tu-w-[320px]" />
+                              </button>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {inventoryHealthVisibleProducts.map((product) => (
+                            <tr key={product.id} className="tu-border-b tu-border-[#edf0ea] hover:tu-bg-[#fbfcfa]">
+                              <td className="tu-px-3 tu-py-2.5">
+                                <div className="tu-flex tu-items-center tu-gap-3">
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="tu-h-10 tu-w-10 tu-rounded-[10px] tu-border tu-border-[#e5e9e2] tu-object-cover"
+                                  />
+                                  <div>
+                                    <p className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{product.name}</p>
+                                    <p className="tu-text-[11px] tu-text-[#8f949b]">{product.sku}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="tu-px-3 tu-py-2.5 tu-text-[13px] tu-text-[#333538]">{product.onHandQuantity.toLocaleString('en-US')}</td>
+                              <td className="tu-px-3 tu-py-2.5 tu-text-[13px] tu-text-[#333538]">{product.committedQuantity.toLocaleString('en-US')}</td>
+                              <td className="tu-px-3 tu-py-2.5 tu-text-[13px] tu-text-[#333538]">{product.availableQuantity.toLocaleString('en-US')}</td>
+                              <td className="tu-px-3 tu-py-2.5 tu-text-[13px] tu-text-[#333538]">{product.inventoryAging.toLocaleString('en-US')}</td>
+                              <td className="tu-px-3 tu-py-2.5 tu-text-[13px] tu-text-[#333538]">{product.deadStocks.toLocaleString('en-US')}</td>
+                              <td className="tu-px-3 tu-py-2.5 tu-text-[13px] tu-text-[#333538]">{product.salesVelocity.toFixed(1)} units/day</td>
+                              <td className="tu-px-3 tu-py-2.5 tu-text-[13px] tu-text-[#333538]">{product.daysUntilStockout} days</td>
+                              <td className="tu-px-3 tu-py-2.5">
+                                <div className="tu-flex tu-items-center tu-gap-2">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{product.overstockPercentage.toFixed(1)}%</span>
+                                  <span className="tu-text-[12px] tu-text-[#8f949b]">PKR {product.overstockValue.toLocaleString('en-US')}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="tu-flex tu-items-center tu-justify-between tu-border-t tu-border-[#edf0ea] tu-bg-[#fafbf8] tu-px-3.5 tu-py-2">
+                      <p className="tu-text-[12px] tu-text-[#7f838a]">
+                        Showing {inventoryHealthVisibleProducts.length.toLocaleString('en-US')} of {inventoryHealthSortedProducts.length.toLocaleString('en-US')} products
+                      </p>
+                      {inventoryHealthVisibleProducts.length < inventoryHealthSortedProducts.length ? (
+                        <p className="tu-text-[11px] tu-font-medium tu-text-[#8f949b]">Scroll down to load 20 more</p>
+                      ) : (
+                        <p className="tu-text-[11px] tu-font-medium tu-text-[#8f949b]">All products loaded</p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+                </>
+              ) : null}
+              {activeTab !== 'inventory' ? (
+                <>
               <section className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
               <h1 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales  Overview</h1>
 
@@ -2044,7 +3578,7 @@ export default function App() {
 
                           return (
                             <div key={metric.key} className="tu-relative">
-                              <div className="tu-group tu-relative tu-inline-block">
+                              <div className="tu-group/tooltip tu-relative tu-inline-block">
                                 <button
                                   type="button"
                                   className="tu-text-[13px] tu-text-[#9a9ca2]"
@@ -2255,7 +3789,7 @@ export default function App() {
                     >
                       <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                         <div className="tu-min-w-0">
-                          <div className="tu-group tu-relative tu-inline-block">
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
                             <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
                               {metric.label}
                             </button>
@@ -2421,7 +3955,7 @@ export default function App() {
                           key={metric.label}
                           className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
                         >
-                          <div className="tu-group tu-relative tu-inline-block">
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
                             <button
                               type="button"
                               className={`${
@@ -2613,7 +4147,7 @@ export default function App() {
                       key={metric.label}
                       className="tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]"
                     >
-                      <div className="tu-group tu-relative tu-inline-block">
+                      <div className="tu-group/tooltip tu-relative tu-inline-block">
                         <button type="button" className="tu-text-[13px] tu-text-[#8f9197]">
                           {metric.label}
                         </button>
@@ -2738,7 +4272,7 @@ export default function App() {
                           key={metric.label}
                           className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
                         >
-                          <div className="tu-group tu-relative tu-inline-block">
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
                             <button
                               type="button"
                               className={`${
@@ -2765,7 +4299,7 @@ export default function App() {
                                 {metric.value}
                               </p>
                               {'extraItems' in metric && metric.extraItems?.length ? (
-                                <div className="tu-group tu-relative tu-inline-flex tu-items-center">
+                                <div className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center">
                                   <button
                                     type="button"
                                     className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
@@ -2807,6 +4341,8 @@ export default function App() {
                 </div>
               </div>
             </section>
+                </>
+              ) : null}
           </div>
           </section>
         </main>
