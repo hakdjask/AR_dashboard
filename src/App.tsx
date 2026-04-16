@@ -461,13 +461,7 @@ const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 3
 const inventoryDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const inventoryStatusOptions = ['On-hand', 'Committed', 'Available', 'Inbound', 'Unfulfillable'];
 const inventoryGroupByOptions = ['Days', 'Weeks', 'Months', 'Years'];
-const inventoryLocationOptions = [
-  'Main Warehouse',
-  'Retail Backroom',
-  'Transit Hub',
-  'Returns Bay',
-  'Overflow Rack'
-];
+const inventoryLocationOptions = ['Main Warehouse', 'Retail Backroom', 'Transit Hub', 'Returns Bay', 'Overflow Rack'];
 const inventoryMovementStoreOptions = [...salesStoreOptions];
 const inventoryMovementLocationOptions = [...inventoryLocationOptions];
 const inventoryMovementMaxDataPoints = 365;
@@ -570,6 +564,11 @@ const inventoryHealthHeaderTooltips: Record<string, string | TooltipContent> = {
   }
 };
 
+const deterministicNoise = (seed: number) => {
+  const raw = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return raw - Math.floor(raw);
+};
+
 const generateInventoryHealthImage = (name: string, seed: number) => {
   const colors = ['#DBFCE7', '#E0F2FE', '#FEF3C7', '#FCE7F3', '#EDE9FE', '#D1FAE5'];
   const bg = colors[seed % colors.length];
@@ -581,48 +580,6 @@ const generateInventoryHealthImage = (name: string, seed: number) => {
     .toUpperCase();
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' rx='10' fill='${bg}'/><text x='20' y='25' text-anchor='middle' font-family='Poppins, Arial' font-size='13' font-weight='700' fill='#1f2937'>${initials}</text></svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
-
-const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 100 }, (_, index) => {
-  const productIndex = index + 1;
-  const store = salesStoreOptions[index % salesStoreOptions.length];
-  const location = inventoryLocationOptions[index % inventoryLocationOptions.length];
-  const seasonal = Math.sin((index + 1) * 0.63) * 0.22 + 1;
-  const onHandQuantity = Math.max(35, Math.round((120 + (index % 11) * 17) * seasonal));
-  const committedQuantity = Math.max(8, Math.round(onHandQuantity * (0.12 + (index % 5) * 0.06)));
-  const availableQuantity = Math.max(0, onHandQuantity - committedQuantity);
-  const inventoryAging = Math.max(10, Math.round(onHandQuantity * (0.2 + ((index + 3) % 6) * 0.08)));
-  const deadStocks = Math.max(0, Math.round(onHandQuantity * (0.03 + ((index + 5) % 4) * 0.05)));
-  const salesVelocity = Number((2.1 + (index % 7) * 0.55 + Math.sin(index * 0.31)).toFixed(1));
-  const daysUntilStockout = salesVelocity > 0 ? Math.max(1, Math.round(availableQuantity / salesVelocity)) : 0;
-  const projected45DayDemand = Math.max(1, Math.round(salesVelocity * 45));
-  const overstockUnits = Math.max(0, onHandQuantity - projected45DayDemand);
-  const overstockPercentage = Number(((overstockUnits / projected45DayDemand) * 100).toFixed(1));
-  const overstockValue = overstockUnits * (950 + (index % 9) * 140);
-  const productName = `Inventory Product ${productIndex.toString().padStart(3, '0')}`;
-
-  return {
-    id: `ih-${productIndex.toString().padStart(3, '0')}`,
-    name: productName,
-    sku: `SKU-${(43000 + productIndex).toString()}`,
-    image: generateInventoryHealthImage(productName, index),
-    store,
-    location,
-    onHandQuantity,
-    committedQuantity,
-    availableQuantity,
-    inventoryAging,
-    deadStocks,
-    salesVelocity,
-    daysUntilStockout,
-    overstockPercentage,
-    overstockValue
-  };
-});
-
-const deterministicNoise = (seed: number) => {
-  const raw = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
-  return raw - Math.floor(raw);
 };
 
 const generateMovementSeries = (base: number, maxCap: number, storeFactor: number, statusFactor: number) =>
@@ -675,6 +632,43 @@ const inventoryMovementData: InventoryMovementStoreData[] = salesStoreOptions.ma
     store,
     location: inventoryStoreLocations[store],
     series
+  };
+});
+
+const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 100 }, (_, index) => {
+  const productIndex = index + 1;
+  const store = salesStoreOptions[index % salesStoreOptions.length];
+  const location = inventoryLocationOptions[index % inventoryLocationOptions.length];
+  const seasonal = Math.sin((index + 1) * 0.63) * 0.22 + 1;
+  const onHandQuantity = Math.max(35, Math.round((120 + (index % 11) * 17) * seasonal));
+  const committedQuantity = Math.max(8, Math.round(onHandQuantity * (0.12 + (index % 5) * 0.06)));
+  const availableQuantity = Math.max(0, onHandQuantity - committedQuantity);
+  const inventoryAging = Math.max(10, Math.round(onHandQuantity * (0.2 + ((index + 3) % 6) * 0.08)));
+  const deadStocks = Math.max(0, Math.round(onHandQuantity * (0.03 + ((index + 5) % 4) * 0.05)));
+  const salesVelocity = Number((2.1 + (index % 7) * 0.55 + Math.sin(index * 0.31)).toFixed(1));
+  const daysUntilStockout = salesVelocity > 0 ? Math.max(1, Math.round(availableQuantity / salesVelocity)) : 0;
+  const projected45DayDemand = Math.max(1, Math.round(salesVelocity * 45));
+  const overstockUnits = Math.max(0, onHandQuantity - projected45DayDemand);
+  const overstockPercentage = Number(((overstockUnits / projected45DayDemand) * 100).toFixed(1));
+  const overstockValue = overstockUnits * (950 + (index % 9) * 140);
+  const productName = `Inventory Product ${productIndex.toString().padStart(3, '0')}`;
+
+  return {
+    id: `ih-${productIndex.toString().padStart(3, '0')}`,
+    name: productName,
+    sku: `SKU-${(43000 + productIndex).toString()}`,
+    image: generateInventoryHealthImage(productName, index),
+    store,
+    location,
+    onHandQuantity,
+    committedQuantity,
+    availableQuantity,
+    inventoryAging,
+    deadStocks,
+    salesVelocity,
+    daysUntilStockout,
+    overstockPercentage,
+    overstockValue
   };
 });
 
@@ -1604,7 +1598,7 @@ export default function App() {
     status: false,
     groupBy: false
   });
-  const [selectedInventoryMovementStore, setSelectedInventoryMovementStore] = useState<string[]>([...salesStoreOptions]);
+  const [selectedInventoryMovementStore, setSelectedInventoryMovementStore] = useState<string[]>(salesStoreOptions);
   const [selectedInventoryMovementDate, setSelectedInventoryMovementDate] = useState('Last 30 Days');
   const [selectedInventoryMovementRegion, setSelectedInventoryMovementRegion] = useState<string[]>([...inventoryLocationOptions]);
   const [selectedInventoryStatus, setSelectedInventoryStatus] = useState('On-hand');
@@ -1956,8 +1950,7 @@ export default function App() {
   const activeInventoryMovementStores = useMemo(
     () =>
       inventoryMovementData.filter(
-        (store) =>
-          selectedInventoryMovementStore.includes(store.store) && selectedInventoryMovementRegion.includes(store.location)
+        (store) => selectedInventoryMovementStore.includes(store.store) && selectedInventoryMovementRegion.includes(store.location)
       ),
     [selectedInventoryMovementRegion, selectedInventoryMovementStore]
   );
@@ -2811,20 +2804,20 @@ export default function App() {
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Insights</h2>
 
                     <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
-                      {[
-                        {
-                          key: 'store',
-                          value: inventoryStoreSummaryLabel,
-                          options: salesStoreOptions
-                        },
-                        { key: 'date', value: selectedInventoryDate, options: inventoryDateOptions },
-                        {
-                          key: 'region',
-                          value: inventoryLocationSummaryLabel,
-                          options: inventoryLocationOptions
-                        }
-                      ].map((menu) => (
-                        <div key={menu.key} className="tu-relative">
+                        {[
+                          {
+                            key: 'store',
+                            value: inventoryStoreSummaryLabel,
+                            options: salesStoreOptions
+                          },
+                          { key: 'date', value: selectedInventoryDate, options: inventoryDateOptions },
+                          {
+                            key: 'region',
+                            value: inventoryLocationSummaryLabel,
+                            options: inventoryLocationOptions
+                          }
+                        ].map((menu) => (
+                          <div key={menu.key} className="tu-relative">
                           <button
                             type="button"
                             onClick={() => {
@@ -3210,15 +3203,10 @@ export default function App() {
                 <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Health Tracking</h2>
-
                     <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                       {[
                         { key: 'store', value: inventoryHealthStoreSummaryLabel, options: salesStoreOptions },
-                        {
-                          key: 'location',
-                          value: inventoryHealthLocationSummaryLabel,
-                          options: inventoryLocationOptions
-                        },
+                        { key: 'location', value: inventoryHealthLocationSummaryLabel, options: inventoryLocationOptions },
                         { key: 'date', value: selectedInventoryHealthDate, options: inventoryDateOptions }
                       ].map((menu) => (
                         <div key={menu.key} className="tu-relative">
@@ -3238,7 +3226,6 @@ export default function App() {
                             <span>{menu.value}</span>
                             <ChevronDown className="tu-h-3 tu-w-3" />
                           </button>
-
                           <SearchableDropdownMenu
                             open={inventoryHealthMenus[menu.key as keyof typeof inventoryHealthMenus]}
                             options={menu.options}
@@ -3257,19 +3244,11 @@ export default function App() {
                                 ? (value) => setInventoryHealthMenuSearch((current) => ({ ...current, [menu.key]: value }))
                                 : undefined
                             }
-                            widthClass={
-                              menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'location' ? 'tu-w-[230px]' : 'tu-w-[190px]'
-                            }
+                            widthClass={menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'location' ? 'tu-w-[230px]' : 'tu-w-[190px]'}
                             showChevronForCustom={menu.key === 'date'}
                             onSelect={(item) => {
-                              if (menu.key === 'store') {
-                                setSelectedInventoryHealthStore((current) => toggleMultiSelectValue(current, item));
-                                return;
-                              }
-                              if (menu.key === 'location') {
-                                setSelectedInventoryHealthLocation((current) => toggleMultiSelectValue(current, item));
-                                return;
-                              }
+                              if (menu.key === 'store') return setSelectedInventoryHealthStore((current) => toggleMultiSelectValue(current, item));
+                              if (menu.key === 'location') return setSelectedInventoryHealthLocation((current) => toggleMultiSelectValue(current, item));
                               if (menu.key === 'date') setSelectedInventoryHealthDate(item);
                               setInventoryHealthMenus({ store: false, location: false, date: false });
                             }}
@@ -3278,7 +3257,6 @@ export default function App() {
                       ))}
                     </div>
                   </div>
-
                   <div className="tu-mt-4 tu-relative">
                     <Search className="tu-pointer-events-none tu-absolute tu-left-3 tu-top-1/2 tu-h-3.5 tu-w-3.5 -tu-translate-y-1/2 tu-text-[#9a9ca2]" />
                     <input
@@ -3288,111 +3266,58 @@ export default function App() {
                       className="tu-h-10 tu-w-full tu-rounded-[10px] tu-border tu-border-[#e1e6de] tu-bg-[#fafbf8] tu-pl-9 tu-pr-3 tu-text-[13px] tu-text-[#2f3133] outline-none placeholder:tu-text-[#9a9ca2] focus:tu-border-[#c6d3c1]"
                     />
                   </div>
-
                   <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8]">
                     <div className="tu-max-h-[520px] tu-overflow-y-auto" onScroll={handleInventoryHealthScroll}>
                       <table className="tu-min-w-[1450px] tu-w-full tu-border-collapse">
                         <thead className="tu-sticky tu-top-0 tu-z-10 tu-bg-[#f8faf7]">
                           <tr className="tu-border-b tu-border-[#e8ece5]">
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('name')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Products</span>
-                                {renderInventoryHealthSortIcon('name')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.product} widthClass="tu-w-[230px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('onHandQuantity')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>On-hand Quantity</span>
-                                {renderInventoryHealthSortIcon('onHandQuantity')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.onHandQuantity} widthClass="tu-w-[230px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('committedQuantity')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Committed Quantity</span>
-                                {renderInventoryHealthSortIcon('committedQuantity')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.committedQuantity} widthClass="tu-w-[230px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('availableQuantity')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Available Quantity</span>
-                                {renderInventoryHealthSortIcon('availableQuantity')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.availableQuantity} widthClass="tu-w-[270px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('inventoryAging')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Inventory Aging (1-90 days)</span>
-                                {renderInventoryHealthSortIcon('inventoryAging')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.inventoryAging} widthClass="tu-w-[230px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('deadStocks')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Dead Stocks (Aging &gt;90)</span>
-                                {renderInventoryHealthSortIcon('deadStocks')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.deadStocks} widthClass="tu-w-[300px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('salesVelocity')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Sales Velocity</span>
-                                {renderInventoryHealthSortIcon('salesVelocity')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.salesVelocity} widthClass="tu-w-[280px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('daysUntilStockout')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Days Until Stockout</span>
-                                {renderInventoryHealthSortIcon('daysUntilStockout')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.daysUntilStockout} widthClass="tu-w-[290px]" />
-                              </button>
-                            </th>
-                            <th className="tu-px-3 tu-py-2.5 tu-text-left">
-                              <button
-                                type="button"
-                                onClick={() => handleInventoryHealthSort('overstockPercentage')}
-                                className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                              >
-                                <span>Overstock % (value)</span>
-                                {renderInventoryHealthSortIcon('overstockPercentage')}
-                                <InfoTooltip text={inventoryHealthHeaderTooltips.overstockPercentage} widthClass="tu-w-[320px]" />
-                              </button>
-                            </th>
+                            {[
+                              ['name', 'Products', 'product'],
+                              ['onHandQuantity', 'On-hand Quantity', 'onHandQuantity'],
+                              ['committedQuantity', 'Committed Quantity', 'committedQuantity'],
+                              ['availableQuantity', 'Available Quantity', 'availableQuantity'],
+                              ['inventoryAging', 'Inventory Aging (1-90 days)', 'inventoryAging'],
+                              ['deadStocks', 'Dead Stocks (Aging >90)', 'deadStocks'],
+                              ['salesVelocity', 'Sales Velocity', 'salesVelocity'],
+                              ['daysUntilStockout', 'Days Until Stockout', 'daysUntilStockout'],
+                              ['overstockPercentage', 'Overstock % (value)', 'overstockPercentage']
+                            ].map(([sortKey, label, tooltipKey]) => (
+                              <th key={sortKey} className="tu-px-3 tu-py-2.5 tu-text-left">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleInventoryHealthSort(
+                                      sortKey as
+                                        | 'name'
+                                        | 'onHandQuantity'
+                                        | 'committedQuantity'
+                                        | 'availableQuantity'
+                                        | 'inventoryAging'
+                                        | 'deadStocks'
+                                        | 'salesVelocity'
+                                        | 'daysUntilStockout'
+                                        | 'overstockPercentage'
+                                    )
+                                  }
+                                  className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                                >
+                                  <span>{label}</span>
+                                  {renderInventoryHealthSortIcon(
+                                    sortKey as
+                                      | 'name'
+                                      | 'onHandQuantity'
+                                      | 'committedQuantity'
+                                      | 'availableQuantity'
+                                      | 'inventoryAging'
+                                      | 'deadStocks'
+                                      | 'salesVelocity'
+                                      | 'daysUntilStockout'
+                                      | 'overstockPercentage'
+                                  )}
+                                  <InfoTooltip text={inventoryHealthHeaderTooltips[tooltipKey]} widthClass="tu-w-[260px]" />
+                                </button>
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
@@ -3400,11 +3325,7 @@ export default function App() {
                             <tr key={product.id} className="tu-border-b tu-border-[#edf0ea] hover:tu-bg-[#fbfcfa]">
                               <td className="tu-px-3 tu-py-2.5">
                                 <div className="tu-flex tu-items-center tu-gap-3">
-                                  <img
-                                    src={product.image}
-                                    alt={product.name}
-                                    className="tu-h-10 tu-w-10 tu-rounded-[10px] tu-border tu-border-[#e5e9e2] tu-object-cover"
-                                  />
+                                  <img src={product.image} alt={product.name} className="tu-h-10 tu-w-10 tu-rounded-[10px] tu-border tu-border-[#e5e9e2] tu-object-cover" />
                                   <div>
                                     <p className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{product.name}</p>
                                     <p className="tu-text-[11px] tu-text-[#8f949b]">{product.sku}</p>
@@ -3578,7 +3499,7 @@ export default function App() {
 
                           return (
                             <div key={metric.key} className="tu-relative">
-                              <div className="tu-group/tooltip tu-relative tu-inline-block">
+                              <div className="tu-group tu-relative tu-inline-block">
                                 <button
                                   type="button"
                                   className="tu-text-[13px] tu-text-[#9a9ca2]"
@@ -3789,7 +3710,7 @@ export default function App() {
                     >
                       <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                         <div className="tu-min-w-0">
-                          <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <div className="tu-group tu-relative tu-inline-block">
                             <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
                               {metric.label}
                             </button>
@@ -3955,7 +3876,7 @@ export default function App() {
                           key={metric.label}
                           className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
                         >
-                          <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <div className="tu-group tu-relative tu-inline-block">
                             <button
                               type="button"
                               className={`${
@@ -4147,7 +4068,7 @@ export default function App() {
                       key={metric.label}
                       className="tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]"
                     >
-                      <div className="tu-group/tooltip tu-relative tu-inline-block">
+                      <div className="tu-group tu-relative tu-inline-block">
                         <button type="button" className="tu-text-[13px] tu-text-[#8f9197]">
                           {metric.label}
                         </button>
@@ -4272,7 +4193,7 @@ export default function App() {
                           key={metric.label}
                           className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
                         >
-                          <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <div className="tu-group tu-relative tu-inline-block">
                             <button
                               type="button"
                               className={`${
@@ -4299,7 +4220,7 @@ export default function App() {
                                 {metric.value}
                               </p>
                               {'extraItems' in metric && metric.extraItems?.length ? (
-                                <div className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center">
+                                <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                   <button
                                     type="button"
                                     className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
