@@ -30,7 +30,8 @@ import {
   Settings,
   SlidersHorizontal,
   ShoppingBag,
-  Truck
+  Truck,
+  X
 } from 'lucide-react';
 import { Bar, Line } from 'react-chartjs-2';
 
@@ -464,7 +465,6 @@ const inventoryDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'La
 const inventoryStatusOptions = ['On-hand', 'Committed', 'Available', 'Inbound', 'Unfulfillable'];
 const inventoryGroupByOptions = ['Days', 'Weeks', 'Months', 'Years'];
 const inventoryLocationOptions = ['Main Warehouse', 'Retail Backroom', 'Transit Hub', 'Returns Bay', 'Overflow Rack'];
-const inventoryMovementStoreOptions = [...salesStoreOptions];
 const inventoryMovementLocationOptions = [...inventoryLocationOptions];
 const inventoryMovementMaxDataPoints = 365;
 const inventoryMovementBaseIndexes = Array.from({ length: inventoryMovementMaxDataPoints }, (_, index) => index);
@@ -480,9 +480,13 @@ type InventoryHealthProduct = {
   id: string;
   name: string;
   sku: string;
+  barcode: string;
   image: string;
   store: string;
   location: string;
+  category: string;
+  brand: string;
+  tags: string[];
   onHandQuantity: number;
   committedQuantity: number;
   availableQuantity: number;
@@ -503,6 +507,9 @@ type InventoryHealthSortKey =
   | 'salesVelocity'
   | 'daysUntilStockout'
   | 'overstockPercentage';
+
+type InventoryHealthSearchField = 'name' | 'sku' | 'barcode';
+type InventoryHealthFilterKey = 'tags' | 'category' | 'brand';
 
 type InventoryHealthColumnConfig = {
   key: InventoryHealthSortKey;
@@ -536,6 +543,43 @@ const inventoryStoreLocations: Record<string, string> = {
   'Shopify-02': 'Returns Bay',
   'Shopify-03': 'Overflow Rack'
 };
+
+const inventoryHealthCategoryOptions = ['Apparel', 'Footwear', 'Accessories', 'Electronics', 'Home'];
+const inventoryHealthBrandOptions = ['Northstar', 'Apex', 'Orbit', 'Nimbus', 'Vertex'];
+const inventoryHealthTagOptions = [
+  'Fast Moving',
+  'Slow Moving',
+  'Seasonal',
+  'Premium',
+  'Clearance',
+  'Fragile',
+  'Bundle',
+  'New Arrival'
+];
+
+const inventoryHealthSearchFieldLabelMap: Record<InventoryHealthSearchField, string> = {
+  name: 'Name',
+  sku: 'SKU',
+  barcode: 'Barcode'
+};
+const inventoryHealthSearchFieldFromLabel: Record<string, InventoryHealthSearchField> = {
+  Name: 'name',
+  SKU: 'sku',
+  Barcode: 'barcode'
+};
+const inventoryHealthSearchFieldOptions = Object.values(inventoryHealthSearchFieldLabelMap);
+
+const inventoryHealthFilterLabelMap: Record<InventoryHealthFilterKey, string> = {
+  tags: 'Tags',
+  category: 'Category',
+  brand: 'Brand'
+};
+const inventoryHealthFilterFromLabel: Record<string, InventoryHealthFilterKey> = {
+  Tags: 'tags',
+  Category: 'category',
+  Brand: 'brand'
+};
+const inventoryHealthFilterTypeOptions = Object.values(inventoryHealthFilterLabelMap);
 
 const inventoryHealthHeaderTooltips: Record<string, string | TooltipContent> = {
   product: 'Product details including image, product title, and SKU identifier.',
@@ -670,6 +714,12 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
   const productIndex = index + 1;
   const store = salesStoreOptions[index % salesStoreOptions.length];
   const location = inventoryLocationOptions[index % inventoryLocationOptions.length];
+  const category = inventoryHealthCategoryOptions[index % inventoryHealthCategoryOptions.length];
+  const brand = inventoryHealthBrandOptions[(index * 2 + 1) % inventoryHealthBrandOptions.length];
+  const tags = [
+    inventoryHealthTagOptions[index % inventoryHealthTagOptions.length],
+    inventoryHealthTagOptions[(index + 3) % inventoryHealthTagOptions.length]
+  ];
   const seasonal = Math.sin((index + 1) * 0.63) * 0.22 + 1;
   const onHandQuantity = Math.max(35, Math.round((120 + (index % 11) * 17) * seasonal));
   const committedQuantity = Math.max(8, Math.round(onHandQuantity * (0.12 + (index % 5) * 0.06)));
@@ -688,9 +738,13 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
     id: `ih-${productIndex.toString().padStart(3, '0')}`,
     name: productName,
     sku: `SKU-${(43000 + productIndex).toString()}`,
+    barcode: `${(890000000000 + productIndex * 137).toString()}`,
     image: generateInventoryHealthImage(productName, index),
     store,
     location,
+    category,
+    brand,
+    tags,
     onHandQuantity,
     committedQuantity,
     availableQuantity,
@@ -702,6 +756,12 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
     overstockValue
   };
 });
+
+const inventoryHealthFilterOptionsByKey: Record<InventoryHealthFilterKey, string[]> = {
+  tags: [...new Set(inventoryHealthProducts.flatMap((product) => product.tags))].sort((a, b) => a.localeCompare(b)),
+  category: [...new Set(inventoryHealthProducts.map((product) => product.category))].sort((a, b) => a.localeCompare(b)),
+  brand: [...new Set(inventoryHealthProducts.map((product) => product.brand))].sort((a, b) => a.localeCompare(b))
+};
 
 const inventoryMovementKpiTooltips: Record<string, string | TooltipContent> = {
   'On-hand': 'Total stock physically available at storage locations in the selected period.',
@@ -1599,50 +1659,66 @@ export default function App() {
     date: false,
     region: false
   });
-  const [inventoryMenus, setInventoryMenus] = useState<{ store: boolean; date: boolean; region: boolean }>({
-    store: false,
+  const [inventoryMenus, setInventoryMenus] = useState<{ date: boolean; region: boolean }>({
     date: false,
     region: false
   });
-  const [selectedInventoryStore, setSelectedInventoryStore] = useState<string[]>(salesStoreOptions);
   const [selectedInventoryDate, setSelectedInventoryDate] = useState('Last 30 Days');
   const [selectedInventoryRegion, setSelectedInventoryRegion] = useState<string[]>([...inventoryLocationOptions]);
-  const [inventoryMenuSearch, setInventoryMenuSearch] = useState({ store: '', date: '', region: '' });
+  const [inventoryMenuSearch, setInventoryMenuSearch] = useState({ date: '', region: '' });
   const [inventoryMovementMenus, setInventoryMovementMenus] = useState<{
-    store: boolean;
     date: boolean;
     region: boolean;
     status: boolean;
     groupBy: boolean;
   }>({
-    store: false,
     date: false,
     region: false,
     status: false,
     groupBy: false
   });
-  const [selectedInventoryMovementStore, setSelectedInventoryMovementStore] = useState<string[]>(salesStoreOptions);
   const [selectedInventoryMovementDate, setSelectedInventoryMovementDate] = useState('Last 30 Days');
   const [selectedInventoryMovementRegion, setSelectedInventoryMovementRegion] = useState<string[]>([...inventoryLocationOptions]);
   const [selectedInventoryStatus, setSelectedInventoryStatus] = useState('On-hand');
   const [selectedInventoryGroupBy, setSelectedInventoryGroupBy] = useState('Days');
   const [inventoryMovementMenuSearch, setInventoryMovementMenuSearch] = useState({
-    store: '',
     date: '',
     region: '',
     status: '',
     groupBy: ''
   });
-  const [inventoryHealthMenus, setInventoryHealthMenus] = useState<{ configure: boolean; store: boolean; location: boolean; date: boolean }>({
-    configure: false,
-    store: false,
+  const [inventoryHealthMenus, setInventoryHealthMenus] = useState<{
+    location: boolean;
+    date: boolean;
+    searchBy: boolean;
+    filterType: boolean;
+  }>({
     location: false,
-    date: false
+    date: false,
+    searchBy: false,
+    filterType: false
   });
-  const [selectedInventoryHealthStore, setSelectedInventoryHealthStore] = useState<string[]>([...salesStoreOptions]);
   const [selectedInventoryHealthLocation, setSelectedInventoryHealthLocation] = useState<string[]>([...inventoryLocationOptions]);
   const [selectedInventoryHealthDate, setSelectedInventoryHealthDate] = useState('Last 30 Days');
-  const [inventoryHealthMenuSearch, setInventoryHealthMenuSearch] = useState({ store: '', location: '', date: '' });
+  const [selectedInventoryHealthSearchField, setSelectedInventoryHealthSearchField] = useState<InventoryHealthSearchField>('name');
+  const [inventoryHealthMenuSearch, setInventoryHealthMenuSearch] = useState({
+    location: '',
+    date: '',
+    searchBy: '',
+    filterType: '',
+    tags: '',
+    category: '',
+    brand: ''
+  });
+  const [activeInventoryHealthFilters, setActiveInventoryHealthFilters] = useState<InventoryHealthFilterKey[]>([]);
+  const [selectedInventoryHealthFilters, setSelectedInventoryHealthFilters] = useState<
+    Record<InventoryHealthFilterKey, string[]>
+  >({
+    tags: [],
+    category: [],
+    brand: []
+  });
+  const [openInventoryHealthFilterPill, setOpenInventoryHealthFilterPill] = useState<InventoryHealthFilterKey | null>(null);
   const [inventoryHealthSearchTerm, setInventoryHealthSearchTerm] = useState('');
   const [inventoryHealthSort, setInventoryHealthSort] = useState<{ key: InventoryHealthSortKey; direction: 'asc' | 'desc' }>({
     key: 'name',
@@ -1874,11 +1950,6 @@ export default function App() {
       ? 'All Stores'
       : formatMultiSelectLabel(selectedSalesStore, 'Select Stores', 'store', 'stores');
 
-  const inventoryStoreSummaryLabel =
-    selectedInventoryStore.length === salesStoreOptions.length
-      ? 'All Stores'
-      : formatMultiSelectLabel(selectedInventoryStore, 'Select Stores', 'store', 'stores');
-
   const inventoryLocationSummaryLabel =
     selectedInventoryRegion.length === inventoryLocationOptions.length
       ? 'Inventory Locations'
@@ -1887,11 +1958,9 @@ export default function App() {
   const activeInventorySnapshots = useMemo(
     () =>
       inventoryStoreSnapshots.filter(
-        (snapshot) =>
-          selectedInventoryStore.includes(snapshot.store) &&
-          selectedInventoryRegion.includes(inventoryStoreLocations[snapshot.store])
+        (snapshot) => selectedInventoryRegion.includes(inventoryStoreLocations[snapshot.store])
       ),
-    [selectedInventoryRegion, selectedInventoryStore]
+    [selectedInventoryRegion]
   );
 
   const dynamicInventoryMetricCards = useMemo(() => {
@@ -1961,11 +2030,6 @@ export default function App() {
     ];
   }, [activeInventorySnapshots, selectedInventoryDate]);
 
-  const inventoryMovementStoreSummaryLabel =
-    selectedInventoryMovementStore.length === salesStoreOptions.length
-      ? 'All Stores'
-      : formatMultiSelectLabel(selectedInventoryMovementStore, 'Select Stores', 'store', 'stores');
-
   const inventoryMovementLocationSummaryLabel =
     selectedInventoryMovementRegion.length === inventoryLocationOptions.length
       ? 'Inventory Locations'
@@ -1974,9 +2038,9 @@ export default function App() {
   const activeInventoryMovementStores = useMemo(
     () =>
       inventoryMovementData.filter(
-        (store) => selectedInventoryMovementStore.includes(store.store) && selectedInventoryMovementRegion.includes(store.location)
+        (store) => selectedInventoryMovementRegion.includes(store.location)
       ),
-    [selectedInventoryMovementRegion, selectedInventoryMovementStore]
+    [selectedInventoryMovementRegion]
   );
 
   const activeInventoryStatusKey = inventoryStatusFromLabel[selectedInventoryStatus] ?? 'onHand';
@@ -2248,26 +2312,45 @@ export default function App() {
       }
     : null;
 
-  const inventoryHealthStoreSummaryLabel =
-    selectedInventoryHealthStore.length === salesStoreOptions.length
-      ? 'All Stores'
-      : formatMultiSelectLabel(selectedInventoryHealthStore, 'Select Stores', 'store', 'stores');
-
   const inventoryHealthLocationSummaryLabel =
     selectedInventoryHealthLocation.length === inventoryLocationOptions.length
       ? 'Inventory Locations'
       : formatMultiSelectLabel(selectedInventoryHealthLocation, 'Inventory Locations', 'location', 'locations');
 
+  const inventoryHealthSearchFieldLabel = inventoryHealthSearchFieldLabelMap[selectedInventoryHealthSearchField];
+
   const inventoryHealthFilteredProducts = useMemo(() => {
     const query = inventoryHealthSearchTerm.trim().toLowerCase();
     return inventoryHealthProducts.filter((product) => {
-      const matchesStore = selectedInventoryHealthStore.includes(product.store);
+      const searchableValue =
+        selectedInventoryHealthSearchField === 'name'
+          ? product.name
+          : selectedInventoryHealthSearchField === 'sku'
+            ? product.sku
+            : product.barcode;
       const matchesLocation = selectedInventoryHealthLocation.includes(product.location);
-      const matchesSearch =
-        !query || product.name.toLowerCase().includes(query) || product.sku.toLowerCase().includes(query);
-      return matchesStore && matchesLocation && matchesSearch;
+      const matchesSearch = !query || searchableValue.toLowerCase().includes(query);
+      const matchesTags =
+        !activeInventoryHealthFilters.includes('tags') ||
+        selectedInventoryHealthFilters.tags.length === 0 ||
+        selectedInventoryHealthFilters.tags.some((tag) => product.tags.includes(tag));
+      const matchesCategory =
+        !activeInventoryHealthFilters.includes('category') ||
+        selectedInventoryHealthFilters.category.length === 0 ||
+        selectedInventoryHealthFilters.category.includes(product.category);
+      const matchesBrand =
+        !activeInventoryHealthFilters.includes('brand') ||
+        selectedInventoryHealthFilters.brand.length === 0 ||
+        selectedInventoryHealthFilters.brand.includes(product.brand);
+      return matchesLocation && matchesSearch && matchesTags && matchesCategory && matchesBrand;
     });
-  }, [inventoryHealthSearchTerm, selectedInventoryHealthLocation, selectedInventoryHealthStore]);
+  }, [
+    activeInventoryHealthFilters,
+    inventoryHealthSearchTerm,
+    selectedInventoryHealthFilters,
+    selectedInventoryHealthLocation,
+    selectedInventoryHealthSearchField
+  ]);
 
   const inventoryHealthSortedProducts = useMemo(() => {
     const sorted = [...inventoryHealthFilteredProducts];
@@ -2291,12 +2374,14 @@ export default function App() {
   useEffect(() => {
     setVisibleInventoryHealthRows(20);
   }, [
+    activeInventoryHealthFilters,
     inventoryHealthSearchTerm,
+    selectedInventoryHealthFilters,
     inventoryHealthSort.direction,
     inventoryHealthSort.key,
     selectedInventoryHealthDate,
     selectedInventoryHealthLocation,
-    selectedInventoryHealthStore
+    selectedInventoryHealthSearchField
   ]);
 
   const handleInventoryHealthSort = (key: InventoryHealthSortKey) => {
@@ -2864,11 +2949,6 @@ export default function App() {
 
                     <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                         {[
-                          {
-                            key: 'store',
-                            value: inventoryStoreSummaryLabel,
-                            options: salesStoreOptions
-                          },
                           { key: 'date', value: selectedInventoryDate, options: inventoryDateOptions },
                           {
                             key: 'region',
@@ -2881,7 +2961,6 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               setInventoryMenus((current) => ({
-                                store: false,
                                 date: false,
                                 region: false,
                                 [menu.key]: !current[menu.key as keyof typeof current]
@@ -2897,8 +2976,8 @@ export default function App() {
                           <SearchableDropdownMenu
                             open={inventoryMenus[menu.key as keyof typeof inventoryMenus]}
                             options={menu.options}
-                            selected={menu.key === 'store' ? selectedInventoryStore : menu.key === 'region' ? selectedInventoryRegion : selectedInventoryDate}
-                            multiSelect={menu.key === 'store' || menu.key === 'region'}
+                            selected={menu.key === 'region' ? selectedInventoryRegion : selectedInventoryDate}
+                            multiSelect={menu.key === 'region'}
                             searchable={menu.key !== 'date'}
                             searchValue={inventoryMenuSearch[menu.key as keyof typeof inventoryMenuSearch]}
                             onSearchChange={
@@ -2906,19 +2985,15 @@ export default function App() {
                                 ? (value) => setInventoryMenuSearch((current) => ({ ...current, [menu.key]: value }))
                                 : undefined
                             }
-                            widthClass={menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'region' ? 'tu-w-[230px]' : 'tu-w-[190px]'}
+                            widthClass={menu.key === 'region' ? 'tu-w-[230px]' : 'tu-w-[190px]'}
                             showChevronForCustom={menu.key === 'date'}
                             onSelect={(item) => {
-                              if (menu.key === 'store') {
-                                setSelectedInventoryStore((current) => toggleMultiSelectValue(current, item));
-                                return;
-                              }
                               if (menu.key === 'region') {
                                 setSelectedInventoryRegion((current) => toggleMultiSelectValue(current, item));
                                 return;
                               }
                               if (menu.key === 'date') setSelectedInventoryDate(item);
-                              setInventoryMenus({ store: false, date: false, region: false });
+                              setInventoryMenus({ date: false, region: false });
                             }}
                           />
                         </div>
@@ -3002,7 +3077,6 @@ export default function App() {
                           type="button"
                           onClick={() =>
                             setInventoryMovementMenus((current) => ({
-                              store: false,
                               date: false,
                               region: false,
                               status: false,
@@ -3035,11 +3109,6 @@ export default function App() {
                           options: inventoryMovementLocationOptions
                         },
                         {
-                          key: 'store',
-                          value: inventoryMovementStoreSummaryLabel,
-                          options: inventoryMovementStoreOptions
-                        },
-                        {
                           key: 'status',
                           value: `Inventory Stages: ${selectedInventoryStatus}`,
                           options: inventoryStatusOptions
@@ -3050,7 +3119,6 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               setInventoryMovementMenus((current) => ({
-                                store: false,
                                 date: false,
                                 region: false,
                                 status: false,
@@ -3069,15 +3137,13 @@ export default function App() {
                             open={inventoryMovementMenus[menu.key as keyof typeof inventoryMovementMenus]}
                             options={menu.options}
                             selected={
-                              menu.key === 'store'
-                                ? selectedInventoryMovementStore
-                                : menu.key === 'region'
+                              menu.key === 'region'
                                   ? selectedInventoryMovementRegion
                                   : menu.key === 'date'
                                     ? selectedInventoryMovementDate
                                     : selectedInventoryStatus
                             }
-                            multiSelect={menu.key === 'store' || menu.key === 'region'}
+                            multiSelect={menu.key === 'region'}
                             searchable={menu.key !== 'date'}
                             searchValue={inventoryMovementMenuSearch[menu.key as keyof typeof inventoryMovementMenuSearch]}
                             onSearchChange={
@@ -3085,13 +3151,9 @@ export default function App() {
                                 ? (value) => setInventoryMovementMenuSearch((current) => ({ ...current, [menu.key]: value }))
                                 : undefined
                             }
-                            widthClass={menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'status' ? 'tu-w-[240px]' : 'tu-w-[190px]'}
+                            widthClass={menu.key === 'status' ? 'tu-w-[240px]' : 'tu-w-[190px]'}
                             showChevronForCustom={menu.key === 'date'}
                             onSelect={(item) => {
-                              if (menu.key === 'store') {
-                                setSelectedInventoryMovementStore((current) => toggleMultiSelectValue(current, item));
-                                return;
-                              }
                               if (menu.key === 'region') {
                                 setSelectedInventoryMovementRegion((current) => toggleMultiSelectValue(current, item));
                                 return;
@@ -3099,7 +3161,6 @@ export default function App() {
                               if (menu.key === 'date') setSelectedInventoryMovementDate(item);
                               if (menu.key === 'status') setSelectedInventoryStatus(item);
                               setInventoryMovementMenus({
-                                store: false,
                                 date: false,
                                 region: false,
                                 status: false,
@@ -3131,6 +3192,7 @@ export default function App() {
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                           const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
                           const primaryMetric = index === 0;
+                          const showTrendArrow = metric.label !== 'Unfulfilled';
 
                           return (
                             <div
@@ -3163,20 +3225,22 @@ export default function App() {
                                   >
                                     {metric.value}
                                   </p>
-                                  <div className="tu-relative">
-                                    <button
-                                      type="button"
-                                      onMouseEnter={() => setHoveredInventoryMovementKpi(metric.label)}
-                                      onMouseLeave={() => setHoveredInventoryMovementKpi(null)}
-                                      className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[13px] tu-font-medium ${trendColor}`}
-                                    >
-                                      {metric.trend}
-                                      <TrendIcon className="tu-h-4 tu-w-4" />
-                                    </button>
-                                    {hoveredInventoryMovementKpi === metric.label ? (
-                                      <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
-                                    ) : null}
-                                  </div>
+                                  {showTrendArrow ? (
+                                    <div className="tu-relative">
+                                      <button
+                                        type="button"
+                                        onMouseEnter={() => setHoveredInventoryMovementKpi(metric.label)}
+                                        onMouseLeave={() => setHoveredInventoryMovementKpi(null)}
+                                        className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[13px] tu-font-medium ${trendColor}`}
+                                      >
+                                        {metric.trend}
+                                        <TrendIcon className="tu-h-4 tu-w-4" />
+                                      </button>
+                                      {hoveredInventoryMovementKpi === metric.label ? (
+                                        <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                      ) : null}
+                                    </div>
+                                  ) : null}
                                 </div>
                               </div>
                             </div>
@@ -3266,57 +3330,87 @@ export default function App() {
                       <div className="tu-relative">
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            setOpenInventoryHealthFilterPill(null);
                             setInventoryHealthMenus((current) => ({
-                              configure: !current.configure,
-                              store: false,
                               location: false,
-                              date: false
-                            }))
-                          }
+                              date: false,
+                              searchBy: false,
+                              filterType: !current.filterType
+                            }));
+                          }}
                           className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                         >
                           <SlidersHorizontal className="tu-h-3.5 tu-w-3.5" />
-                          <span>Configure Columns</span>
+                          <span>{activeInventoryHealthFilters.length > 0 ? `Filters (${activeInventoryHealthFilters.length})` : 'Add Filter'}</span>
                           <ChevronDown className="tu-h-3 tu-w-3" />
                         </button>
-                        {inventoryHealthMenus.configure ? (
-                          <div className="tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 tu-w-[290px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
-                            <div className="tu-max-h-[280px] tu-space-y-1 tu-overflow-y-auto">
-                              {inventoryHealthColumns.map((column) => (
-                                <div
-                                  key={column.key}
-                                  draggable
-                                  onDragStart={() => setDraggedInventoryHealthColumnKey(column.key)}
-                                  onDragOver={(event) => event.preventDefault()}
-                                  onDrop={() => reorderInventoryHealthColumns(column.key)}
-                                  className="tu-flex tu-items-center tu-justify-between tu-gap-2 tu-rounded-[10px] tu-px-2.5 tu-py-2 hover:tu-bg-[#f5f6f3]"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleInventoryHealthColumn(column.key)}
-                                    className="tu-flex tu-flex-1 tu-items-center tu-gap-2.5 tu-text-left"
-                                  >
-                                    <span
-                                      className={`tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-[4px] tu-border ${
-                                        column.visible ? 'tu-border-[#10c562] tu-bg-[#10c562]' : 'tu-border-[#cfd7cd] tu-bg-white'
-                                      }`}
-                                    >
-                                      {column.visible ? <span className="tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-white" /> : null}
-                                    </span>
-                                    <span className="tu-text-[12px] tu-text-[#2f3133]">{column.label}</span>
-                                  </button>
-                                  <GripVertical className="tu-h-4 tu-w-4 tu-text-[#9ba1a8]" />
-                                </div>
-                              ))}
-                            </div>
-                            <p className="tu-mt-2 tu-text-[11px] tu-text-[#8f949b]">Drag rows to reorder columns in the table.</p>
-                          </div>
-                        ) : null}
+                        <SearchableDropdownMenu
+                          open={inventoryHealthMenus.filterType}
+                          options={inventoryHealthFilterTypeOptions}
+                          selected={activeInventoryHealthFilters.map((key) => inventoryHealthFilterLabelMap[key])}
+                          multiSelect
+                          searchable={false}
+                          widthClass="tu-w-[200px]"
+                          onSelect={(item) => {
+                            const filterKey = inventoryHealthFilterFromLabel[item];
+                            if (!filterKey) return;
+                            setActiveInventoryHealthFilters((current) =>
+                              current.includes(filterKey) ? current.filter((key) => key !== filterKey) : [...current, filterKey]
+                            );
+                          }}
+                        />
                       </div>
-                      <span className="tu-mx-0.5 tu-text-[#c2c8c0]">|</span>
+                      <span className="tu-inline-flex tu-h-9 tu-items-center tu-text-[#c2c8c0]">|</span>
+                      {activeInventoryHealthFilters.map((filterKey) => (
+                        <div key={filterKey} className="tu-relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInventoryHealthMenus({ location: false, date: false, searchBy: false, filterType: false });
+                              setOpenInventoryHealthFilterPill((current) => (current === filterKey ? null : filterKey));
+                            }}
+                            className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-full tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-pl-3 tu-pr-2 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                          >
+                            <span>{inventoryHealthFilterLabelMap[filterKey]}</span>
+                            <span className="tu-inline-flex tu-rounded-full tu-bg-[#e9f3ec] tu-px-1.5 tu-py-0.5 tu-text-[10px] tu-font-semibold tu-text-[#4b8a60]">
+                              {selectedInventoryHealthFilters[filterKey].length}
+                            </span>
+                            <ChevronDown className="tu-h-3 tu-w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenInventoryHealthFilterPill(null);
+                              setActiveInventoryHealthFilters((current) => current.filter((key) => key !== filterKey));
+                              setSelectedInventoryHealthFilters((current) => ({ ...current, [filterKey]: [] }));
+                            }}
+                            className="tu-absolute -tu-right-1.5 -tu-top-1.5 tu-inline-flex tu-h-4.5 tu-w-4.5 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#dfe5dc] tu-bg-white tu-text-[#8d9096] hover:tu-text-[#2a2c2f]"
+                            aria-label={`Remove ${inventoryHealthFilterLabelMap[filterKey]} filter`}
+                          >
+                            <X className="tu-h-3 tu-w-3" />
+                          </button>
+                          <SearchableDropdownMenu
+                            open={openInventoryHealthFilterPill === filterKey}
+                            options={inventoryHealthFilterOptionsByKey[filterKey]}
+                            selected={selectedInventoryHealthFilters[filterKey]}
+                            multiSelect
+                            searchable
+                            widthClass="tu-w-[220px]"
+                            searchValue={inventoryHealthMenuSearch[filterKey]}
+                            onSearchChange={(value) =>
+                              setInventoryHealthMenuSearch((current) => ({ ...current, [filterKey]: value }))
+                            }
+                            onSelect={(item) =>
+                              setSelectedInventoryHealthFilters((current) => ({
+                                ...current,
+                                [filterKey]: toggleMultiSelectValue(current[filterKey], item)
+                              }))
+                            }
+                          />
+                        </div>
+                      ))}
                       {[
-                        { key: 'store', value: inventoryHealthStoreSummaryLabel, options: salesStoreOptions },
                         { key: 'location', value: inventoryHealthLocationSummaryLabel, options: inventoryLocationOptions },
                         { key: 'date', value: selectedInventoryHealthDate, options: inventoryDateOptions }
                       ].map((menu) => (
@@ -3324,11 +3418,12 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => {
+                              setOpenInventoryHealthFilterPill(null);
                               setInventoryHealthMenus((current) => ({
-                                configure: false,
-                                store: false,
                                 location: false,
                                 date: false,
+                                searchBy: false,
+                                filterType: false,
                                 [menu.key]: !current[menu.key as keyof typeof current]
                               }));
                               setInventoryHealthMenuSearch((current) => ({ ...current, [menu.key]: '' }));
@@ -3342,13 +3437,11 @@ export default function App() {
                             open={inventoryHealthMenus[menu.key as keyof typeof inventoryHealthMenus]}
                             options={menu.options}
                             selected={
-                              menu.key === 'store'
-                                ? selectedInventoryHealthStore
-                                : menu.key === 'location'
+                              menu.key === 'location'
                                   ? selectedInventoryHealthLocation
                                   : selectedInventoryHealthDate
                             }
-                            multiSelect={menu.key === 'store' || menu.key === 'location'}
+                            multiSelect={menu.key === 'location'}
                             searchable={menu.key !== 'date'}
                             searchValue={inventoryHealthMenuSearch[menu.key as keyof typeof inventoryHealthMenuSearch]}
                             onSearchChange={
@@ -3356,27 +3449,58 @@ export default function App() {
                                 ? (value) => setInventoryHealthMenuSearch((current) => ({ ...current, [menu.key]: value }))
                                 : undefined
                             }
-                            widthClass={menu.key === 'store' ? 'tu-w-[220px]' : menu.key === 'location' ? 'tu-w-[230px]' : 'tu-w-[190px]'}
+                            widthClass={menu.key === 'location' ? 'tu-w-[230px]' : 'tu-w-[190px]'}
                             showChevronForCustom={menu.key === 'date'}
                             onSelect={(item) => {
-                              if (menu.key === 'store') return setSelectedInventoryHealthStore((current) => toggleMultiSelectValue(current, item));
                               if (menu.key === 'location') return setSelectedInventoryHealthLocation((current) => toggleMultiSelectValue(current, item));
                               if (menu.key === 'date') setSelectedInventoryHealthDate(item);
-                              setInventoryHealthMenus({ configure: false, store: false, location: false, date: false });
+                              setInventoryHealthMenus({ location: false, date: false, searchBy: false, filterType: false });
                             }}
                           />
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="tu-mt-4 tu-relative">
-                    <Search className="tu-pointer-events-none tu-absolute tu-left-3 tu-top-1/2 tu-h-3.5 tu-w-3.5 -tu-translate-y-1/2 tu-text-[#9a9ca2]" />
-                    <input
-                      value={inventoryHealthSearchTerm}
-                      onChange={(event) => setInventoryHealthSearchTerm(event.target.value)}
-                      placeholder="Search Product"
-                      className="tu-h-10 tu-w-full tu-rounded-[10px] tu-border tu-border-[#e1e6de] tu-bg-[#fafbf8] tu-pl-9 tu-pr-3 tu-text-[13px] tu-text-[#2f3133] outline-none placeholder:tu-text-[#9a9ca2] focus:tu-border-[#c6d3c1]"
-                    />
+                  <div className="tu-mt-4 tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row sm:tu-items-center">
+                    <div className="tu-relative tu-flex-1">
+                      <Search className="tu-pointer-events-none tu-absolute tu-left-3 tu-top-1/2 tu-h-3.5 tu-w-3.5 -tu-translate-y-1/2 tu-text-[#9a9ca2]" />
+                      <input
+                        value={inventoryHealthSearchTerm}
+                        onChange={(event) => setInventoryHealthSearchTerm(event.target.value)}
+                        placeholder={`Search by ${inventoryHealthSearchFieldLabel}`}
+                        className="tu-h-10 tu-w-full tu-rounded-[10px] tu-border tu-border-[#e1e6de] tu-bg-[#fafbf8] tu-pl-9 tu-pr-3 tu-text-[13px] tu-text-[#2f3133] outline-none placeholder:tu-text-[#9a9ca2] focus:tu-border-[#c6d3c1]"
+                      />
+                    </div>
+                    <div className="tu-relative sm:tu-w-[190px]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenInventoryHealthFilterPill(null);
+                          setInventoryHealthMenus((current) => ({
+                            location: false,
+                            date: false,
+                            filterType: false,
+                            searchBy: !current.searchBy
+                          }));
+                        }}
+                        className="tu-inline-flex tu-h-10 tu-w-full tu-items-center tu-justify-between tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#e1e6de] tu-bg-[#fafbf8] tu-px-3 tu-text-[12px] tu-font-medium tu-text-[#5f656c] hover:tu-border-[#c6d3c1] hover:tu-bg-white"
+                      >
+                        <span>{`Search by: ${inventoryHealthSearchFieldLabel}`}</span>
+                        <ChevronDown className="tu-h-3 tu-w-3" />
+                      </button>
+                      <SearchableDropdownMenu
+                        open={inventoryHealthMenus.searchBy}
+                        options={inventoryHealthSearchFieldOptions}
+                        selected={inventoryHealthSearchFieldLabel}
+                        searchable={false}
+                        widthClass="tu-w-[190px]"
+                        onSelect={(item) => {
+                          const searchField = inventoryHealthSearchFieldFromLabel[item];
+                          if (searchField) setSelectedInventoryHealthSearchField(searchField);
+                          setInventoryHealthMenus({ location: false, date: false, searchBy: false, filterType: false });
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8]">
                     <div className="tu-max-h-[520px] tu-overflow-auto" onScroll={handleInventoryHealthScroll}>
