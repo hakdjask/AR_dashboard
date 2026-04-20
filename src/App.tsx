@@ -269,8 +269,7 @@ const getMetricPopoverContent = (periodKey: PeriodKey, metricKey: MetricKey): Me
     { label: 'Discounts', value: values.discounts, prefix: '-' },
     { label: 'Returns', value: values.returns, prefix: '-' },
     { label: 'Net Sales', value: values.netSales, medium: true, dividerBefore: true },
-    { label: 'Revenue', value: values.netSales, dividerBefore: true },
-    { label: 'COGS', value: values.cogs, prefix: '-' },
+    { label: 'COGS', value: values.cogs, prefix: '-', dividerBefore: true },
     { label: 'Gross Profit', value: values.grossProfit, medium: true, dividerBefore: true },
     { label: 'Gross Profit Margin', value: values.grossProfitMargin, medium: true },
     { label: 'Expenses', value: values.expenses, prefix: '-', dividerBefore: true },
@@ -438,26 +437,23 @@ const sectionSixKpiTooltips: Record<string, string> = {
   'Total Shipped': 'Total number of booked orders that were dispatched to courier in the selected period.',
   'Total Delivered': 'Total number of shipped orders successfully delivered to customers in the selected period.',
   'Total Delivery Failed': 'Total number of shipment attempts that failed delivery in the selected period.',
-  'Gross Sales': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
-  'Net Sales': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
-  'Discount Rate': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
-  'Refund Value': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
-  'New Customers': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
-  'Returning Customers': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
-  'Customer Lifetime Value': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
-  'Customer Retention': 'Placeholder KPI. Final definition and formula will be updated based on your input.'
+  'Net Sales': 'Revenue after taxes, discounts, and returns in the selected period.',
+  COGS: 'Direct costs attributable to products sold in the selected period.',
+  Expenses: 'Operating expenses allocated to the selected period.',
+  'Net Profit': 'Profit remaining after deducting COGS and Expenses from Net Sales.',
+  'New Customers': 'New customers acquired in the selected period.',
+  'Average Order Value': 'Average amount spent per order in the selected period.',
+  'Customer Lifetime Value': 'Estimated revenue expected from a customer over their relationship with your store.',
+  'Customer Retention': 'Percentage of existing customers who purchased again in the selected period.'
 };
 
-const sectionSixMetricSections: { title: 'Orders' | 'Sales' | 'Customers'; metrics: GlanceMetricCard[] }[] = [
+const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; metrics: GlanceMetricCard[] }[] = [
   {
     title: 'Orders',
     metrics: [
       {
         label: 'Total Booked Orders',
         value: '1,248',
-        secondaryText: 'Product Units Sold (in all orders combined): 3,876',
-        secondaryTooltip:
-          'Total quantity of products sold across all booked orders in the selected period, including multi-item orders.',
         sublabel: 'Since Yesterday',
         trend: '5.4%',
         direction: 'up',
@@ -521,61 +517,61 @@ const sectionSixMetricSections: { title: 'Orders' | 'Sales' | 'Customers'; metri
     title: 'Sales',
     metrics: [
       {
-        label: 'Gross Sales',
-        value: 'PKR 3,920,000',
-        sublabel: 'Since Yesterday',
-        trend: '4.9%',
-        direction: 'up',
-        showStoreSelect: false,
-        comparison: {
-          current: 'PKR 3,920,000',
-          previous: 'PKR 3,736,000',
-          change: 'PKR 184,000',
-          currentPeriodLabel: 'Current Period',
-          previousPeriodLabel: 'Previous Period'
-        }
-      },
-      {
         label: 'Net Sales',
-        value: 'PKR 3,410,000',
+        value: 'PKR 223,456',
         sublabel: 'Since Yesterday',
-        trend: '4.2%',
+        trend: '8.7%',
         direction: 'up',
         showStoreSelect: false,
         comparison: {
-          current: 'PKR 3,410,000',
-          previous: 'PKR 3,273,000',
-          change: 'PKR 137,000',
+          current: 'PKR 223,456',
+          previous: 'PKR 205,600',
+          change: 'PKR 17,856',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
       },
       {
-        label: 'Discount Rate',
-        value: '6.7%',
+        label: 'COGS',
+        value: 'PKR 76,544',
         sublabel: 'Since Yesterday',
-        trend: '0.4%',
+        trend: '5.8%',
         direction: 'down',
         showStoreSelect: false,
         comparison: {
-          current: '6.7%',
-          previous: '7.1%',
-          change: '0.4%',
+          current: 'PKR 76,544',
+          previous: 'PKR 81,240',
+          change: 'PKR 4,696',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
       },
       {
-        label: 'Refund Value',
-        value: 'PKR 128,000',
+        label: 'Expenses',
+        value: 'PKR 23,456',
         sublabel: 'Since Yesterday',
-        trend: '3.1%',
-        direction: 'down',
+        trend: '3.6%',
+        direction: 'up',
         showStoreSelect: false,
         comparison: {
-          current: 'PKR 128,000',
-          previous: 'PKR 132,100',
-          change: 'PKR 4,100',
+          current: 'PKR 23,456',
+          previous: 'PKR 22,640',
+          change: 'PKR 816',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Net Profit',
+        value: 'PKR 123,456',
+        sublabel: 'Since Yesterday',
+        trend: '9.4%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 123,456',
+          previous: 'PKR 112,880',
+          change: 'PKR 10,576',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -601,16 +597,16 @@ const sectionSixMetricSections: { title: 'Orders' | 'Sales' | 'Customers'; metri
         }
       },
       {
-        label: 'Returning Customers',
-        value: '1,132',
+        label: 'Average Order Value',
+        value: 'PKR 10,500',
         sublabel: 'Since Yesterday',
-        trend: '3.4%',
+        trend: '2.9%',
         direction: 'up',
         showStoreSelect: false,
         comparison: {
-          current: '1,132',
-          previous: '1,095',
-          change: '37',
+          current: 'PKR 10,500',
+          previous: 'PKR 10,204',
+          change: 'PKR 296',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -636,7 +632,7 @@ const sectionSixMetricSections: { title: 'Orders' | 'Sales' | 'Customers'; metri
         sublabel: 'Since Yesterday',
         trend: '1.2%',
         direction: 'up',
-        showStoreSelect: false,
+        showStoreSelect: true,
         comparison: {
           current: '38.6%',
           previous: '38.1%',
@@ -648,6 +644,49 @@ const sectionSixMetricSections: { title: 'Orders' | 'Sales' | 'Customers'; metri
     ]
   }
 ];
+
+const getSectionSixValueMultiplier = (value: string, periodKey: PeriodKey) => {
+  const isRate = value.includes('%');
+  if (isRate) {
+    const rateMultiplier: Record<PeriodKey, number> = {
+      today: 1,
+      yesterday: 0.98,
+      last7: 1.04,
+      last30: 1.08
+    };
+    return rateMultiplier[periodKey];
+  }
+
+  const volumeMultiplier: Record<PeriodKey, number> = {
+    today: 1,
+    yesterday: 0.93,
+    last7: 6.9,
+    last30: 28.2
+  };
+  return volumeMultiplier[periodKey];
+};
+
+const scaleMetricValueByPeriod = (value: string, periodKey: PeriodKey) => {
+  const numeric = Number(value.replace(/[^0-9.]/g, ''));
+  if (Number.isNaN(numeric)) return value;
+
+  const scaled = numeric * getSectionSixValueMultiplier(value, periodKey);
+
+  if (value.includes('PKR')) {
+    return `PKR ${Math.round(scaled).toLocaleString('en-US')}`;
+  }
+  if (value.includes('%')) {
+    return `${scaled.toFixed(1)}%`;
+  }
+  return Math.round(scaled).toLocaleString('en-US');
+};
+
+const scaleComparisonByPeriod = (comparison: ComparisonData, periodKey: PeriodKey): ComparisonData => ({
+  ...comparison,
+  current: scaleMetricValueByPeriod(comparison.current, periodKey),
+  previous: scaleMetricValueByPeriod(comparison.previous, periodKey),
+  change: scaleMetricValueByPeriod(comparison.change, periodKey)
+});
 
 const salesKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Orders': 'Total orders booked across the selected stores and period.',
@@ -1878,6 +1917,10 @@ export default function App() {
   const [openGlanceDateMenu, setOpenGlanceDateMenu] = useState(false);
   const [openStoreMenu, setOpenStoreMenu] = useState(false);
   const [hoveredGlanceKpi, setHoveredGlanceKpi] = useState<string | null>(null);
+  const [hoveredSectionSixValue, setHoveredSectionSixValue] = useState<string | null>(null);
+  const [openSectionSixCustomerStoreMenu, setOpenSectionSixCustomerStoreMenu] = useState(false);
+  const [selectedSectionSixCustomerStores, setSelectedSectionSixCustomerStores] = useState<string[]>([]);
+  const [sectionSixCustomerStoreSearch, setSectionSixCustomerStoreSearch] = useState('');
   const [selectedGlanceDate, setSelectedGlanceDate] = useState('This Week');
   const [selectedStore, setSelectedStore] = useState<string[]>([]);
   const [glanceMenuSearch, setGlanceMenuSearch] = useState({ date: '', store: '' });
@@ -2050,6 +2093,26 @@ export default function App() {
     [selectedSalesStore]
   );
   const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
+  const selectedGlancePeriodKey: PeriodKey =
+    selectedGlanceDate === 'Last 30 Days'
+      ? 'last30'
+      : selectedGlanceDate === 'This Week' || selectedGlanceDate === 'Last 7 Days'
+        ? 'last7'
+        : selectedGlanceDate === 'Yesterday'
+          ? 'yesterday'
+          : 'today';
+  const sectionSixMetricSections = useMemo(
+    () =>
+      sectionSixMetricSectionsBase.map((metricSection) => ({
+        ...metricSection,
+        metrics: metricSection.metrics.map((metric) => ({
+          ...metric,
+          value: scaleMetricValueByPeriod(metric.value, selectedGlancePeriodKey),
+          comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey)
+        }))
+      })),
+    [selectedGlancePeriodKey]
+  );
   const dynamicSalesMetricCards = useMemo(() => {
     const currentSnapshot = dayBreakdown[dayBreakdown.length - 1]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
     const previousSnapshot = dayBreakdown[dayBreakdown.length - 2]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
@@ -3168,7 +3231,7 @@ export default function App() {
               </div>
             </div>
 
-            <div>
+            <div className="tu-flex tu-flex-col">
               {activeTab === 'inventory' ? (
                 <>
                 <section className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
@@ -3838,7 +3901,7 @@ export default function App() {
               ) : null}
               {activeTab !== 'inventory' ? (
                 <>
-              <section className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
+              <section className="tu-hidden tu-order-2 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
               <h1 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales  Overview</h1>
 
               <div className="tu-mt-4 tu-grid tu-gap-3 xl:tu-grid-cols-4">
@@ -4132,7 +4195,7 @@ export default function App() {
               </div>
             </section>
 
-            <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
+            <section className="tu-hidden tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
               <div className="tu-flex tu-flex-col tu-gap-3 tu-pb-2 lg:tu-flex-row lg:tu-items-start lg:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">
                   Key Performance Metrics at a Glance
@@ -4255,7 +4318,7 @@ export default function App() {
               </div>
             </section>
 
-            <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Store</h2>
 
@@ -4462,7 +4525,7 @@ export default function App() {
               </div>
             </section>
 
-            <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by City</h2>
 
@@ -4549,8 +4612,8 @@ export default function App() {
                           widthClass={metric.label.includes('Average') ? 'tu-w-[280px]' : 'tu-w-[190px]'}
                         />
                       </div>
-                      <div className="tu-mt-2 tu-flex tu-items-end tu-gap-2">
-                        <p className="tu-text-[21px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
+                      <div className="tu-mt-2.5 tu-flex tu-items-end tu-gap-2.5">
+                        <p className="tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
                         <div className="tu-relative">
                           <button
                             type="button"
@@ -4582,7 +4645,7 @@ export default function App() {
               </div>
             </section>
 
-            <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Products</h2>
 
@@ -4735,8 +4798,8 @@ export default function App() {
               </div>
             </section>
 
-            <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
-              <div className="tu-flex tu-flex-col tu-gap-3 tu-pb-2 lg:tu-flex-row lg:tu-items-start lg:tu-justify-between">
+            <section className="tu-order-1 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
+              <div className="tu-flex tu-flex-col tu-gap-3 tu-pb-2 lg:tu-flex-row lg:tu-items-center lg:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">
                   Key Performing Metrics Overview
                 </h2>
@@ -4781,21 +4844,36 @@ export default function App() {
                   >
                     <div className="tu-flex tu-items-center tu-justify-between">
                       <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#2a2c2f]">{metricSection.title}</h3>
-                      <span className="tu-text-[11px] tu-font-medium tu-uppercase tu-tracking-[0.12em] tu-text-[#8f9197]">
-                        4 KPIs
-                      </span>
                     </div>
 
                     <div className="tu-mt-3 tu-grid tu-gap-3 lg:tu-grid-cols-4">
                       {metricSection.metrics.map((metric) => {
                         const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                        const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                        const trendPillClass =
+                          metric.direction === 'up'
+                            ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                            : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
                         const hoverKey = `${metricSection.title}-${metric.label}`;
+                        const sectionSixMetricKeyMap: Record<string, MetricKey> = {
+                          'Net Sales': 'netSales',
+                          COGS: 'cogs',
+                          Expenses: 'expenses',
+                          'Net Profit': 'netProfit'
+                        };
+                        const mappedMetricKey = sectionSixMetricKeyMap[metric.label];
+                        const breakdownRows =
+                          metricSection.title === 'Sales' &&
+                          mappedMetricKey &&
+                          metric.label !== 'Expenses'
+                            ? getMetricPopoverContent(selectedGlancePeriodKey, mappedMetricKey)
+                            : [];
+                        const showBreakdownPopover =
+                          breakdownRows.length > 0 && hoveredSectionSixValue === hoverKey;
 
                         return (
                           <article
                             key={hoverKey}
-                            className="tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)]"
+                            className="tu-group tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                           >
                             <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                               <div className="tu-min-w-0">
@@ -4806,7 +4884,51 @@ export default function App() {
                                   <InfoTooltip text={sectionSixKpiTooltips[metric.label]} widthClass="tu-w-[280px]" />
                                 </div>
                                 <div className="tu-mt-1">
-                                  <p className="tu-text-[21px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+                                  {metricSection.title === 'Sales' ? (
+                                    <div className="tu-relative">
+                                      <button
+                                        type="button"
+                                        onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
+                                        onMouseLeave={() => setHoveredSectionSixValue(null)}
+                                        className="tu-text-[26px] tu-font-semibold tu-text-[#10c562] tu-decoration-dotted tu-underline tu-underline-offset-4 tu-transition-all hover:tu-scale-[1.01] hover:tu-text-[#0ea857] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)]"
+                                        style={{ textDecorationThickness: '1px', textDecorationColor: '#10c562' }}
+                                      >
+                                        {metric.value}
+                                      </button>
+                                      {showBreakdownPopover ? (
+                                        <div className="tu-absolute tu-bottom-[calc(100%+10px)] tu-left-0 tu-z-20 tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+                                          <div className="tu-space-y-1.5">
+                                            {breakdownRows.map((item) => (
+                                              <div
+                                                key={`${hoverKey}-${item.label}`}
+                                                className={`tu-flex tu-items-end tu-justify-between tu-gap-3 ${
+                                                  item.dividerBefore ? 'tu-border-t tu-border-[#eceee8] tu-pt-1.5' : ''
+                                                }`}
+                                              >
+                                                <span
+                                                  className={`tu-text-[12px] ${
+                                                    item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
+                                                  }`}
+                                                >
+                                                  {item.label}
+                                                </span>
+                                                <span
+                                                  className={`tu-text-[12px] ${
+                                                    item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
+                                                  }`}
+                                                >
+                                                  {item.prefix ? `${item.prefix} ` : ''}
+                                                  {item.value}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ) : (
+                                    <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+                                  )}
                                   {metric.secondaryText ? (
                                     <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
                                       <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
@@ -4815,6 +4937,52 @@ export default function App() {
                                   ) : null}
                                 </div>
                               </div>
+                              {metric.showStoreSelect ? (
+                                <div className="tu-relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenSectionSixCustomerStoreMenu((current) => !current);
+                                      setOpenGlanceDateMenu(false);
+                                      setSectionSixCustomerStoreSearch('');
+                                    }}
+                                    className="tu-inline-flex tu-items-center tu-gap-1 tu-rounded-[8px] tu-px-1.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c] transition-colors hover:tu-bg-[#f3f5f1] hover:tu-text-[#2a2c2f]"
+                                  >
+                                    <span>
+                                      {formatMultiSelectLabel(
+                                        selectedSectionSixCustomerStores,
+                                        'Select Store',
+                                        'store',
+                                        'stores'
+                                      )}
+                                    </span>
+                                    <ChevronDown className="tu-h-3 tu-w-3" />
+                                  </button>
+                                  <SearchableDropdownMenu
+                                    open={openSectionSixCustomerStoreMenu}
+                                    options={storeOptions}
+                                    selected={selectedSectionSixCustomerStores}
+                                    multiSelect
+                                    searchable
+                                    searchValue={sectionSixCustomerStoreSearch}
+                                    onSearchChange={setSectionSixCustomerStoreSearch}
+                                    widthClass="tu-w-[220px]"
+                                    onSelect={(item) => {
+                                      setSelectedSectionSixCustomerStores((current) =>
+                                        toggleMultiSelectValue(current, item)
+                                      );
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <a
+                                  href="/reports"
+                                  className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 tu-transition-opacity group-hover:tu-opacity-100"
+                                >
+                                  <span>See reports</span>
+                                  <ChevronRight className="tu-h-4 tu-w-4" />
+                                </a>
+                              )}
                             </div>
                             <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
                               <div className="tu-relative">
@@ -4822,7 +4990,7 @@ export default function App() {
                                   type="button"
                                   onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
                                   onMouseLeave={() => setHoveredGlanceKpi(null)}
-                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
                                 >
                                   {metric.trend}
                                   <TrendIcon className="tu-h-3.5 tu-w-3.5" />
