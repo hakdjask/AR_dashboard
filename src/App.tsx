@@ -421,6 +421,234 @@ const glanceMetrics = [
   }
 ];
 
+type GlanceMetricCard = {
+  label: string;
+  value: string;
+  sublabel: string;
+  trend: string;
+  direction: 'up' | 'down';
+  showStoreSelect: boolean;
+  comparison: ComparisonData;
+  secondaryText?: string;
+  secondaryTooltip?: string;
+};
+
+const sectionSixKpiTooltips: Record<string, string> = {
+  'Total Booked Orders': 'Total number of orders successfully booked in the selected period.',
+  'Total Shipped': 'Total number of booked orders that were dispatched to courier in the selected period.',
+  'Total Delivered': 'Total number of shipped orders successfully delivered to customers in the selected period.',
+  'Total Delivery Failed': 'Total number of shipment attempts that failed delivery in the selected period.',
+  'Gross Sales': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
+  'Net Sales': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
+  'Discount Rate': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
+  'Refund Value': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
+  'New Customers': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
+  'Returning Customers': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
+  'Customer Lifetime Value': 'Placeholder KPI. Final definition and formula will be updated based on your input.',
+  'Customer Retention': 'Placeholder KPI. Final definition and formula will be updated based on your input.'
+};
+
+const sectionSixMetricSections: { title: 'Orders' | 'Sales' | 'Customers'; metrics: GlanceMetricCard[] }[] = [
+  {
+    title: 'Orders',
+    metrics: [
+      {
+        label: 'Total Booked Orders',
+        value: '1,248',
+        secondaryText: 'Product Units Sold (in all orders combined): 3,876',
+        secondaryTooltip:
+          'Total quantity of products sold across all booked orders in the selected period, including multi-item orders.',
+        sublabel: 'Since Yesterday',
+        trend: '5.4%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '1,248',
+          previous: '1,184',
+          change: '64',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Total Shipped',
+        value: '1,076',
+        sublabel: 'Since Yesterday',
+        trend: '4.8%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '1,076',
+          previous: '1,027',
+          change: '49',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Total Delivered',
+        value: '1,021',
+        sublabel: 'Since Yesterday',
+        trend: '5.1%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '1,021',
+          previous: '971',
+          change: '50',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Total Delivery Failed',
+        value: '55',
+        sublabel: 'Since Yesterday',
+        trend: '2.3%',
+        direction: 'down',
+        showStoreSelect: false,
+        comparison: {
+          current: '55',
+          previous: '58',
+          change: '3',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      }
+    ]
+  },
+  {
+    title: 'Sales',
+    metrics: [
+      {
+        label: 'Gross Sales',
+        value: 'PKR 3,920,000',
+        sublabel: 'Since Yesterday',
+        trend: '4.9%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 3,920,000',
+          previous: 'PKR 3,736,000',
+          change: 'PKR 184,000',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Net Sales',
+        value: 'PKR 3,410,000',
+        sublabel: 'Since Yesterday',
+        trend: '4.2%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 3,410,000',
+          previous: 'PKR 3,273,000',
+          change: 'PKR 137,000',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Discount Rate',
+        value: '6.7%',
+        sublabel: 'Since Yesterday',
+        trend: '0.4%',
+        direction: 'down',
+        showStoreSelect: false,
+        comparison: {
+          current: '6.7%',
+          previous: '7.1%',
+          change: '0.4%',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Refund Value',
+        value: 'PKR 128,000',
+        sublabel: 'Since Yesterday',
+        trend: '3.1%',
+        direction: 'down',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 128,000',
+          previous: 'PKR 132,100',
+          change: 'PKR 4,100',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      }
+    ]
+  },
+  {
+    title: 'Customers',
+    metrics: [
+      {
+        label: 'New Customers',
+        value: '426',
+        sublabel: 'Since Yesterday',
+        trend: '6.8%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '426',
+          previous: '399',
+          change: '27',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Returning Customers',
+        value: '1,132',
+        sublabel: 'Since Yesterday',
+        trend: '3.4%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '1,132',
+          previous: '1,095',
+          change: '37',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Customer Lifetime Value',
+        value: 'PKR 21,800',
+        sublabel: 'Since Yesterday',
+        trend: '2.7%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 21,800',
+          previous: 'PKR 21,226',
+          change: 'PKR 574',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Customer Retention',
+        value: '38.6%',
+        sublabel: 'Since Yesterday',
+        trend: '1.2%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '38.6%',
+          previous: '38.1%',
+          change: '0.5%',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      }
+    ]
+  }
+];
+
 const salesKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Orders': 'Total orders booked across the selected stores and period.',
   'Total Revenue': 'Gross revenue generated across all selected stores in the active period.',
@@ -4504,6 +4732,117 @@ export default function App() {
                     <Bar data={productChartData} options={productChartOptions} />
                   </div>
                 </div>
+              </div>
+            </section>
+
+            <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
+              <div className="tu-flex tu-flex-col tu-gap-3 tu-pb-2 lg:tu-flex-row lg:tu-items-start lg:tu-justify-between">
+                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">
+                  Key Performing Metrics Overview
+                </h2>
+
+                <div className="tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row">
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenGlanceDateMenu((current) => !current);
+                        setOpenStoreMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, date: '' }));
+                      }}
+                      className="tu-inline-flex tu-h-10 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{selectedGlanceDate}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+
+                    <SearchableDropdownMenu
+                      open={openGlanceDateMenu}
+                      options={glanceDateOptions}
+                      selected={selectedGlanceDate}
+                      searchable={false}
+                      widthClass="tu-w-[190px]"
+                      showChevronForCustom
+                      onSelect={(item) => {
+                        setSelectedGlanceDate(item);
+                        setOpenGlanceDateMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, date: '' }));
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="tu-mt-4 tu-space-y-4">
+                {sectionSixMetricSections.map((metricSection) => (
+                  <article
+                    key={metricSection.title}
+                    className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4"
+                  >
+                    <div className="tu-flex tu-items-center tu-justify-between">
+                      <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#2a2c2f]">{metricSection.title}</h3>
+                      <span className="tu-text-[11px] tu-font-medium tu-uppercase tu-tracking-[0.12em] tu-text-[#8f9197]">
+                        4 KPIs
+                      </span>
+                    </div>
+
+                    <div className="tu-mt-3 tu-grid tu-gap-3 lg:tu-grid-cols-4">
+                      {metricSection.metrics.map((metric) => {
+                        const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                        const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                        const hoverKey = `${metricSection.title}-${metric.label}`;
+
+                        return (
+                          <article
+                            key={hoverKey}
+                            className="tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)]"
+                          >
+                            <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
+                              <div className="tu-min-w-0">
+                                <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                  <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
+                                    {metric.label}
+                                  </button>
+                                  <InfoTooltip text={sectionSixKpiTooltips[metric.label]} widthClass="tu-w-[280px]" />
+                                </div>
+                                <div className="tu-mt-1">
+                                  <p className="tu-text-[21px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+                                  {metric.secondaryText ? (
+                                    <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
+                                      <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
+                                      <InfoTooltip text={metric.secondaryTooltip ?? ''} widthClass="tu-w-[320px]" />
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                              <div className="tu-relative">
+                                <button
+                                  type="button"
+                                  onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
+                                  onMouseLeave={() => setHoveredGlanceKpi(null)}
+                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                >
+                                  {metric.trend}
+                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                </button>
+                                {hoveredGlanceKpi === hoverKey ? (
+                                  <ComparisonPopover
+                                    comparison={metric.comparison}
+                                    trend={metric.trend}
+                                    direction={metric.direction}
+                                  />
+                                ) : null}
+                              </div>
+                              <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </article>
+                ))}
               </div>
             </section>
                 </>
