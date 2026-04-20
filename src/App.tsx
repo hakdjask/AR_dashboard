@@ -690,6 +690,7 @@ const scaleComparisonByPeriod = (comparison: ComparisonData, periodKey: PeriodKe
 
 const salesKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Orders': 'Total orders booked across the selected stores and period.',
+  'Total Booked Orders': 'Total orders booked across the selected stores and period.',
   'Total Revenue': 'Gross revenue generated across all selected stores in the active period.',
   'Highest Store Revenue': 'Store with the strongest revenue contribution in the selected period.',
   'Average Revenue per Store': {
@@ -1596,9 +1597,11 @@ function InfoTooltip({
   text,
   widthClass = 'tu-w-[190px]'
 }: {
-  text: string | TooltipContent;
+  text?: string | TooltipContent;
   widthClass?: string;
 }) {
+  if (!text) return null;
+
   return (
     <div
       className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
@@ -1924,11 +1927,18 @@ export default function App() {
   const [selectedGlanceDate, setSelectedGlanceDate] = useState('This Week');
   const [selectedStore, setSelectedStore] = useState<string[]>([]);
   const [glanceMenuSearch, setGlanceMenuSearch] = useState({ date: '', store: '' });
-  const [salesMenus, setSalesMenus] = useState<{ store: boolean; metric: boolean; date: boolean; region: boolean }>({
+  const [salesMenus, setSalesMenus] = useState<{
+    store: boolean;
+    metric: boolean;
+    date: boolean;
+    region: boolean;
+    groupBy: boolean;
+  }>({
     store: false,
     metric: false,
     date: false,
-    region: false
+    region: false,
+    groupBy: false
   });
   const [inventoryMenus, setInventoryMenus] = useState<{ date: boolean; region: boolean }>({
     date: false,
@@ -2008,8 +2018,9 @@ export default function App() {
   const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>(salesStoreOptions);
   const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Revenue');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
+  const [selectedSalesGroupBy, setSelectedSalesGroupBy] = useState('Days');
   const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>([...pakistanProvinceOptions]);
-  const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '' });
+  const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '', groupBy: '' });
   const [salesRegionProvince, setSalesRegionProvince] = useState<string | null>(null);
   const [locationMenus, setLocationMenus] = useState<{ metric: boolean; date: boolean; region: boolean }>({
     metric: false,
@@ -2177,7 +2188,7 @@ export default function App() {
 
     return [
       {
-        label: 'Total Orders',
+        label: 'Total Booked Orders',
         value: totalOrdersCurrent.toLocaleString('en-US'),
         trend: totalOrdersTrend,
         direction: totalOrdersDirection,
@@ -2756,12 +2767,35 @@ export default function App() {
     );
   };
 
-  const salesChartData = useMemo(
-    () => ({
-      labels: salesChartLabels,
-      datasets: activeSalesStoreSeries.map((series) => ({
+  const groupedSalesChartData = useMemo(() => {
+    const sourceLabels = salesChartLabels;
+    const groupSizeMap: Record<string, number> = {
+      Days: 1,
+      Weeks: 3,
+      Months: 5,
+      Years: Math.ceil(sourceLabels.length / 2)
+    };
+    const groupSize = groupSizeMap[selectedSalesGroupBy] ?? 1;
+
+    const labels: string[] = [];
+    for (let index = 0; index < sourceLabels.length; index += groupSize) {
+      const bucket = Math.floor(index / groupSize) + 1;
+      if (selectedSalesGroupBy === 'Days') labels.push(sourceLabels[index]);
+      if (selectedSalesGroupBy === 'Weeks') labels.push(`Week ${bucket}`);
+      if (selectedSalesGroupBy === 'Months') labels.push(`Month ${bucket}`);
+      if (selectedSalesGroupBy === 'Years') labels.push(`Year ${bucket}`);
+    }
+
+    const datasets = activeSalesStoreSeries.map((series) => {
+      const sourceSeries = series[selectedStoreMetricConfig.key];
+      const groupedValues: number[] = [];
+      for (let index = 0; index < sourceSeries.length; index += groupSize) {
+        groupedValues.push(sourceSeries.slice(index, index + groupSize).reduce((sum, value) => sum + value, 0));
+      }
+
+      return {
         label: series.name,
-        data: series[selectedStoreMetricConfig.key],
+        data: groupedValues,
         borderColor: series.color,
         backgroundColor: series.color,
         pointBackgroundColor: series.color,
@@ -2770,14 +2804,31 @@ export default function App() {
         pointRadius: 3,
         pointHoverRadius: 5,
         borderWidth: 2.5,
-        tension: 0.38
-      }))
+        cubicInterpolationMode: 'monotone' as const,
+        tension: selectedSalesGroupBy === 'Days' ? 0.38 : 0.24
+      };
+    });
+
+    return { labels, datasets };
+  }, [activeSalesStoreSeries, selectedStoreMetricConfig, selectedSalesGroupBy]);
+
+  const salesChartData = useMemo(
+    () => ({
+      labels: groupedSalesChartData.labels,
+      datasets: groupedSalesChartData.datasets
     }),
-    [activeSalesStoreSeries, selectedStoreMetricConfig]
+    [groupedSalesChartData]
   );
 
-  const salesChartOptions = useMemo(
-    () => ({
+  const salesChartOptions = useMemo(() => {
+    const allSeriesValues = groupedSalesChartData.datasets.flatMap((dataset) => dataset.data);
+    const currentMax = allSeriesValues.length > 0 ? Math.max(...allSeriesValues) : selectedStoreMetricConfig.axisMax;
+    const paddedMax = Math.max(selectedStoreMetricConfig.axisMax, currentMax * 1.12);
+    const roundingBase = paddedMax >= 1000 ? Math.pow(10, Math.floor(Math.log10(paddedMax)) - 1) : 10;
+    const dynamicAxisMax = Math.ceil(paddedMax / roundingBase) * roundingBase;
+    const dynamicStepSize = Math.max(1, Math.ceil(dynamicAxisMax / 6 / roundingBase) * roundingBase);
+
+    return {
       responsive: true,
       maintainAspectRatio: false,
       interaction: {
@@ -2815,7 +2866,9 @@ export default function App() {
             font: {
               family: 'Poppins',
               size: 11
-            }
+            },
+            callback: (value: string | number, index: number) =>
+              selectedSalesGroupBy === 'Days' && index % 2 === 1 ? '' : groupedSalesChartData.labels[index] ?? value
           },
           border: {
             display: false
@@ -2823,9 +2876,9 @@ export default function App() {
         },
         y: {
           min: 0,
-          max: selectedStoreMetricConfig.axisMax,
+          max: dynamicAxisMax,
           ticks: {
-            stepSize: selectedStoreMetricConfig.stepSize,
+            stepSize: dynamicStepSize,
             color: '#7D828A',
             font: {
               family: 'Poppins',
@@ -2853,13 +2906,12 @@ export default function App() {
           setHoveredSalesPoint(null);
         }
       }
-    }),
-    [selectedStoreMetricConfig]
-  );
+    };
+  }, [groupedSalesChartData.datasets, groupedSalesChartData.labels, selectedSalesGroupBy, selectedStoreMetricConfig]);
 
   const salesTooltipData = hoveredSalesPoint
     ? {
-        ...dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length],
+        date: groupedSalesChartData.labels[hoveredSalesPoint.dataIndex] ?? '-',
         stores: dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length].stores.filter((store) =>
           selectedSalesStore.includes(store.name)
         ),
@@ -4322,7 +4374,37 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Store</h2>
 
-                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSalesMenus((current) => ({
+                          store: false,
+                          metric: false,
+                          date: false,
+                          region: false,
+                          groupBy: !current.groupBy
+                        }))
+                      }
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <BarChart3 className="tu-h-3.5 tu-w-3.5" />
+                      <span>{`Group by: ${selectedSalesGroupBy}`}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+                    <SearchableDropdownMenu
+                      open={salesMenus.groupBy}
+                      options={inventoryGroupByOptions}
+                      selected={selectedSalesGroupBy}
+                      searchable={false}
+                      onSelect={(item) => {
+                        setSelectedSalesGroupBy(item);
+                        setSalesMenus((current) => ({ ...current, groupBy: false }));
+                      }}
+                    />
+                  </div>
+                  <span className="tu-mx-0.5 tu-inline-flex tu-h-9 tu-items-center tu-text-[#c2c8c0]">|</span>
                   {[
                     {
                       key: 'store',
@@ -4346,6 +4428,7 @@ export default function App() {
                             metric: false,
                             date: false,
                             region: false,
+                            groupBy: false,
                             [menu.key]: !current[menu.key as keyof typeof current]
                           }));
                           setSalesMenuSearch((current) => ({ ...current, [menu.key]: '' }));
@@ -4389,7 +4472,7 @@ export default function App() {
                             }
                             if (menu.key === 'metric') setSelectedSalesMetric(item);
                             if (menu.key === 'date') setSelectedSalesDate(item);
-                            setSalesMenus({ store: false, metric: false, date: false, region: false });
+                            setSalesMenus({ store: false, metric: false, date: false, region: false, groupBy: false });
                           }}
                         />
                       )}
@@ -4399,8 +4482,15 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
-                <article className="tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)]">
-                  <div className="tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
+                <article className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
+                  <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
+                    <a
+                      href="/reports"
+                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                    >
+                      <span>See reports</span>
+                      <ChevronRight className="tu-h-4 tu-w-4" />
+                    </a>
                     {dynamicSalesMetricCards.map((metric, index) => {
                       const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                       const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
@@ -4601,8 +4691,15 @@ export default function App() {
                   return (
                     <article
                       key={metric.label}
-                      className="tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]"
+                      className="tu-group tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                     >
+                      <a
+                        href="/reports"
+                        className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                      >
+                        <span>See reports</span>
+                        <ChevronRight className="tu-h-4 tu-w-4" />
+                      </a>
                       <div className="tu-group tu-relative tu-inline-block">
                         <button type="button" className="tu-text-[13px] tu-text-[#8f9197]">
                           {metric.label}
@@ -4714,8 +4811,15 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
-                <article className="tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)]">
-                  <div className="tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
+                <article className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
+                  <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
+                    <a
+                      href="/reports"
+                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                    >
+                      <span>See reports</span>
+                      <ChevronRight className="tu-h-4 tu-w-4" />
+                    </a>
                     {dynamicProductMetricCards.map((metric, index) => {
                       const hasTrend = 'trend' in metric;
                       const trendDirection = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
@@ -4890,8 +4994,16 @@ export default function App() {
                                         type="button"
                                         onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
                                         onMouseLeave={() => setHoveredSectionSixValue(null)}
-                                        className="tu-text-[26px] tu-font-semibold tu-text-[#10c562] tu-decoration-dotted tu-underline tu-underline-offset-4 tu-transition-all hover:tu-scale-[1.01] hover:tu-text-[#0ea857] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)]"
-                                        style={{ textDecorationThickness: '1px', textDecorationColor: '#10c562' }}
+                                        className={`tu-text-[26px] tu-font-semibold tu-text-[#10c562] tu-transition-all hover:tu-scale-[1.01] hover:tu-text-[#0ea857] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
+                                          metric.label === 'Expenses'
+                                            ? ''
+                                            : 'tu-decoration-dotted tu-underline tu-underline-offset-4'
+                                        }`}
+                                        style={
+                                          metric.label === 'Expenses'
+                                            ? undefined
+                                            : { textDecorationThickness: '1px', textDecorationColor: '#10c562' }
+                                        }
                                       >
                                         {metric.value}
                                       </button>
