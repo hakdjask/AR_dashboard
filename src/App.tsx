@@ -2339,6 +2339,7 @@ export default function App() {
         label: 'Total Inventory Value',
         value: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
         trend: `${getPercentDelta(inventoryValue.current, inventoryValue.previous).toFixed(1)}%`,
+        sublabel: 'vs previous period',
         direction: inventoryValue.current >= inventoryValue.previous ? ('up' as const) : ('down' as const),
         comparison: {
           current: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
@@ -2350,6 +2351,7 @@ export default function App() {
         label: 'Total Products',
         value: totalProducts.current.toLocaleString('en-US'),
         trend: `${getPercentDelta(totalProducts.current, totalProducts.previous).toFixed(1)}%`,
+        sublabel: 'vs previous period',
         direction: totalProducts.current >= totalProducts.previous ? ('up' as const) : ('down' as const),
         comparison: {
           current: totalProducts.current.toLocaleString('en-US'),
@@ -2361,6 +2363,7 @@ export default function App() {
         label: 'Stockout Products',
         value: stockoutProducts.current.toLocaleString('en-US'),
         trend: `${getPercentDelta(stockoutProducts.current, stockoutProducts.previous).toFixed(1)}%`,
+        sublabel: 'vs previous period',
         direction: stockoutProducts.current >= stockoutProducts.previous ? ('up' as const) : ('down' as const),
         comparison: {
           current: stockoutProducts.current.toLocaleString('en-US'),
@@ -2372,6 +2375,7 @@ export default function App() {
         label: 'Products In Reorder Threshold',
         value: reorderProducts.current.toLocaleString('en-US'),
         trend: `${getPercentDelta(reorderProducts.current, reorderProducts.previous).toFixed(1)}%`,
+        sublabel: 'vs previous period',
         direction: reorderProducts.current >= reorderProducts.previous ? ('up' as const) : ('down' as const),
         comparison: {
           current: reorderProducts.current.toLocaleString('en-US'),
@@ -3395,67 +3399,52 @@ export default function App() {
                   </div>
 
                   <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
-                        {dynamicInventoryMetricCards.map((metric, index) => {
+                        {dynamicInventoryMetricCards.map((metric) => {
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                          const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
-                          const primaryMetric = index === 0;
+                          const trendPillClass =
+                            metric.direction === 'up'
+                              ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                              : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
 
                           return (
-                            <div
+                            <article
                               key={metric.label}
                               role="button"
                               tabIndex={0}
-                              className={`tu-group tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#e5e9e2] tu-bg-white tu-p-4 tu-transition-colors hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] ${
-                                primaryMetric ? 'tu-shadow-[0_8px_24px_rgba(16,197,98,0.08)]' : 'tu-shadow-[0_6px_20px_rgba(31,41,55,0.06)]'
-                              }`}
+                              className="tu-group tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)]"
                             >
-                              <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
-                                <div className="tu-group/tooltip tu-relative tu-inline-block">
-                                  <span
-                                    className={`${
-                                      primaryMetric
-                                        ? 'tu-text-[13px] tu-font-semibold tu-uppercase tu-tracking-[0.18em] tu-text-[#10c562]'
-                                        : 'tu-text-[14px] tu-font-medium tu-text-[#8f9197]'
-                                    }`}
-                                  >
-                                    {metric.label}
-                                  </span>
-                                  <InfoTooltip
-                                    text={inventoryKpiTooltips[metric.label]}
-                                    widthClass={metric.label.includes('Inbound') ? 'tu-w-[280px]' : 'tu-w-[220px]'}
-                                  />
+                              <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
+                                <div className="tu-min-w-0">
+                                  <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                    <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
+                                    <InfoTooltip
+                                      text={inventoryKpiTooltips[metric.label]}
+                                      widthClass={metric.label.includes('Inbound') ? 'tu-w-[280px]' : 'tu-w-[220px]'}
+                                    />
+                                  </div>
+                                  <div className="tu-mt-1">
+                                    <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+                                  </div>
                                 </div>
-                                <span className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#7f838a] tu-opacity-0 transition-opacity group-hover:tu-opacity-100">
-                                  <span>Reports</span>
-                                  <ChevronRight className="tu-h-4 tu-w-4" />
-                                </span>
                               </div>
-
-                              <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
-                                <p
-                                  className="tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#333538]"
-                                >
-                                  {metric.value}
-                                </p>
-                              </div>
-
-                              <div className="tu-mt-4 tu-flex tu-items-center tu-gap-2">
+                              <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
                                 <div className="tu-relative">
-                                  <div
+                                  <button
+                                    type="button"
                                     onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
                                     onMouseLeave={() => setHoveredInventoryKpi(null)}
-                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[15px] tu-font-medium ${trendColor}`}
+                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
                                   >
                                     {metric.trend}
-                                    <TrendIcon className="tu-h-[18px] tu-w-[18px]" />
-                                  </div>
+                                    <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  </button>
                                   {hoveredInventoryKpi === metric.label ? (
                                     <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
                                   ) : null}
                                 </div>
-                                <span className="tu-text-[15px] tu-text-[#8f949b]">vs previous period</span>
+                                <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                               </div>
-                            </div>
+                            </article>
                           );
                         })}
                   </div>
@@ -5104,7 +5093,21 @@ export default function App() {
                                   ) : null}
                                 </div>
                               </div>
-                              {metric.showStoreSelect ? (
+                              {metric.label === 'COGS' ? (
+                                <div className="tu-group/tooltip tu-relative tu-inline-flex tu-shrink-0">
+                                  <button
+                                    type="button"
+                                    aria-label="COGS tooltip"
+                                    className="tu-inline-flex tu-h-[18px] tu-w-[18px] tu-shrink-0 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#939393] tu-bg-[#939393] tu-text-[10px] tu-font-medium tu-leading-none tu-text-white"
+                                  >
+                                    <span className="tu-leading-none">?</span>
+                                  </button>
+                                  <InfoTooltip
+                                    text="COGS is calculated only for shipped orders where inventory is detected."
+                                    widthClass="tu-w-[280px]"
+                                  />
+                                </div>
+                              ) : metric.showStoreSelect ? (
                                 <div className="tu-relative">
                                   <button
                                     type="button"
