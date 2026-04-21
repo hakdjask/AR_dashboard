@@ -37,7 +37,7 @@ import { Bar, Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
 
-type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30';
+type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'last90' | 'last365';
 type TabKey = 'courier' | 'sales' | 'inventory';
 type MetricKey = 'netSales' | 'cogs' | 'expenses' | 'netProfit';
 type StoreChartMetricKey = 'grossRevenue' | 'orderReturns' | 'unitsSold';
@@ -143,6 +143,30 @@ const salesOverviewBreakdownValues: Record<
     grossProfitMargin: '66.0%',
     expenses: 'PKR 698,540',
     netProfit: 'PKR 3,598,140'
+  },
+  last90: {
+    grossSales: 'PKR 25,260,000',
+    totalTaxes: 'PKR 2,202,840',
+    discounts: 'PKR 2,430,000',
+    returns: 'PKR 1,095,000',
+    netSales: 'PKR 19,532,160',
+    cogs: 'PKR 6,642,120',
+    grossProfit: 'PKR 12,890,040',
+    grossProfitMargin: '66.0%',
+    expenses: 'PKR 2,095,620',
+    netProfit: 'PKR 10,794,420'
+  },
+  last365: {
+    grossSales: 'PKR 102,724,000',
+    totalTaxes: 'PKR 8,958,216',
+    discounts: 'PKR 9,882,000',
+    returns: 'PKR 4,453,000',
+    netSales: 'PKR 79,430,784',
+    cogs: 'PKR 27,011,288',
+    grossProfit: 'PKR 52,419,496',
+    grossProfitMargin: '66.0%',
+    expenses: 'PKR 8,522,188',
+    netProfit: 'PKR 43,897,308'
   }
 };
 
@@ -433,7 +457,7 @@ type GlanceMetricCard = {
 };
 
 const sectionSixKpiTooltips: Record<string, string> = {
-  'Total Booked Orders': 'Total number of orders successfully booked in the selected period.',
+  'Booked Orders': 'Total number of orders successfully booked in the selected period.',
   'Total Shipped': 'Total number of booked orders that were dispatched to courier in the selected period.',
   'Total Delivered': 'Total number of shipped orders successfully delivered to customers in the selected period.',
   'Total Delivery Failed': 'Total number of shipment attempts that failed delivery in the selected period.',
@@ -452,7 +476,7 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
     title: 'Orders',
     metrics: [
       {
-        label: 'Total Booked Orders',
+        label: 'Booked Orders',
         value: '1,248',
         sublabel: 'Since Yesterday',
         trend: '5.4%',
@@ -652,7 +676,9 @@ const getSectionSixValueMultiplier = (value: string, periodKey: PeriodKey) => {
       today: 1,
       yesterday: 0.98,
       last7: 1.04,
-      last30: 1.08
+      last30: 1.08,
+      last90: 1.12,
+      last365: 1.2
     };
     return rateMultiplier[periodKey];
   }
@@ -661,7 +687,9 @@ const getSectionSixValueMultiplier = (value: string, periodKey: PeriodKey) => {
     today: 1,
     yesterday: 0.93,
     last7: 6.9,
-    last30: 28.2
+    last30: 28.2,
+    last90: 84.6,
+    last365: 343.1
   };
   return volumeMultiplier[periodKey];
 };
@@ -690,18 +718,18 @@ const scaleComparisonByPeriod = (comparison: ComparisonData, periodKey: PeriodKe
 
 const salesKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Orders': 'Total orders booked across the selected stores and period.',
-  'Total Booked Orders': 'Total orders booked across the selected stores and period.',
-  'Total Revenue': 'Gross revenue generated across all selected stores in the active period.',
-  'Highest Store Revenue': 'Store with the strongest revenue contribution in the selected period.',
-  'Average Revenue per Store': {
-    title: 'Average Revenue per Store',
+  'Booked Orders': 'Total orders booked across the selected stores and period.',
+  'Total Gross Sales': 'Total gross sales across all selected stores in the active period.',
+  'Highest Store Gross Sales': 'Store with the strongest gross sales contribution in the selected period.',
+  'Average Gross Sales per Store': {
+    title: 'Average Gross Sales per Store',
     blocks: [
-      { type: 'text', text: 'Average revenue contribution across active stores in the selected view.' },
+      { type: 'text', text: 'Average gross sales contribution across active stores in the selected view.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Average Revenue per Store = Total Revenue / Active Stores' }
+      { type: 'formula', text: 'Average Gross Sales per Store = Total Gross Sales / Active Stores' }
     ]
   },
-  'Peak Revenue Day': 'Day with the highest gross revenue in the selected date range.',
+  'Peak Gross Sales Day': 'Day with the highest gross sales in the selected date range.',
   'Total Units Sold': 'Total units sold across all selected stores in the active period.',
   'Top Store by Units Sold': 'Store contributing the highest units sold in the selected period.',
   'Average Units Sold per Store': {
@@ -727,7 +755,7 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
 };
 
 const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
-const salesMetricOptions = ['Gross Revenue', 'Order Returns', 'Units Sold'];
+const salesMetricOptions = ['Gross Sales', 'Order Returns', 'Units Sold'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const inventoryDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const inventoryStatusOptions = ['On-hand', 'Committed', 'Available', 'Inbound', 'Unfulfillable'];
@@ -1053,7 +1081,7 @@ const inventoryDateScale: Record<string, number> = {
   'Last 365 Days': 4.65,
   Custom: 1.1
 };
-const locationMetricOptions = ['Orders Volume', 'Gross Revenue'];
+const locationMetricOptions = ['Orders Volume', 'Gross Sales'];
 const locationDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 
 type InventoryStoreSnapshot = {
@@ -1181,12 +1209,12 @@ const locationKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Average Orders per City = Total Orders / Active Cities' }
     ]
   },
-  'Average Revenue per City': {
-    title: 'Average Revenue per City',
+  'Average Gross Sales per City': {
+    title: 'Average Gross Sales per City',
     blocks: [
-      { type: 'text', text: 'Average revenue contributed by each active city in the selected period.' },
+      { type: 'text', text: 'Average gross sales contributed by each active city in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Average Revenue per City = Total Revenue / Active Cities' }
+      { type: 'formula', text: 'Average Gross Sales per City = Total Gross Sales / Active Cities' }
     ]
   }
 };
@@ -1254,7 +1282,7 @@ const locationMetricConfig: Record<
     tickFormatter: (value) => value.toFixed(0),
     tooltipFormatter: (value) => value.toLocaleString('en-US')
   },
-  'Gross Revenue': {
+  'Gross Sales': {
     currentKey: 'revenueCurrent',
     previousKey: 'revenuePrevious',
     axisMax: 4500000,
@@ -1264,18 +1292,18 @@ const locationMetricConfig: Record<
   }
 };
 
-const productMetricOptions = ['Units Sold', 'Revenue Generated'];
+const productMetricOptions = ['Units Sold', 'Gross Sales'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 
 const productKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Units Sold': 'Total units sold across the selected products and period.',
-  'Total Revenue Generated': 'Total revenue generated across the selected products and period.',
+  'Total Gross Sales': 'Total gross sales across the selected products and period.',
   'Best Selling Product': 'Product with the highest units sold in the selected period.',
-  'Top Revenue Product': 'Product generating the highest revenue in the selected period.',
+  'Top Gross Sales Product': 'Product generating the highest gross sales in the selected period.',
   'Most Improved Product': 'Product with the strongest positive change in units sold.',
-  'Most Improved Revenue Product': 'Product with the strongest positive revenue change in the selected period.',
+  'Most Improved Gross Sales Product': 'Product with the strongest positive gross sales change in the selected period.',
   'Most Declined Product': 'Product with the sharpest decline in units sold.',
-  'Most Declined Revenue Product': 'Product with the sharpest revenue decline in the selected period.',
+  'Most Declined Gross Sales Product': 'Product with the sharpest gross sales decline in the selected period.',
   'Avg. Units Sold Per Order': {
     title: 'Avg. Units Sold Per Order',
     blocks: [
@@ -1284,12 +1312,12 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Avg. Units Sold per Order = Total Units Sold / Total Orders' }
     ]
   },
-  'Avg. Revenue Per Product': {
-    title: 'Avg. Revenue Per Product',
+  'Avg. Gross Sales Per Product': {
+    title: 'Avg. Gross Sales Per Product',
     blocks: [
-      { type: 'text', text: 'Average revenue generated per product across the selected products.' },
+      { type: 'text', text: 'Average gross sales per product across the selected products.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Avg. Revenue per Product = Total Revenue Generated / Total Products' }
+      { type: 'formula', text: 'Avg. Gross Sales Per Product = Total Gross Sales / Total Products' }
     ]
   }
 };
@@ -1326,7 +1354,7 @@ const productMetricConfig: Record<
     tickFormatter: (value) => value.toFixed(0),
     tooltipFormatter: (value) => value.toLocaleString('en-US')
   },
-  'Revenue Generated': {
+  'Gross Sales': {
     currentKey: 'revenueCurrent',
     previousKey: 'revenuePrevious',
     axisMax: 1600000,
@@ -1436,9 +1464,9 @@ const storeChartMetricConfig: Record<
     tickFormatter: (value: number) => string;
   }
 > = {
-  'Gross Revenue': {
+  'Gross Sales': {
     key: 'grossRevenue',
-    label: 'Gross Revenue',
+    label: 'Gross Sales',
     formatValue: (value) => `PKR ${value.toLocaleString('en-US')}`,
     axisMax: 110000,
     stepSize: 20000,
@@ -1575,10 +1603,10 @@ const formatLocationFilterLabel = (selected: string[]) => {
 };
 
 const formatStoreMetricValue = (metric: string, value: number) =>
-  metric === 'Gross Revenue' ? `PKR ${value.toLocaleString('en-US')}` : value.toLocaleString('en-US');
+  metric === 'Gross Sales' ? `PKR ${value.toLocaleString('en-US')}` : value.toLocaleString('en-US');
 
 const formatStoreMetricDelta = (metric: string, value: number) =>
-  metric === 'Gross Revenue' ? `PKR ${Math.abs(value).toLocaleString('en-US')}` : Math.abs(value).toLocaleString('en-US');
+  metric === 'Gross Sales' ? `PKR ${Math.abs(value).toLocaleString('en-US')}` : Math.abs(value).toLocaleString('en-US');
 
 const getStoreMetricDirection = (metric: string, current: number, previous: number) => {
   if (metric === 'Order Returns') {
@@ -2016,7 +2044,7 @@ export default function App() {
   );
   const [draggedInventoryHealthColumnKey, setDraggedInventoryHealthColumnKey] = useState<InventoryHealthSortKey | null>(null);
   const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>(salesStoreOptions);
-  const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Revenue');
+  const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Sales');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
   const [selectedSalesGroupBy, setSelectedSalesGroupBy] = useState('Days');
   const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>([...pakistanProvinceOptions]);
@@ -2059,7 +2087,9 @@ export default function App() {
     today: { title: 'Today', dateLabel: 'May 12, 2024', from: '2024-05-12', to: '2024-05-12' },
     yesterday: { title: 'Yesterday', dateLabel: 'May 11, 2024', from: '2024-05-11', to: '2024-05-11' },
     last7: { title: 'Last 7 Days', dateLabel: 'May 05, 2024 - May 12, 2024', from: '2024-05-05', to: '2024-05-12' },
-    last30: { title: 'Last 30 Days', dateLabel: 'Apr 13, 2024 - May 12, 2024', from: '2024-04-13', to: '2024-05-12' }
+    last30: { title: 'Last 30 Days', dateLabel: 'Apr 13, 2024 - May 12, 2024', from: '2024-04-13', to: '2024-05-12' },
+    last90: { title: 'Last 90 Days', dateLabel: 'Feb 13, 2024 - May 12, 2024', from: '2024-02-13', to: '2024-05-12' },
+    last365: { title: 'Last 365 Days', dateLabel: 'May 13, 2023 - May 12, 2024', from: '2023-05-13', to: '2024-05-12' }
   });
 
   const sidebarItems = [
@@ -2105,7 +2135,11 @@ export default function App() {
   );
   const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
   const selectedGlancePeriodKey: PeriodKey =
-    selectedGlanceDate === 'Last 30 Days'
+    selectedGlanceDate === 'Last 365 Days'
+      ? 'last365'
+      : selectedGlanceDate === 'Last 90 Days'
+        ? 'last90'
+        : selectedGlanceDate === 'Last 30 Days'
       ? 'last30'
       : selectedGlanceDate === 'This Week' || selectedGlanceDate === 'Last 7 Days'
         ? 'last7'
@@ -2124,6 +2158,22 @@ export default function App() {
       })),
     [selectedGlancePeriodKey]
   );
+  const salesOrderRibbonMetrics = useMemo(() => {
+    const ordersSection = sectionSixMetricSections.find((section) => section.title === 'Orders');
+    if (!ordersSection) return [];
+
+    const orderMetricLabelMap: Record<string, string> = {
+      'Booked Orders': 'Total Orders',
+      'Total Shipped': 'Total Shipped',
+      'Total Delivered': 'Total Delivered',
+      'Total Delivery Failed': 'Total Delivery Failed'
+    };
+
+    return ordersSection.metrics.map((metric) => ({
+      label: orderMetricLabelMap[metric.label] ?? metric.label,
+      value: metric.value
+    }));
+  }, [sectionSixMetricSections]);
   const dynamicSalesMetricCards = useMemo(() => {
     const currentSnapshot = dayBreakdown[dayBreakdown.length - 1]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
     const previousSnapshot = dayBreakdown[dayBreakdown.length - 2]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
@@ -2136,10 +2186,10 @@ export default function App() {
     const metricKey = selectedStoreMetricConfig.key;
     const metricLabelMap = {
       grossRevenue: {
-        total: 'Total Revenue',
-        top: 'Highest Store Revenue',
-        average: 'Average Revenue per Store',
-        peak: 'Peak Revenue Day'
+        total: 'Total Gross Sales',
+        top: 'Highest Store Gross Sales',
+        average: 'Average Gross Sales per Store',
+        peak: 'Peak Gross Sales Day'
       },
       orderReturns: {
         total: 'Total Order Returns',
@@ -2188,7 +2238,7 @@ export default function App() {
 
     return [
       {
-        label: 'Total Booked Orders',
+        label: 'Booked Orders',
         value: totalOrdersCurrent.toLocaleString('en-US'),
         trend: totalOrdersTrend,
         direction: totalOrdersDirection,
@@ -2921,12 +2971,12 @@ export default function App() {
 
   const selectedLocationMetricConfig = locationMetricConfig[selectedLocationMetric];
   const dynamicLocationKpiCards = useMemo(() => {
-    if (selectedLocationMetric === 'Gross Revenue') {
+    if (selectedLocationMetric === 'Gross Sales') {
       return locationKpiCards.map((metric, index) =>
         index === 3
           ? {
               ...metric,
-              label: 'Average Revenue per City',
+              label: 'Average Gross Sales per City',
               value: 'PKR 2,137,000',
               comparison: { current: 'PKR 2,137,000', previous: 'PKR 1,984,000', change: 'PKR 153,000' }
             }
@@ -3016,32 +3066,32 @@ export default function App() {
 
   const selectedProductMetricConfig = productMetricConfig[selectedProductMetric];
   const dynamicProductMetricCards = useMemo(() => {
-    if (selectedProductMetric === 'Revenue Generated') {
+    if (selectedProductMetric === 'Gross Sales') {
       return [
         {
-          label: 'Total Revenue Generated',
+          label: 'Total Gross Sales',
           value: 'PKR 11,500,000',
           trend: '12.4%',
           direction: 'up' as const,
           comparison: { current: 'PKR 11,500,000', previous: 'PKR 10,230,000', change: 'PKR 1,270,000' }
         },
         {
-          label: 'Top Revenue Product',
+          label: 'Top Gross Sales Product',
           value: 'Earbuds X',
           extraItems: ['Travel Pack', 'Smart Watch']
         },
         {
-          label: 'Most Improved Revenue Product',
+          label: 'Most Improved Gross Sales Product',
           value: 'Travel Pack',
           extraItems: ['Steel Bottle', 'Fleece Hoodie']
         },
         {
-          label: 'Most Declined Revenue Product',
+          label: 'Most Declined Gross Sales Product',
           value: 'Smart Watch',
           extraItems: ['Earbuds X', 'Canvas Tote']
         },
         {
-          label: 'Avg. Revenue Per Product',
+          label: 'Avg. Gross Sales Per Product',
           value: 'PKR 26,500',
           trend: '8.6%',
           direction: 'up' as const,
@@ -4482,11 +4532,11 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
-                <article className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
+                <article className="tu-group/card tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
                   <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
                     <a
                       href="/reports"
-                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
                     >
                       <span>See reports</span>
                       <ChevronRight className="tu-h-4 tu-w-4" />
@@ -4501,7 +4551,7 @@ export default function App() {
                           key={metric.label}
                           className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
                         >
-                          <div className="tu-group tu-relative tu-inline-block">
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
                             <button
                               type="button"
                               className={`${
@@ -4686,21 +4736,24 @@ export default function App() {
               <div className="tu-mt-6 tu-grid tu-gap-3 lg:tu-grid-cols-4">
                 {dynamicLocationKpiCards.map((metric) => {
                   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                  const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                  const trendPillClass =
+                    metric.direction === 'up'
+                      ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                      : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
 
                   return (
                     <article
                       key={metric.label}
-                      className="tu-group tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                      className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                     >
                       <a
                         href="/reports"
-                        className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                        className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
                       >
                         <span>See reports</span>
                         <ChevronRight className="tu-h-4 tu-w-4" />
                       </a>
-                      <div className="tu-group tu-relative tu-inline-block">
+                      <div className="tu-group/tooltip tu-relative tu-inline-block">
                         <button type="button" className="tu-text-[13px] tu-text-[#8f9197]">
                           {metric.label}
                         </button>
@@ -4716,7 +4769,7 @@ export default function App() {
                             type="button"
                             onMouseEnter={() => setHoveredLocationKpi(metric.label)}
                             onMouseLeave={() => setHoveredLocationKpi(null)}
-                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
                           >
                             {metric.trend}
                             <TrendIcon className="tu-h-3.5 tu-w-3.5" />
@@ -4811,11 +4864,11 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
-                <article className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
+                <article className="tu-group/card tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
                   <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
                     <a
                       href="/reports"
-                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
+                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
                     >
                       <span>See reports</span>
                       <ChevronRight className="tu-h-4 tu-w-4" />
@@ -4832,7 +4885,7 @@ export default function App() {
                           key={metric.label}
                           className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
                         >
-                          <div className="tu-group tu-relative tu-inline-block">
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
                             <button
                               type="button"
                               className={`${
@@ -4941,7 +4994,9 @@ export default function App() {
               </div>
 
               <div className="tu-mt-4 tu-space-y-4">
-                {sectionSixMetricSections.map((metricSection) => (
+                {sectionSixMetricSections
+                  .filter((metricSection) => metricSection.title !== 'Orders')
+                  .map((metricSection) => (
                   <article
                     key={metricSection.title}
                     className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4"
@@ -4994,7 +5049,7 @@ export default function App() {
                                         type="button"
                                         onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
                                         onMouseLeave={() => setHoveredSectionSixValue(null)}
-                                        className={`tu-text-[26px] tu-font-semibold tu-text-[#10c562] tu-transition-all hover:tu-scale-[1.01] hover:tu-text-[#0ea857] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
+                                        className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold tu-text-[#10c562] tu-transition-all hover:tu-scale-[1.01] hover:tu-text-[#0ea857] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
                                           metric.label === 'Expenses'
                                             ? ''
                                             : 'tu-decoration-dotted tu-underline tu-underline-offset-4'
@@ -5121,6 +5176,30 @@ export default function App() {
                         );
                       })}
                     </div>
+                    {metricSection.title === 'Sales' && salesOrderRibbonMetrics.length > 0 ? (
+                      <div className="tu-mt-3 tu-grid tu-gap-3 lg:tu-grid-cols-4">
+                        {salesOrderRibbonMetrics.map((metric) => (
+                          <div
+                            key={`sales-order-ribbon-${metric.label}`}
+                            className="tu-group tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-px-3 tu-py-2"
+                          >
+                            <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
+                              <p className="tu-font-sans tu-text-[13px] tu-font-medium tu-text-[#9a9ca2]">{metric.label}</p>
+                              <a
+                                href="/reports"
+                                className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 tu-transition-opacity group-hover:tu-opacity-100"
+                              >
+                                <span>See reports</span>
+                                <ChevronRight className="tu-h-3.5 tu-w-3.5" />
+                              </a>
+                            </div>
+                            <p className="tu-mt-1 tu-font-sans tu-text-[20px] tu-font-medium tu-leading-none tu-text-[#333538]">
+                              {metric.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </article>
                 ))}
               </div>
