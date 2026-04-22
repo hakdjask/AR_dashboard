@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarElement,
   CategoryScale,
@@ -889,7 +889,7 @@ const inventoryLocationOptions = ['Main Warehouse', 'Retail Backroom', 'Transit 
 const inventoryMovementLocationOptions = [...inventoryLocationOptions];
 const inventoryMovementMaxDataPoints = 365;
 const inventoryMovementBaseIndexes = Array.from({ length: inventoryMovementMaxDataPoints }, (_, index) => index);
-const inventoryHealthDisplayLimit = 20;
+const inventoryHealthPageSize = 20;
 
 type InventoryStatusKey = 'onHand' | 'committed' | 'available' | 'inbound' | 'unfulfillable';
 type InventoryMovementStoreData = {
@@ -2321,6 +2321,7 @@ export default function App() {
     key: 'name',
     direction: 'asc'
   });
+  const [inventoryHealthDisplayLimit, setInventoryHealthDisplayLimit] = useState(inventoryHealthPageSize);
   const [selectedDeadStockAgingDays, setSelectedDeadStockAgingDays] = useState('90');
   const [deadStockAgingMenuOpen, setDeadStockAgingMenuOpen] = useState(false);
   const [inventoryHealthHeaderTooltip, setInventoryHealthHeaderTooltip] = useState<{
@@ -2332,6 +2333,7 @@ export default function App() {
     inventoryHealthColumnBlueprint.map((column) => ({ ...column, visible: true }))
   );
   const [draggedInventoryHealthColumnKey, setDraggedInventoryHealthColumnKey] = useState<InventoryHealthSortKey | null>(null);
+  const inventoryHealthTableScrollRef = useRef<HTMLDivElement | null>(null);
   const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>([salesStoreOptions[0]]);
   const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Sales');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
@@ -3314,8 +3316,28 @@ export default function App() {
 
   const inventoryHealthVisibleProducts = useMemo(
     () => inventoryHealthSortedProducts.slice(0, inventoryHealthDisplayLimit),
-    [inventoryHealthSortedProducts]
+    [inventoryHealthDisplayLimit, inventoryHealthSortedProducts]
   );
+
+  useEffect(() => {
+    setInventoryHealthDisplayLimit(inventoryHealthPageSize);
+    if (inventoryHealthTableScrollRef.current) {
+      inventoryHealthTableScrollRef.current.scrollTop = 0;
+    }
+  }, [inventoryHealthFilteredProducts, inventoryHealthSort]);
+
+  const handleInventoryHealthTableScroll = () => {
+    const container = inventoryHealthTableScrollRef.current;
+    if (!container) return;
+
+    const distanceFromBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
+    const isNearBottom = distanceFromBottom <= 40;
+    if (!isNearBottom) return;
+
+    setInventoryHealthDisplayLimit((current) =>
+      Math.min(current + inventoryHealthPageSize, inventoryHealthSortedProducts.length)
+    );
+  };
 
   const handleInventoryHealthSort = (key: InventoryHealthSortKey) => {
     setInventoryHealthSort((current) => {
@@ -4862,7 +4884,11 @@ export default function App() {
                     </div>
                   </div>
                   <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8]">
-                    <div className="tu-max-h-[520px] tu-overflow-auto">
+                    <div
+                      ref={inventoryHealthTableScrollRef}
+                      onScroll={handleInventoryHealthTableScroll}
+                      className="tu-max-h-[520px] tu-overflow-auto"
+                    >
                       <table className="tu-w-full tu-min-w-max tu-border-collapse">
                         <thead className="tu-sticky tu-top-0 tu-z-10 tu-bg-[#f8faf7]">
                           <tr className="tu-border-b tu-border-[#e8ece5]">
