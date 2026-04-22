@@ -311,8 +311,22 @@ const metricTooltips: Record<MetricKey, string | TooltipContent> = {
       { type: 'formula', text: 'Net Sales = Gross Sales - Taxes - Discounts - Returns' }
     ]
   },
-  cogs: 'Direct costs tied to products sold during the selected period.',
-  expenses: 'Operating expenses allocated to the selected date range.',
+  cogs: {
+    title: 'COGS',
+    blocks: [
+      { type: 'text', text: 'Direct costs tied to products sold during the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'COGS = Opening Inventory + Purchases - Closing Inventory' }
+    ]
+  },
+  expenses: {
+    title: 'Expenses',
+    blocks: [
+      { type: 'text', text: 'Operating expenses allocated to the selected date range.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Expenses = Sum of Operating Costs in Period' }
+    ]
+  },
   netProfit: {
     title: 'Net Profit',
     blocks: [
@@ -324,9 +338,9 @@ const metricTooltips: Record<MetricKey, string | TooltipContent> = {
 };
 
 const footerTooltips: Record<string, string> = {
-  Orders: 'Total completed orders in the selected date range.',
-  'Units Sold': 'Total quantity of items sold across completed orders.',
-  Refunds: 'Orders or items refunded during the selected date range.'
+  Orders: 'Total completed orders in the selected date range. Formula: Orders = Count of Completed Orders.',
+  'Units Sold': 'Total quantity of items sold across completed orders. Formula: Units Sold = Sum of Item Quantities in Completed Orders.',
+  Refunds: 'Orders or items refunded during the selected date range. Formula: Refunds = Count of Refunded Orders/Items.'
 };
 
 const glanceDateOptions = ['This Week', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
@@ -349,7 +363,14 @@ type TooltipContent = {
 };
 
 const glanceKpiTooltips: Record<string, string | TooltipContent> = {
-  'New Customers': 'New customers acquired during the selected period across the selected stores.',
+  'New Customers': {
+    title: 'New Customers',
+    blocks: [
+      { type: 'text', text: 'New customers acquired during the selected period across selected stores.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'New Customers = Count of Unique First-Time Buyers in Period' }
+    ]
+  },
   'Average Order Value': {
     title: 'Average Order Value (AOV)',
     blocks: [
@@ -359,37 +380,43 @@ const glanceKpiTooltips: Record<string, string | TooltipContent> = {
     ]
   },
   'Customer Lifetime Value': {
-    title: 'Customer Lifetime Value (CLV)',
     blocks: [
       {
         type: 'text',
-        text: 'Estimated revenue a customer may generate over their relationship with your business.'
+        text: 'The total revenue a customer is expected to generate over their entire relationship with the business.'
       },
       { type: 'spacer' },
       { type: 'formula', text: 'CLV = Average Order Value x Purchase Frequency x Customer Lifespan' },
       { type: 'spacer' },
       {
         type: 'text',
-        text: 'AOV is the average amount a customer spends per order.'
+        text: 'Average Order Value (AOV) represents the average amount spent by a customer per order during the selected time period.'
       },
       { type: 'spacer' },
       {
         type: 'text',
-        text: 'Purchase Frequency is how often a customer buys from your store, usually measured over the last 6 months.'
+        text: 'Purchase Frequency (PF) represents the average number of times a customer buys from your store within the last selected day/months.'
       },
       { type: 'spacer' },
       {
         type: 'text',
-        text: 'Customer Lifespan is the average time a customer stays active. For a 6-month view, estimate it using customers who purchased in the last 6 months.'
+        text: 'Customer Lifespan refers to the average duration a customer remains active with your store. For instance, for a 6-month period, you can estimate the average lifespan of customers who have made purchases during the last 6 months.'
       }
     ]
   },
   'Customer Retention': {
-    title: 'Customer Retention',
     blocks: [
-      { type: 'text', text: 'Share of existing customers who returned and purchased again in the selected period.' },
+      { type: 'text', text: 'This section will display the customer retention rate in percentage by using the following formula:' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Retention Rate = Returning Customers / Total Customers x 100' }
+      {
+        type: 'formula',
+        text: 'CRR = (Customers at the end of the period - New customers during the period) x 100 / Customers at the start of the period'
+      },
+      { type: 'spacer' },
+      {
+        type: 'text',
+        text: 'The "Customer Retention" will also be accompanied by a percentage change compared to the last recorded period (e.g., +7.2%).'
+      }
     ]
   }
 };
@@ -457,19 +484,47 @@ type GlanceMetricCard = {
   secondaryTooltip?: string;
 };
 
-const sectionSixKpiTooltips: Record<string, string> = {
-  'Booked Orders': 'Total number of orders successfully booked in the selected period.',
-  'Total Shipped': 'Total number of booked orders that were dispatched to courier in the selected period.',
-  'Total Delivered': 'Total number of shipped orders successfully delivered to customers in the selected period.',
-  'Total Delivery Failed': 'Total number of shipment attempts that failed delivery in the selected period.',
-  'Net Sales': 'Revenue after taxes, discounts, and returns in the selected period.',
-  COGS: 'Direct costs attributable to products sold in the selected period.',
-  Expenses: 'Operating expenses allocated to the selected period.',
-  'Net Profit': 'Profit remaining after deducting COGS and Expenses from Net Sales.',
-  'New Customers': 'New customers acquired in the selected period.',
-  'Average Order Value': 'Average amount spent per order in the selected period.',
-  'Customer Lifetime Value': 'Estimated revenue expected from a customer over their relationship with your store.',
-  'Customer Retention': 'Percentage of existing customers who purchased again in the selected period.'
+const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
+  'Total Orders': {
+    title: 'Total Orders',
+    blocks: [
+      { type: 'text', text: 'Total number of orders successfully booked in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Orders = Count of Orders with Booked Status' }
+    ]
+  },
+  'Total Shipped': {
+    title: 'Total Shipped',
+    blocks: [
+      { type: 'text', text: 'Total number of Total Orders dispatched to courier in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Shipped = Count of Orders with Shipped Status' }
+    ]
+  },
+  'Total Delivered': {
+    title: 'Total Delivered',
+    blocks: [
+      { type: 'text', text: 'Total number of shipped orders delivered to customers in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Delivered = Count of Orders with Delivered Status' }
+    ]
+  },
+  'Total Delivery Failed': {
+    title: 'Total Delivery Failed',
+    blocks: [
+      { type: 'text', text: 'Total number of shipment attempts that failed delivery in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Delivery Failed = Count of Orders with Failed Delivery Status' }
+    ]
+  },
+  'Net Sales': metricTooltips.netSales,
+  COGS: metricTooltips.cogs,
+  Expenses: metricTooltips.expenses,
+  'Net Profit': metricTooltips.netProfit,
+  'New Customers': glanceKpiTooltips['New Customers'],
+  'Average Order Value': glanceKpiTooltips['Average Order Value'],
+  'Customer Lifetime Value': glanceKpiTooltips['Customer Lifetime Value'],
+  'Customer Retention': glanceKpiTooltips['Customer Retention']
 };
 
 const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; metrics: GlanceMetricCard[] }[] = [
@@ -477,7 +532,7 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
     title: 'Orders',
     metrics: [
       {
-        label: 'Booked Orders',
+        label: 'Total Orders',
         value: '1,248',
         sublabel: 'Since Yesterday',
         trend: '5.4%',
@@ -718,10 +773,38 @@ const scaleComparisonByPeriod = (comparison: ComparisonData, periodKey: PeriodKe
 });
 
 const salesKpiTooltips: Record<string, string | TooltipContent> = {
-  'Total Orders': 'Total orders booked across the selected stores and period.',
-  'Booked Orders': 'Total orders booked across the selected stores and period.',
-  'Total Gross Sales': 'Total gross sales across all selected stores in the active period.',
-  'Highest Store Gross Sales': 'Store with the strongest gross sales contribution in the selected period.',
+  'Total Orders': {
+    title: 'Total Orders',
+    blocks: [
+      { type: 'text', text: 'Total orders booked across selected stores and period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Orders = Sum of Orders Across Selected Stores' }
+    ]
+  },
+  'Total Orders': {
+    title: 'Total Orders',
+    blocks: [
+      { type: 'text', text: 'Total orders booked across selected stores and period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Orders = Count of Orders with Booked Status' }
+    ]
+  },
+  'Total Gross Sales': {
+    title: 'Total Gross Sales',
+    blocks: [
+      { type: 'text', text: 'Total gross sales across all selected stores in the active period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Gross Sales = Sum of Gross Sales Across Selected Stores' }
+    ]
+  },
+  'Highest Store Gross Sales': {
+    title: 'Highest Store Gross Sales',
+    blocks: [
+      { type: 'text', text: 'Store with the strongest gross sales contribution in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Highest Store = Store with MAX(Gross Sales)' }
+    ]
+  },
   'Average Gross Sales per Store': {
     title: 'Average Gross Sales per Store',
     blocks: [
@@ -730,9 +813,30 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Average Gross Sales per Store = Total Gross Sales / Active Stores' }
     ]
   },
-  'Peak Gross Sales Day': 'Day with the highest gross sales in the selected date range.',
-  'Total Units Sold': 'Total units sold across all selected stores in the active period.',
-  'Top Store by Units Sold': 'Store contributing the highest units sold in the selected period.',
+  'Peak Gross Sales Day': {
+    title: 'Peak Gross Sales Day',
+    blocks: [
+      { type: 'text', text: 'Day with the highest gross sales in the selected range.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Peak Day = Day with MAX(Daily Gross Sales)' }
+    ]
+  },
+  'Total Units Sold': {
+    title: 'Total Units Sold',
+    blocks: [
+      { type: 'text', text: 'Total units sold across all selected stores in the active period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Units Sold = Sum of Units Sold Across Selected Stores' }
+    ]
+  },
+  'Top Store by Units Sold': {
+    title: 'Top Store by Units Sold',
+    blocks: [
+      { type: 'text', text: 'Store contributing the highest units sold in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Top Store = Store with MAX(Units Sold)' }
+    ]
+  },
   'Average Units Sold per Store': {
     title: 'Average Units Sold per Store',
     blocks: [
@@ -741,9 +845,30 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Average Units Sold per Store = Total Units Sold / Active Stores' }
     ]
   },
-  'Peak Units Sold Day': 'Day with the highest units sold in the selected date range.',
-  'Total Order Returns': 'Total returned orders recorded across selected stores in the active period.',
-  'Highest Store Returns': 'Store recording the highest order returns in the selected period.',
+  'Peak Units Sold Day': {
+    title: 'Peak Units Sold Day',
+    blocks: [
+      { type: 'text', text: 'Day with the highest units sold in the selected range.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Peak Day = Day with MAX(Daily Units Sold)' }
+    ]
+  },
+  'Total Order Returns': {
+    title: 'Total Order Returns',
+    blocks: [
+      { type: 'text', text: 'Total returned orders recorded across selected stores in the active period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Returns = Sum of Returned Orders Across Selected Stores' }
+    ]
+  },
+  'Highest Store Returns': {
+    title: 'Highest Store Returns',
+    blocks: [
+      { type: 'text', text: 'Store recording the highest order returns in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Highest Returns Store = Store with MAX(Order Returns)' }
+    ]
+  },
   'Average Returns per Store': {
     title: 'Average Returns per Store',
     blocks: [
@@ -752,7 +877,14 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Average Returns per Store = Total Order Returns / Active Stores' }
     ]
   },
-  'Peak Returns Day': 'Day with the highest returns count in the selected date range.'
+  'Peak Returns Day': {
+    title: 'Peak Returns Day',
+    blocks: [
+      { type: 'text', text: 'Day with the highest returns count in the selected date range.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Peak Day = Day with MAX(Daily Order Returns)' }
+    ]
+  }
 };
 
 const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
@@ -1234,9 +1366,30 @@ const pakistanLocationHierarchy = [
 const pakistanProvinceOptions = pakistanLocationHierarchy.map((item) => item.province);
 
 const locationKpiTooltips: Record<string, string | TooltipContent> = {
-  'Top Performing City': 'City generating the highest result in the selected metric and period.',
-  'Most Improved City': 'City with the strongest positive change versus the previous period.',
-  'Most Declined City': 'City with the steepest drop versus the previous period.',
+  'Top Performing City': {
+    title: 'Top Performing City',
+    blocks: [
+      { type: 'text', text: 'City generating the highest result in the selected metric and period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Top Performing City = City with MAX(Current Metric Value)' }
+    ]
+  },
+  'Most Improved City': {
+    title: 'Most Improved City',
+    blocks: [
+      { type: 'text', text: 'City with the strongest positive change versus previous period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Improvement % = ((Current - Previous) / Previous) x 100; pick MAX positive' }
+    ]
+  },
+  'Most Declined City': {
+    title: 'Most Declined City',
+    blocks: [
+      { type: 'text', text: 'City with the steepest drop versus previous period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Decline % = ((Current - Previous) / Previous) x 100; pick MIN negative' }
+    ]
+  },
   'Average Orders Per City': {
     title: 'Average Orders Per City',
     blocks: [
@@ -1332,14 +1485,70 @@ const productMetricOptions = ['Units Sold', 'Gross Sales'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 
 const productKpiTooltips: Record<string, string | TooltipContent> = {
-  'Total Units Sold': 'Total units sold across the selected products and period.',
-  'Total Gross Sales': 'Total gross sales across the selected products and period.',
-  'Best Selling Product': 'Product with the highest units sold in the selected period.',
-  'Top Gross Sales Product': 'Product generating the highest gross sales in the selected period.',
-  'Most Improved Product': 'Product with the strongest positive change in units sold.',
-  'Most Improved Gross Sales Product': 'Product with the strongest positive gross sales change in the selected period.',
-  'Most Declined Product': 'Product with the sharpest decline in units sold.',
-  'Most Declined Gross Sales Product': 'Product with the sharpest gross sales decline in the selected period.',
+  'Total Units Sold': {
+    title: 'Total Units Sold',
+    blocks: [
+      { type: 'text', text: 'Total units sold across selected products and period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Units Sold = Sum of Units Sold Across Selected Products' }
+    ]
+  },
+  'Total Gross Sales': {
+    title: 'Total Gross Sales',
+    blocks: [
+      { type: 'text', text: 'Total gross sales across selected products and period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Gross Sales = Sum of Gross Sales Across Selected Products' }
+    ]
+  },
+  'Best Selling Product': {
+    title: 'Best Selling Product',
+    blocks: [
+      { type: 'text', text: 'Product with the highest units sold in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Best Selling Product = Product with MAX(Units Sold)' }
+    ]
+  },
+  'Top Gross Sales Product': {
+    title: 'Top Gross Sales Product',
+    blocks: [
+      { type: 'text', text: 'Product generating the highest gross sales in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Top Gross Sales Product = Product with MAX(Gross Sales)' }
+    ]
+  },
+  'Most Improved Product': {
+    title: 'Most Improved Product',
+    blocks: [
+      { type: 'text', text: 'Product with the strongest positive change in units sold.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Improvement % = ((Units Current - Units Previous) / Units Previous) x 100; pick MAX positive' }
+    ]
+  },
+  'Most Improved Gross Sales Product': {
+    title: 'Most Improved Gross Sales Product',
+    blocks: [
+      { type: 'text', text: 'Product with the strongest positive gross sales change in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Improvement % = ((Revenue Current - Revenue Previous) / Revenue Previous) x 100; pick MAX positive' }
+    ]
+  },
+  'Most Declined Product': {
+    title: 'Most Declined Product',
+    blocks: [
+      { type: 'text', text: 'Product with the sharpest decline in units sold.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Decline % = ((Units Current - Units Previous) / Units Previous) x 100; pick MIN negative' }
+    ]
+  },
+  'Most Declined Gross Sales Product': {
+    title: 'Most Declined Gross Sales Product',
+    blocks: [
+      { type: 'text', text: 'Product with the sharpest gross sales decline in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Decline % = ((Revenue Current - Revenue Previous) / Revenue Previous) x 100; pick MIN negative' }
+    ]
+  },
   'Avg. Units Sold Per Order': {
     title: 'Avg. Units Sold Per Order',
     blocks: [
@@ -1676,16 +1885,20 @@ const buildInventorySeries = (total: number, dayCount: number, phaseShift: numbe
 
 function InfoTooltip({
   text,
-  widthClass = 'tu-w-[190px]'
+  widthClass = 'tu-w-[190px]',
+  alignRight = false
 }: {
   text?: string | TooltipContent;
   widthClass?: string;
+  alignRight?: boolean;
 }) {
   if (!text) return null;
 
   return (
     <div
-      className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
+      className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] ${
+        alignRight ? 'tu-right-0' : 'tu-left-0'
+      } tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
     >
       {typeof text === 'string' ? (
         text
@@ -2003,7 +2216,7 @@ export default function App() {
   const [hoveredGlanceKpi, setHoveredGlanceKpi] = useState<string | null>(null);
   const [hoveredSectionSixValue, setHoveredSectionSixValue] = useState<string | null>(null);
   const [openSectionSixCustomerStoreMenu, setOpenSectionSixCustomerStoreMenu] = useState(false);
-  const [selectedSectionSixCustomerStores, setSelectedSectionSixCustomerStores] = useState<string[]>([]);
+  const [selectedSectionSixCustomerStores, setSelectedSectionSixCustomerStores] = useState<string[]>([...storeOptions]);
   const [sectionSixCustomerStoreSearch, setSectionSixCustomerStoreSearch] = useState('');
   const [selectedGlanceDate, setSelectedGlanceDate] = useState('This Week');
   const [selectedStore, setSelectedStore] = useState<string[]>([]);
@@ -2214,24 +2427,27 @@ export default function App() {
         : selectedGlanceDate === 'Yesterday'
           ? 'yesterday'
           : 'today';
+  const glanceMetricSublabel =
+    selectedGlanceDate === 'Custom' ? 'vs custom range' : `vs ${selectedGlanceDate.toLowerCase()}`;
   const sectionSixMetricSections = useMemo(
     () =>
       sectionSixMetricSectionsBase.map((metricSection) => ({
         ...metricSection,
         metrics: metricSection.metrics.map((metric) => ({
           ...metric,
+          sublabel: glanceMetricSublabel,
           value: scaleMetricValueByPeriod(metric.value, selectedGlancePeriodKey),
           comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey)
         }))
       })),
-    [selectedGlancePeriodKey]
+    [glanceMetricSublabel, selectedGlancePeriodKey]
   );
   const salesOrderRibbonMetrics = useMemo(() => {
     const ordersSection = sectionSixMetricSections.find((section) => section.title === 'Orders');
     if (!ordersSection) return [];
 
     const orderMetricLabelMap: Record<string, string> = {
-      'Booked Orders': 'Total Orders',
+      'Total Orders': 'Total Orders',
       'Total Shipped': 'Total Shipped',
       'Total Delivered': 'Total Delivered',
       'Total Delivery Failed': 'Total Delivery Failed'
@@ -2306,7 +2522,7 @@ export default function App() {
 
     return [
       {
-        label: 'Booked Orders',
+        label: 'Total Orders',
         value: totalOrdersCurrent.toLocaleString('en-US'),
         trend: totalOrdersTrend,
         direction: totalOrdersDirection,
@@ -5718,7 +5934,17 @@ export default function App() {
                                   <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
                                     {metric.label}
                                   </button>
-                                  <InfoTooltip text={sectionSixKpiTooltips[metric.label]} widthClass="tu-w-[280px]" />
+                                  <InfoTooltip
+                                    text={sectionSixKpiTooltips[metric.label]}
+                                    widthClass={
+                                      metric.label === 'Customer Lifetime Value'
+                                        ? 'tu-w-[420px]'
+                                        : metric.label === 'Customer Retention'
+                                          ? 'tu-w-[400px]'
+                                          : 'tu-w-[280px]'
+                                    }
+                                    alignRight={metric.label === 'Customer Retention'}
+                                  />
                                 </div>
                                 <div className="tu-mt-1">
                                   {metricSection.title === 'Sales' ? (
