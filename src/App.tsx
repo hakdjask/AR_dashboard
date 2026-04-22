@@ -1042,17 +1042,29 @@ const inventoryHealthHeaderTooltips: Record<string, string | TooltipContent> = {
   stockToSalesRatio: {
     title: 'Stock-to-Sales Ratio',
     blocks: [
-      { type: 'text', text: 'Relationship between available stock and sold quantity in the selected period.' },
+      {
+        type: 'text',
+        text: 'Shows how much inventory you are holding versus sales volume in the selected date range, helping judge stock balance.'
+      },
       { type: 'spacer' },
-      { type: 'formula', text: 'Stock-to-Sales Ratio = Available Quantity / Quantity Out' }
+      {
+        type: 'formula',
+        text: 'Stock-to-Sales Ratio = Average Inventory Value / Net Sales (Sales Volume in Selected Date Range)'
+      }
     ]
   },
   inventoryTurnoverRatio: {
     title: 'Inventory Turnover Ratio',
     blocks: [
-      { type: 'text', text: 'How efficiently inventory is sold relative to average stock held.' },
+      {
+        type: 'text',
+        text: 'Shows how many times inventory is sold and replaced during the selected period.'
+      },
       { type: 'spacer' },
-      { type: 'formula', text: 'Inventory Turnover Ratio = Quantity Out / Average Inventory' }
+      {
+        type: 'formula',
+        text: 'Inventory Turnover Ratio = COGS / ((Starting Inventory Value + Ending Inventory Value) / 2)'
+      }
     ]
   }
 };
@@ -1157,9 +1169,15 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
   const inventoryAging = Math.max(10, Math.round(onHandQuantity * (0.2 + ((index + 3) % 6) * 0.08)));
   const deadStocks = Math.max(0, Math.round(onHandQuantity * (0.03 + ((index + 5) % 4) * 0.05)));
   const salesVelocity = Number((2.1 + (index % 7) * 0.55 + Math.sin(index * 0.31)).toFixed(1));
-  const stockToSalesRatio = Number((availableQuantity / Math.max(1, quantityOut)).toFixed(2));
-  const averageInventory = Math.max(1, Math.round((onHandQuantity + availableQuantity) / 2));
-  const inventoryTurnoverRatio = Number((quantityOut / averageInventory).toFixed(2));
+  const averageInventoryValue = Math.max(1, Math.round((onHandQuantity + availableQuantity) / 2));
+  const netSales = Math.max(1, quantityOut);
+  const stockToSalesRatio = Number((averageInventoryValue / netSales).toFixed(2));
+  const unitCost = 12 + (index % 7) * 2.5;
+  const startingInventoryValue = Math.max(1, Math.round(onHandQuantity * unitCost * (1.05 + (index % 4) * 0.04)));
+  const endingInventoryValue = Math.max(1, Math.round(availableQuantity * unitCost * (0.98 + ((index + 2) % 4) * 0.03)));
+  const averageInventoryForTurnover = Math.max(1, Math.round((startingInventoryValue + endingInventoryValue) / 2));
+  const cogs = Math.max(1, Math.round(quantityOut * unitCost * (0.9 + ((index + 1) % 5) * 0.03)));
+  const inventoryTurnoverRatio = Number((cogs / averageInventoryForTurnover).toFixed(2));
   const productName = `Inventory Product ${productIndex.toString().padStart(3, '0')}`;
 
   return {
@@ -1496,6 +1514,7 @@ const locationMetricConfig: Record<
 
 const productMetricOptions = ['Units Sold', 'Gross Sales'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
+const productPerformanceViewOptions = ['Top Performing', 'Under Performing'];
 
 const productKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Units Sold': {
@@ -1592,6 +1611,12 @@ const productPerformanceData = [
   { product: 'Smart Watch', unitsCurrent: 29, unitsPrevious: 35, revenueCurrent: 1320000, revenuePrevious: 1480000 },
   { product: 'Steel Bottle', unitsCurrent: 27, unitsPrevious: 17, revenueCurrent: 470000, revenuePrevious: 290000 }
 ];
+
+const productDateScaleByRange: Record<string, number> = {
+  'Last 7 Days': 7 / 30,
+  'Last 30 Days': 1,
+  'Last 90 Days': 3
+};
 
 const productMetricConfig: Record<
   string,
@@ -2351,15 +2376,17 @@ export default function App() {
   const [selectedLocationRegion, setSelectedLocationRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [locationMenuSearch, setLocationMenuSearch] = useState({ metric: '', date: '', region: '' });
   const [locationRegionProvince, setLocationRegionProvince] = useState<string | null>(null);
-  const [productMenus, setProductMenus] = useState<{ metric: boolean; date: boolean; region: boolean }>({
+  const [productMenus, setProductMenus] = useState<{ performance: boolean; metric: boolean; date: boolean; region: boolean }>({
+    performance: false,
     metric: false,
     date: false,
     region: false
   });
+  const [selectedProductPerformanceView, setSelectedProductPerformanceView] = useState('Top Performing');
   const [selectedProductMetric, setSelectedProductMetric] = useState('Units Sold');
   const [selectedProductDate, setSelectedProductDate] = useState('Last 30 Days');
   const [selectedProductRegion, setSelectedProductRegion] = useState<string[]>([...pakistanProvinceOptions]);
-  const [productMenuSearch, setProductMenuSearch] = useState({ metric: '', date: '', region: '' });
+  const [productMenuSearch, setProductMenuSearch] = useState({ performance: '', metric: '', date: '', region: '' });
   const [productRegionProvince, setProductRegionProvince] = useState<string | null>(null);
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredInventoryKpi, setHoveredInventoryKpi] = useState<string | null>(null);
@@ -3354,8 +3381,8 @@ export default function App() {
     if (columnKey === 'quantityOut') return product.quantityOut.toLocaleString('en-US');
     if (columnKey === 'deadStocks') return product.deadStocks.toLocaleString('en-US');
     if (columnKey === 'salesVelocity') return `${product.salesVelocity.toFixed(1)} units/day`;
-    if (columnKey === 'stockToSalesRatio') return `${product.stockToSalesRatio.toFixed(2)}x`;
-    if (columnKey === 'inventoryTurnoverRatio') return `${product.inventoryTurnoverRatio.toFixed(2)}x`;
+    if (columnKey === 'stockToSalesRatio') return `${product.stockToSalesRatio.toFixed(2)} times`;
+    if (columnKey === 'inventoryTurnoverRatio') return `${product.inventoryTurnoverRatio.toFixed(2)} times`;
     return '';
   };
 
@@ -3803,6 +3830,32 @@ export default function App() {
   );
 
   const selectedProductMetricConfig = productMetricConfig[selectedProductMetric];
+  const productRankedData = useMemo(() => {
+    const dateScale = productDateScaleByRange[selectedProductDate] ?? productDateScaleByRange['Last 30 Days'];
+    const ranked = productPerformanceData
+      .map((item) => {
+        const currentValue = Math.round(item[selectedProductMetricConfig.currentKey] * dateScale);
+        const previousValue = Math.round(item[selectedProductMetricConfig.previousKey] * dateScale);
+        return { ...item, currentValue, previousValue };
+      })
+      .sort((a, b) =>
+        selectedProductPerformanceView === 'Top Performing'
+          ? b.currentValue - a.currentValue
+          : a.currentValue - b.currentValue
+      );
+
+    return ranked.slice(0, 8);
+  }, [selectedProductDate, selectedProductMetricConfig, selectedProductPerformanceView]);
+
+  const productAxisMax = useMemo(() => {
+    const highestValue = productRankedData.reduce(
+      (max, item) => Math.max(max, item.currentValue, item.previousValue),
+      0
+    );
+    const paddedMax = Math.ceil(highestValue * 1.12);
+    return Math.max(selectedProductMetricConfig.axisMax, paddedMax);
+  }, [productRankedData, selectedProductMetricConfig.axisMax]);
+
   const dynamicProductMetricCards = useMemo(() => {
     if (selectedProductMetric === 'Gross Sales') {
       return [
@@ -3873,25 +3926,25 @@ export default function App() {
 
   const productChartData = useMemo(
     () => ({
-      labels: productPerformanceData.map((item) => item.product),
+      labels: productRankedData.map((item) => item.product),
       datasets: [
         {
           label: 'April',
-          data: productPerformanceData.map((item) => item[selectedProductMetricConfig.currentKey]),
+          data: productRankedData.map((item) => item.currentValue),
           backgroundColor: '#10c562',
           borderRadius: 6,
           maxBarThickness: 34
         },
         {
           label: 'May',
-          data: productPerformanceData.map((item) => item[selectedProductMetricConfig.previousKey]),
+          data: productRankedData.map((item) => item.previousValue),
           backgroundColor: '#c9c9c9',
           borderRadius: 6,
           maxBarThickness: 34
         }
       ]
     }),
-    [selectedProductMetricConfig]
+    [productRankedData]
   );
 
   const productChartOptions = useMemo(
@@ -3933,7 +3986,7 @@ export default function App() {
         },
         y: {
           beginAtZero: true,
-          max: selectedProductMetricConfig.axisMax,
+          max: productAxisMax,
           ticks: {
             stepSize: selectedProductMetricConfig.stepSize,
             color: '#7D828A',
@@ -3945,7 +3998,7 @@ export default function App() {
         }
       }
     }),
-    [selectedProductMetricConfig]
+    [productAxisMax, selectedProductMetricConfig]
   );
 
   return (
@@ -4990,7 +5043,7 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {inventoryHealthVisibleProducts.map((product) => (
+                          {inventoryHealthVisibleProducts.map((product, productIndex) => (
                             <tr key={product.id} className="tu-border-b tu-border-[#edf0ea] hover:tu-bg-[#fbfcfa]">
                               {inventoryHealthVisibleColumns.map((column) => (
                                 <td
@@ -5019,10 +5072,48 @@ export default function App() {
                                     <span className="tu-text-[13px] tu-text-[#333538]">{product.salesVelocity.toFixed(1)} units/day</span>
                                   ) : null}
                                   {column.key === 'stockToSalesRatio' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.stockToSalesRatio.toFixed(2)}x</span>
+                                    <div className="tu-inline-flex tu-items-center tu-gap-1.5">
+                                      <span className="tu-text-[13px] tu-text-[#333538]">{product.stockToSalesRatio.toFixed(2)} times</span>
+                                      {productIndex === 0 ? (
+                                        <span className="tu-group/tooltip tu-relative tu-inline-flex tu-cursor-help tu-items-center">
+                                          <span className="tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d5dacd] tu-text-[10px] tu-font-semibold tu-text-[#7f838a]">
+                                            ?
+                                          </span>
+                                          <span className="tu-pointer-events-none tu-absolute tu-left-1/2 tu-top-[calc(100%+8px)] tu-z-[120] tu-w-[260px] -tu-translate-x-1/2 tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-left tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100">
+                                            <span className="tu-block tu-font-semibold">How to read this value?</span>
+                                            <span className="tu-mt-2 tu-block">
+                                              Above 1.00 means you are holding more inventory than selected-period net sales volume (possible overstock).
+                                            </span>
+                                            <span className="tu-mt-2 tu-block">
+                                              Below 1.00 means sales are moving faster than current stock (possible stockout risk).
+                                            </span>
+                                            <span className="tu-mt-2 tu-block">Around 1.00 suggests a balanced position.</span>
+                                          </span>
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   ) : null}
                                   {column.key === 'inventoryTurnoverRatio' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.inventoryTurnoverRatio.toFixed(2)}x</span>
+                                    <div className="tu-inline-flex tu-items-center tu-gap-1.5">
+                                      <span className="tu-text-[13px] tu-text-[#333538]">{product.inventoryTurnoverRatio.toFixed(2)} times</span>
+                                      {productIndex === 0 ? (
+                                        <span className="tu-group/tooltip tu-relative tu-inline-flex tu-cursor-help tu-items-center">
+                                          <span className="tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d5dacd] tu-text-[10px] tu-font-semibold tu-text-[#7f838a]">
+                                            ?
+                                          </span>
+                                          <span className="tu-pointer-events-none tu-absolute tu-right-0 tu-top-[calc(100%+8px)] tu-z-[120] tu-w-[280px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-left tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100">
+                                            <span className="tu-block tu-font-semibold">How to read this value?</span>
+                                            <span className="tu-mt-2 tu-block">
+                                              Above 1.00 means inventory is turning over more than once in the selected period (faster inventory movement).
+                                            </span>
+                                            <span className="tu-mt-2 tu-block">
+                                              Below 1.00 means inventory is turning less than once in the selected period (slower movement or excess holding).
+                                            </span>
+                                            <span className="tu-mt-2 tu-block">Around 1.00 suggests inventory turned about once during the selected period.</span>
+                                          </span>
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   ) : null}
                                 </td>
                               ))}
@@ -5898,6 +5989,7 @@ export default function App() {
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
+                    { key: 'performance', value: `Show Products by: ${selectedProductPerformanceView}`, options: productPerformanceViewOptions },
                     { key: 'metric', value: selectedProductMetric, options: productMetricOptions },
                     { key: 'date', value: selectedProductDate, options: productDateOptions },
                     {
@@ -5906,55 +5998,67 @@ export default function App() {
                       options: []
                     }
                   ].map((menu) => (
-                    <div key={menu.key} className="tu-relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProductMenus((current) => ({
-                            metric: false,
-                            date: false,
-                            region: false,
-                            [menu.key]: !current[menu.key as keyof typeof current]
-                          }));
-                          setProductMenuSearch((current) => ({ ...current, [menu.key]: '' }));
-                          if (menu.key === 'region') setProductRegionProvince(null);
-                        }}
-                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
-                      >
-                        <span>{menu.value}</span>
-                        <ChevronDown className="tu-h-3 tu-w-3" />
-                      </button>
-
-                      {menu.key === 'region' ? (
-                        <HierarchicalLocationDropdown
-                          open={productMenus.region}
-                          selected={selectedProductRegion}
-                          onChange={setSelectedProductRegion}
-                          searchValue={productMenuSearch.region}
-                          onSearchChange={(value) => setProductMenuSearch((current) => ({ ...current, region: value }))}
-                          activeProvince={productRegionProvince}
-                          onProvinceChange={setProductRegionProvince}
-                        />
-                      ) : (
-                        <SearchableDropdownMenu
-                          open={productMenus[menu.key as keyof typeof productMenus]}
-                          options={menu.options}
-                          selected={menu.key === 'metric' ? selectedProductMetric : selectedProductDate}
-                          searchable={menu.key !== 'date'}
-                          searchValue={productMenuSearch[menu.key as keyof typeof productMenuSearch]}
-                          onSearchChange={
-                            menu.key !== 'date'
-                              ? (value) => setProductMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                              : undefined
-                          }
-                          widthClass="tu-w-[190px]"
-                          onSelect={(item) => {
-                            if (menu.key === 'metric') setSelectedProductMetric(item);
-                            if (menu.key === 'date') setSelectedProductDate(item);
-                            setProductMenus({ metric: false, date: false, region: false });
+                    <div key={menu.key} className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProductMenus((current) => ({
+                              performance: false,
+                              metric: false,
+                              date: false,
+                              region: false,
+                              [menu.key]: !current[menu.key as keyof typeof current]
+                            }));
+                            setProductMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            if (menu.key === 'region') setProductRegionProvince(null);
                           }}
-                        />
-                      )}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          {menu.key === 'performance' ? <ArrowUpDown className="tu-h-3.5 tu-w-3.5" /> : null}
+                          <span>{menu.value}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+
+                        {menu.key === 'region' ? (
+                          <HierarchicalLocationDropdown
+                            open={productMenus.region}
+                            selected={selectedProductRegion}
+                            onChange={setSelectedProductRegion}
+                            searchValue={productMenuSearch.region}
+                            onSearchChange={(value) => setProductMenuSearch((current) => ({ ...current, region: value }))}
+                            activeProvince={productRegionProvince}
+                            onProvinceChange={setProductRegionProvince}
+                          />
+                        ) : (
+                          <SearchableDropdownMenu
+                            open={productMenus[menu.key as keyof typeof productMenus]}
+                            options={menu.options}
+                            selected={
+                              menu.key === 'performance'
+                                ? selectedProductPerformanceView
+                                : menu.key === 'metric'
+                                  ? selectedProductMetric
+                                  : selectedProductDate
+                            }
+                            searchable={menu.key === 'metric'}
+                            searchValue={productMenuSearch[menu.key as keyof typeof productMenuSearch]}
+                            onSearchChange={
+                              menu.key === 'metric'
+                                ? (value) => setProductMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                                : undefined
+                            }
+                            widthClass="tu-w-[190px]"
+                            onSelect={(item) => {
+                              if (menu.key === 'performance') setSelectedProductPerformanceView(item);
+                              if (menu.key === 'metric') setSelectedProductMetric(item);
+                              if (menu.key === 'date') setSelectedProductDate(item);
+                              setProductMenus({ performance: false, metric: false, date: false, region: false });
+                            }}
+                          />
+                        )}
+                      </div>
+                      {menu.key === 'performance' ? <span className="tu-text-[16px] tu-text-[#c7cdc2]">|</span> : null}
                     </div>
                   ))}
                 </div>
