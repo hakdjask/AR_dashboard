@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Download,
   LayoutGrid,
   Menu,
   Package2,
@@ -764,6 +765,7 @@ const inventoryLocationOptions = ['Main Warehouse', 'Retail Backroom', 'Transit 
 const inventoryMovementLocationOptions = [...inventoryLocationOptions];
 const inventoryMovementMaxDataPoints = 365;
 const inventoryMovementBaseIndexes = Array.from({ length: inventoryMovementMaxDataPoints }, (_, index) => index);
+const inventoryHealthDisplayLimit = 20;
 
 type InventoryStatusKey = 'onHand' | 'committed' | 'available' | 'inbound' | 'unfulfillable';
 type InventoryMovementStoreData = {
@@ -786,23 +788,23 @@ type InventoryHealthProduct = {
   onHandQuantity: number;
   committedQuantity: number;
   availableQuantity: number;
+  quantityIn: number;
+  quantityOut: number;
   inventoryAging: number;
   deadStocks: number;
   salesVelocity: number;
-  daysUntilStockout: number;
-  overstockPercentage: number;
-  overstockValue: number;
+  stockToSalesRatio: number;
+  inventoryTurnoverRatio: number;
 };
 
 type InventoryHealthSortKey =
   | 'name'
-  | 'onHandQuantity'
-  | 'committedQuantity'
-  | 'availableQuantity'
+  | 'quantityIn'
+  | 'quantityOut'
   | 'deadStocks'
   | 'salesVelocity'
-  | 'daysUntilStockout'
-  | 'overstockPercentage';
+  | 'stockToSalesRatio'
+  | 'inventoryTurnoverRatio';
 
 type InventoryHealthSearchField = 'name' | 'sku' | 'barcode';
 type InventoryHealthFilterKey = 'tags' | 'category' | 'brand';
@@ -842,6 +844,7 @@ const inventoryStoreLocations: Record<string, string> = {
 
 const inventoryHealthCategoryOptions = ['Apparel', 'Footwear', 'Accessories', 'Electronics', 'Home'];
 const inventoryHealthBrandOptions = ['Northstar', 'Apex', 'Orbit', 'Nimbus', 'Vertex'];
+const deadStockAgingDayOptions = ['30', '60', '90', '180', '360'];
 const inventoryHealthTagOptions = [
   'Fast Moving',
   'Slow Moving',
@@ -879,14 +882,20 @@ const inventoryHealthFilterTypeOptions = Object.values(inventoryHealthFilterLabe
 
 const inventoryHealthHeaderTooltips: Record<string, string | TooltipContent> = {
   product: 'Product details including image, product title, and SKU identifier.',
-  onHandQuantity: 'Total physical stock currently present in inventory locations.',
-  committedQuantity: 'Stock reserved for open orders and unavailable for new orders.',
-  availableQuantity: {
-    title: 'Available Quantity',
+  quantityIn: {
+    title: 'Quantity In',
     blocks: [
-      { type: 'text', text: 'Sellable quantity after removing committed inventory from on-hand quantity.' },
+      { type: 'text', text: 'Total inbound units received for the product in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Available Quantity = On-hand Quantity - Committed Quantity' }
+      { type: 'formula', text: 'Quantity In = Sum of all inbound receipts and transfers' }
+    ]
+  },
+  quantityOut: {
+    title: 'Quantity Out',
+    blocks: [
+      { type: 'text', text: 'Total outbound units shipped, sold, or fulfilled in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Quantity Out = Sum of all outbound fulfillments and dispatches' }
     ]
   },
   inventoryAging: 'Units aging between 1 and 90 days in inventory.',
@@ -906,33 +915,32 @@ const inventoryHealthHeaderTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Sales Velocity = Units Sold / Number of Days' }
     ]
   },
-  daysUntilStockout: {
-    title: 'Days Until Stockout',
+  stockToSalesRatio: {
+    title: 'Stock-to-Sales Ratio',
     blocks: [
-      { type: 'text', text: 'Estimated days remaining before available inventory reaches zero.' },
+      { type: 'text', text: 'Relationship between available stock and sold quantity in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Days Until Stockout = Available Quantity / Sales Velocity' }
+      { type: 'formula', text: 'Stock-to-Sales Ratio = Available Quantity / Quantity Out' }
     ]
   },
-  overstockPercentage: {
-    title: 'Overstock Percentage',
+  inventoryTurnoverRatio: {
+    title: 'Inventory Turnover Ratio',
     blocks: [
-      { type: 'text', text: 'Excess stock above an estimated 45-day demand window.' },
+      { type: 'text', text: 'How efficiently inventory is sold relative to average stock held.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Overstock % = ((On-hand - 45-Day Demand) / 45-Day Demand) x 100' }
+      { type: 'formula', text: 'Inventory Turnover Ratio = Quantity Out / Average Inventory' }
     ]
   }
 };
 
 const inventoryHealthColumnBlueprint: Omit<InventoryHealthColumnConfig, 'visible'>[] = [
   { key: 'name', label: 'Products', tooltipKey: 'product' },
-  { key: 'onHandQuantity', label: 'On-hand', tooltipKey: 'onHandQuantity' },
-  { key: 'committedQuantity', label: 'Committed', tooltipKey: 'committedQuantity' },
-  { key: 'availableQuantity', label: 'Available', tooltipKey: 'availableQuantity' },
-  { key: 'deadStocks', label: 'Dead Stocks', subtitle: '(Aging > 90 Days)', tooltipKey: 'deadStocks' },
+  { key: 'quantityIn', label: 'Quantity In', tooltipKey: 'quantityIn' },
+  { key: 'quantityOut', label: 'Quantity Out', tooltipKey: 'quantityOut' },
+  { key: 'deadStocks', label: 'Dead Stocks', tooltipKey: 'deadStocks' },
   { key: 'salesVelocity', label: 'Sales Velocity', tooltipKey: 'salesVelocity' },
-  { key: 'daysUntilStockout', label: 'Days Until Stockout', tooltipKey: 'daysUntilStockout' },
-  { key: 'overstockPercentage', label: 'Overstock Percentage', subtitle: '(% and value)', tooltipKey: 'overstockPercentage' }
+  { key: 'stockToSalesRatio', label: 'Stock-to-Sales Ratio', tooltipKey: 'stockToSalesRatio' },
+  { key: 'inventoryTurnoverRatio', label: 'Inventory Turnover Ratio', tooltipKey: 'inventoryTurnoverRatio' }
 ];
 
 const deterministicNoise = (seed: number) => {
@@ -1020,14 +1028,14 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
   const onHandQuantity = Math.max(35, Math.round((120 + (index % 11) * 17) * seasonal));
   const committedQuantity = Math.max(8, Math.round(onHandQuantity * (0.12 + (index % 5) * 0.06)));
   const availableQuantity = Math.max(0, onHandQuantity - committedQuantity);
+  const quantityIn = Math.max(45, Math.round(onHandQuantity * (1.05 + (index % 5) * 0.08)));
+  const quantityOut = Math.max(18, Math.round(quantityIn * (0.54 + ((index + 2) % 6) * 0.06)));
   const inventoryAging = Math.max(10, Math.round(onHandQuantity * (0.2 + ((index + 3) % 6) * 0.08)));
   const deadStocks = Math.max(0, Math.round(onHandQuantity * (0.03 + ((index + 5) % 4) * 0.05)));
   const salesVelocity = Number((2.1 + (index % 7) * 0.55 + Math.sin(index * 0.31)).toFixed(1));
-  const daysUntilStockout = salesVelocity > 0 ? Math.max(1, Math.round(availableQuantity / salesVelocity)) : 0;
-  const projected45DayDemand = Math.max(1, Math.round(salesVelocity * 45));
-  const overstockUnits = Math.max(0, onHandQuantity - projected45DayDemand);
-  const overstockPercentage = Number(((overstockUnits / projected45DayDemand) * 100).toFixed(1));
-  const overstockValue = overstockUnits * (950 + (index % 9) * 140);
+  const stockToSalesRatio = Number((availableQuantity / Math.max(1, quantityOut)).toFixed(2));
+  const averageInventory = Math.max(1, Math.round((onHandQuantity + availableQuantity) / 2));
+  const inventoryTurnoverRatio = Number((quantityOut / averageInventory).toFixed(2));
   const productName = `Inventory Product ${productIndex.toString().padStart(3, '0')}`;
 
   return {
@@ -1044,12 +1052,13 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
     onHandQuantity,
     committedQuantity,
     availableQuantity,
+    quantityIn,
+    quantityOut,
     inventoryAging,
     deadStocks,
     salesVelocity,
-    daysUntilStockout,
-    overstockPercentage,
-    overstockValue
+    stockToSalesRatio,
+    inventoryTurnoverRatio
   };
 });
 
@@ -1176,6 +1185,25 @@ const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
   },
   'Quantity In': 'Total inbound inventory quantity received during the selected period and locations.',
   'Quantity Out': 'Total outbound inventory quantity fulfilled during the selected period and locations.'
+};
+const inventorySnapshotKpiTooltips: Record<string, string | TooltipContent> = {
+  'On-hand': 'Total stock physically present in selected inventory locations.',
+  Committed: 'Stock reserved for placed orders and unavailable for new allocation.',
+  'Available for Sale': {
+    title: 'Available for Sale',
+    blocks: [
+      { type: 'text', text: 'Sellable stock after deducting committed inventory.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Available for Sale = On-hand - Committed' }
+    ]
+  },
+  'Inbound (Incoming Inventory)': 'Inventory expected to be received from purchase orders or transfers.',
+  'Unfulfilled or Damaged': 'Units blocked from fulfillment due to stock constraints or damaged condition.',
+  'Stockout Percentage':
+    'Share and count of products that stocked out in the selected date range and inventory locations.',
+  'Out of Stock Products': 'Total products currently out of stock in selected inventory locations.',
+  'Products in Reorder Threshold':
+    'Products currently at or below defined reorder threshold in selected inventory locations.'
 };
 const pakistanLocationHierarchy = [
   {
@@ -2000,6 +2028,15 @@ export default function App() {
   const [selectedInventoryDate, setSelectedInventoryDate] = useState('Last 30 Days');
   const [selectedInventoryRegion, setSelectedInventoryRegion] = useState<string[]>([...inventoryLocationOptions]);
   const [inventoryMenuSearch, setInventoryMenuSearch] = useState({ date: '', region: '' });
+  const [inventorySnapshotMenus, setInventorySnapshotMenus] = useState<{ location: boolean; stockoutDate: boolean }>({
+    location: false,
+    stockoutDate: false
+  });
+  const [selectedInventorySnapshotLocation, setSelectedInventorySnapshotLocation] = useState<string[]>([
+    ...inventoryLocationOptions
+  ]);
+  const [selectedInventorySnapshotStockoutDate, setSelectedInventorySnapshotStockoutDate] = useState('Last 30 Days');
+  const [inventorySnapshotMenuSearch, setInventorySnapshotMenuSearch] = useState({ location: '' });
   const [inventoryMovementMenus, setInventoryMovementMenus] = useState<{
     date: boolean;
     region: boolean;
@@ -2058,7 +2095,8 @@ export default function App() {
     key: 'name',
     direction: 'asc'
   });
-  const [visibleInventoryHealthRows, setVisibleInventoryHealthRows] = useState(20);
+  const [selectedDeadStockAgingDays, setSelectedDeadStockAgingDays] = useState('90');
+  const [deadStockAgingMenuOpen, setDeadStockAgingMenuOpen] = useState(false);
   const [inventoryHealthHeaderTooltip, setInventoryHealthHeaderTooltip] = useState<{
     key: string;
     x: number;
@@ -2425,6 +2463,83 @@ export default function App() {
       },
     ];
   }, [activeInventorySnapshots, selectedInventoryDate]);
+
+  const inventorySnapshotLocationSummaryLabel =
+    selectedInventorySnapshotLocation.length === inventoryLocationOptions.length
+      ? 'Inventory Locations'
+      : formatMultiSelectLabel(selectedInventorySnapshotLocation, 'Inventory Locations', 'location', 'locations');
+
+  const activeInventorySnapshotStores = useMemo(
+    () =>
+      inventoryStoreSnapshots.filter((snapshot) =>
+        selectedInventorySnapshotLocation.includes(inventoryStoreLocations[snapshot.store])
+      ),
+    [selectedInventorySnapshotLocation]
+  );
+
+  const activeInventorySnapshotHealthProducts = useMemo(
+    () => inventoryHealthProducts.filter((product) => selectedInventorySnapshotLocation.includes(product.location)),
+    [selectedInventorySnapshotLocation]
+  );
+
+  const inventorySnapshotCards = useMemo(() => {
+    const sumHealthMetric = (
+      metricKey: keyof Pick<
+        InventoryHealthProduct,
+        'onHandQuantity' | 'committedQuantity' | 'availableQuantity' | 'deadStocks' | 'inventoryAging'
+      >
+    ) => activeInventorySnapshotHealthProducts.reduce((sum, product) => sum + product[metricKey], 0);
+
+    const onHand = Math.round(sumHealthMetric('onHandQuantity'));
+    const committed = Math.round(sumHealthMetric('committedQuantity'));
+    const availableForSale = Math.round(sumHealthMetric('availableQuantity'));
+    const deadStocks = Math.round(sumHealthMetric('deadStocks'));
+    const agingRiskUnits = Math.round(sumHealthMetric('inventoryAging') * 0.1);
+
+    const stockoutMultiplier =
+      inventoryDateMultipliers[selectedInventorySnapshotStockoutDate] ?? inventoryDateMultipliers['Last 30 Days'];
+    const stockoutProducts = Math.round(
+      activeInventorySnapshotStores.reduce(
+        (sum, snapshot) => sum + snapshot.stockoutProducts.current * stockoutMultiplier.current,
+        0
+      )
+    );
+    const stockoutTotalProducts = Math.round(
+      activeInventorySnapshotStores.reduce(
+        (sum, snapshot) => sum + snapshot.totalProducts.current * stockoutMultiplier.current,
+        0
+      )
+    );
+    const stockoutPercent = stockoutTotalProducts === 0 ? 0 : (stockoutProducts / stockoutTotalProducts) * 100;
+
+    const baseMultiplier = inventoryDateMultipliers['Last 30 Days'].current;
+    const inbound = Math.round(
+      activeInventorySnapshotStores.reduce((sum, snapshot) => sum + snapshot.inboundQuantity.current * baseMultiplier, 0)
+    );
+    const unfulfilled = Math.round(deadStocks + agingRiskUnits);
+    const outOfStockProducts = Math.round(
+      activeInventorySnapshotStores.reduce((sum, snapshot) => sum + snapshot.stockoutProducts.current * baseMultiplier, 0)
+    );
+    const reorderThresholdProducts = Math.round(
+      activeInventorySnapshotStores.reduce((sum, snapshot) => sum + snapshot.reorderProducts.current * baseMultiplier, 0)
+    );
+
+    return [
+      { label: 'On-hand', value: onHand.toLocaleString('en-US') },
+      { label: 'Committed', value: committed.toLocaleString('en-US') },
+      { label: 'Available for Sale', value: availableForSale.toLocaleString('en-US') },
+      { label: 'Inbound (Incoming Inventory)', value: inbound.toLocaleString('en-US') },
+      { label: 'Unfulfilled or Damaged', value: unfulfilled.toLocaleString('en-US') },
+      {
+        label: 'Stockout Percentage',
+        value: `${stockoutPercent.toFixed(1)}%`,
+        meta: `${stockoutProducts.toLocaleString('en-US')} products`,
+        hasDateFilter: true
+      },
+      { label: 'Out of Stock Products', value: outOfStockProducts.toLocaleString('en-US') },
+      { label: 'Products in Reorder Threshold', value: reorderThresholdProducts.toLocaleString('en-US') }
+    ];
+  }, [activeInventorySnapshotHealthProducts, activeInventorySnapshotStores, selectedInventorySnapshotStockoutDate]);
 
   const inventoryValueTrend = useMemo(() => {
     const multiplier = inventoryDateMultipliers[selectedInventoryDate] ?? inventoryDateMultipliers['Last 30 Days'];
@@ -2954,22 +3069,9 @@ export default function App() {
   }, [inventoryHealthFilteredProducts, inventoryHealthSort]);
 
   const inventoryHealthVisibleProducts = useMemo(
-    () => inventoryHealthSortedProducts.slice(0, visibleInventoryHealthRows),
-    [inventoryHealthSortedProducts, visibleInventoryHealthRows]
+    () => inventoryHealthSortedProducts.slice(0, inventoryHealthDisplayLimit),
+    [inventoryHealthSortedProducts]
   );
-
-  useEffect(() => {
-    setVisibleInventoryHealthRows(20);
-  }, [
-    activeInventoryHealthFilters,
-    inventoryHealthSearchTerm,
-    selectedInventoryHealthFilters,
-    inventoryHealthSort.direction,
-    inventoryHealthSort.key,
-    selectedInventoryHealthDate,
-    selectedInventoryHealthLocation,
-    selectedInventoryHealthSearchField
-  ]);
 
   const handleInventoryHealthSort = (key: InventoryHealthSortKey) => {
     setInventoryHealthSort((current) => {
@@ -2980,13 +3082,42 @@ export default function App() {
     });
   };
 
-  const handleInventoryHealthScroll = (event: { currentTarget: HTMLDivElement }) => {
-    const target = event.currentTarget;
-    const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 18;
-    if (!nearBottom) return;
-    setVisibleInventoryHealthRows((current) =>
-      Math.min(current + 20, inventoryHealthSortedProducts.length)
+  const getInventoryHealthExportCellValue = (product: InventoryHealthProduct, columnKey: InventoryHealthSortKey) => {
+    if (columnKey === 'name') return `${product.name} (${product.sku})`;
+    if (columnKey === 'quantityIn') return product.quantityIn.toLocaleString('en-US');
+    if (columnKey === 'quantityOut') return product.quantityOut.toLocaleString('en-US');
+    if (columnKey === 'deadStocks') return product.deadStocks.toLocaleString('en-US');
+    if (columnKey === 'salesVelocity') return `${product.salesVelocity.toFixed(1)} units/day`;
+    if (columnKey === 'stockToSalesRatio') return `${product.stockToSalesRatio.toFixed(2)}x`;
+    if (columnKey === 'inventoryTurnoverRatio') return `${product.inventoryTurnoverRatio.toFixed(2)}x`;
+    return '';
+  };
+
+  const escapeCsvCell = (value: string) => {
+    if (!/[",\n]/.test(value)) return value;
+    return `"${value.replace(/"/g, '""')}"`;
+  };
+
+  const handleInventoryHealthExport = () => {
+    if (inventoryHealthVisibleProducts.length === 0) return;
+
+    const headerRow = inventoryHealthVisibleColumns.map((column) => column.label);
+    const dataRows = inventoryHealthVisibleProducts.map((product) =>
+      inventoryHealthVisibleColumns.map((column) => getInventoryHealthExportCellValue(product, column.key))
     );
+    const csv = [headerRow, ...dataRows].map((row) => row.map(escapeCsvCell).join(',')).join('\n');
+
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date();
+    const fileStamp = `${timestamp.getFullYear()}${String(timestamp.getMonth() + 1).padStart(2, '0')}${String(timestamp.getDate()).padStart(2, '0')}-${String(timestamp.getHours()).padStart(2, '0')}${String(timestamp.getMinutes()).padStart(2, '0')}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `inventory-health-table-${fileStamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const renderInventoryHealthSortIcon = (key: InventoryHealthSortKey) => {
@@ -3629,7 +3760,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-9">
+                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
                         {dynamicInventoryMetricCards.map((metric, index) => {
                           const isPrimaryInventoryValueCard = index === 0;
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
@@ -3643,47 +3774,52 @@ export default function App() {
                               key={metric.label}
                               role="button"
                               tabIndex={0}
-                              className={`tu-group tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] ${
+                              className={`tu-group tu-relative tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] ${
                                 isPrimaryInventoryValueCard
-                                  ? 'tu-p-3 xl:tu-col-span-3'
-                                  : 'tu-p-2.5 xl:tu-col-span-2'
+                                  ? 'tu-p-3 xl:tu-col-span-1'
+                                  : 'tu-p-2.5 xl:tu-col-span-1'
                               }`}
                             >
                               <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                                 <div className="tu-min-w-0">
                                   {isPrimaryInventoryValueCard ? (
-                                    <div className="tu-grid tu-gap-6 sm:tu-grid-cols-[1.18fr_auto_0.82fr] sm:tu-items-start">
-                                      <div className="tu-min-w-0">
-                                        <div className="tu-group/tooltip tu-relative tu-inline-block">
-                                          <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
-                                          <InfoTooltip text={inventoryKpiTooltips[metric.label]} widthClass="tu-w-[240px]" />
-                                        </div>
-                                        <p className="tu-mt-1 tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
-
-                                        <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                                          <div className="tu-relative">
-                                            <button
-                                              type="button"
-                                              onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
-                                              onMouseLeave={() => setHoveredInventoryKpi(null)}
-                                              className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
-                                            >
-                                              {metric.trend}
-                                              <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                            </button>
-                                            {hoveredInventoryKpi === metric.label ? (
-                                              <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
-                                            ) : null}
+                                    <div className="tu-min-w-0">
+                                      <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                        <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
+                                        <InfoTooltip text={inventoryKpiTooltips[metric.label]} widthClass="tu-w-[240px]" />
+                                      </div>
+                                      <div className="tu-group/tooltip tu-absolute tu-right-3 tu-top-3 tu-inline-flex">
+                                        <span className="tu-inline-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d8ddd5] tu-text-[10px] tu-font-medium tu-text-[#7f858d]">
+                                          ?
+                                        </span>
+                                        <div className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-right-0 tu-z-30 tu-w-[240px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100">
+                                          <p className="tu-leading-5">Products involved in inventory value calculation</p>
+                                          <div className="tu-mt-2">
+                                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-bg-white/10 tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#f2f4f1]">
+                                              <span>{metric.secondaryValue ?? '0'}</span>
+                                              <span>Products</span>
+                                            </span>
                                           </div>
-                                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                                         </div>
                                       </div>
+                                      <p className="tu-mt-1 tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
 
-                                      <div className="tu-hidden sm:tu-block tu-h-[86px] tu-w-px tu-self-center tu-bg-[#d7dcd4]" />
-
-                                      <div className="tu-min-w-0 sm:tu-pl-2">
-                                        <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.secondaryLabel}</span>
-                                        <p className="tu-mt-1 tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.secondaryValue}</p>
+                                      <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                                        <div className="tu-relative">
+                                          <button
+                                            type="button"
+                                            onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
+                                            onMouseLeave={() => setHoveredInventoryKpi(null)}
+                                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                                          >
+                                            {metric.trend}
+                                            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                          </button>
+                                          {hoveredInventoryKpi === metric.label ? (
+                                            <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                          ) : null}
+                                        </div>
+                                        <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                                       </div>
                                     </div>
                                   ) : (
@@ -3816,6 +3952,120 @@ export default function App() {
                     </div>
                   </article>
                 </section>
+                {true ? (
+                <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                  <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                    <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Snapshot</h2>
+
+                    <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInventorySnapshotMenus((current) => ({
+                              location: !current.location,
+                              stockoutDate: false
+                            }));
+                            setInventorySnapshotMenuSearch({ location: '' });
+                          }}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          <span>{inventorySnapshotLocationSummaryLabel}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+
+                        <SearchableDropdownMenu
+                          open={inventorySnapshotMenus.location}
+                          options={inventoryLocationOptions}
+                          selected={selectedInventorySnapshotLocation}
+                          multiSelect
+                          searchable
+                          searchValue={inventorySnapshotMenuSearch.location}
+                          onSearchChange={(value) => setInventorySnapshotMenuSearch({ location: value })}
+                          widthClass="tu-w-[230px]"
+                          onSelect={(item) => setSelectedInventorySnapshotLocation((current) => toggleMultiSelectValue(current, item))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
+                    {inventorySnapshotCards.map((card) => {
+                      const isStockoutCard = Boolean(card.hasDateFilter);
+                      return (
+                      <article
+                        key={card.label}
+                        className={`tu-group/card tu-relative tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] ${
+                          isStockoutCard ? 'tu-p-2.5' : 'tu-p-3'
+                        }`}
+                      >
+                        {!isStockoutCard ? (
+                          <a
+                            href="/reports"
+                            className="tu-absolute tu-right-3 tu-top-3 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
+                          >
+                            <span>See reports</span>
+                            <ChevronRight className="tu-h-4 tu-w-4" />
+                          </a>
+                        ) : null}
+
+                        <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
+                            <span className="tu-text-[13px] tu-text-[#9a9ca2]">{card.label}</span>
+                            <InfoTooltip
+                              text={inventorySnapshotKpiTooltips[card.label]}
+                              widthClass={card.label.includes('Stockout') ? 'tu-w-[280px]' : 'tu-w-[240px]'}
+                            />
+                          </div>
+
+                          {card.hasDateFilter ? (
+                            <div className="tu-relative">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setInventorySnapshotMenus((current) => ({
+                                    location: false,
+                                    stockoutDate: !current.stockoutDate
+                                  }))
+                                }
+                                className="tu-inline-flex tu-items-center tu-gap-1 tu-rounded-[8px] tu-px-1.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c] transition-colors hover:tu-bg-[#f3f5f1] hover:tu-text-[#2a2c2f]"
+                              >
+                                <span>{selectedInventorySnapshotStockoutDate}</span>
+                                <ChevronDown className="tu-h-3 tu-w-3" />
+                              </button>
+                              <SearchableDropdownMenu
+                                open={inventorySnapshotMenus.stockoutDate}
+                                options={inventoryDateOptions}
+                                selected={selectedInventorySnapshotStockoutDate}
+                                searchable={false}
+                                widthClass="tu-w-[170px]"
+                                onSelect={(item) => {
+                                  setSelectedInventorySnapshotStockoutDate(item);
+                                  setInventorySnapshotMenus((current) => ({ ...current, stockoutDate: false }));
+                                }}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className={`${card.hasDateFilter ? 'tu-mt-1.5' : 'tu-mt-2'} tu-flex tu-items-center tu-gap-2.5`}>
+                          <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{card.value}</p>
+                          {card.meta && isStockoutCard ? (
+                            <>
+                              <span className="tu-h-7 tu-w-px tu-bg-[#dfe6de]" />
+                              <span className="tu-text-[16px] tu-font-medium tu-leading-none tu-text-[#5f656c]">{card.meta}</span>
+                            </>
+                          ) : null}
+                        </div>
+                        {card.meta && !isStockoutCard ? (
+                          <p className="tu-mt-1 tu-text-[12px] tu-font-medium tu-text-[#8e9299]">{card.meta}</p>
+                        ) : null}
+                      </article>
+                    )})}
+                  </div>
+                </section>
+                ) : null}
+                {false ? (
                 <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Movements</h2>
@@ -3926,7 +4176,7 @@ export default function App() {
                     <article
                       role="button"
                       tabIndex={0}
-                      className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)]"
+                      className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]"
                     >
                       <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
                         <a
@@ -4072,6 +4322,7 @@ export default function App() {
                     </div>
                   </div>
                 </section>
+                ) : null}
                 <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Health Tracking</h2>
@@ -4110,7 +4361,6 @@ export default function App() {
                           }}
                         />
                       </div>
-                      <span className="tu-inline-flex tu-h-9 tu-items-center tu-text-[#c2c8c0]">|</span>
                       {activeInventoryHealthFilters.map((filterKey) => (
                         <div key={filterKey} className="tu-relative">
                           <button
@@ -4208,6 +4458,16 @@ export default function App() {
                           />
                         </div>
                       ))}
+                      <span className="tu-inline-flex tu-h-9 tu-items-center tu-text-[#c2c8c0]">|</span>
+                      <button
+                        type="button"
+                        onClick={handleInventoryHealthExport}
+                        disabled={inventoryHealthVisibleProducts.length === 0}
+                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#10c562] tu-bg-[#10c562] tu-px-3.5 tu-text-[12px] tu-font-semibold tu-text-white tu-shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-colors hover:tu-bg-[#0ea856] hover:tu-border-[#0ea856] disabled:tu-cursor-not-allowed disabled:tu-opacity-50"
+                      >
+                        <Download className="tu-h-3.5 tu-w-3.5" />
+                        <span>Export</span>
+                      </button>
                     </div>
                   </div>
                   <div className="tu-mt-4 tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row sm:tu-items-center">
@@ -4252,7 +4512,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8]">
-                    <div className="tu-max-h-[520px] tu-overflow-auto" onScroll={handleInventoryHealthScroll}>
+                    <div className="tu-max-h-[520px] tu-overflow-auto">
                       <table className="tu-w-full tu-min-w-max tu-border-collapse">
                         <thead className="tu-sticky tu-top-0 tu-z-10 tu-bg-[#f8faf7]">
                           <tr className="tu-border-b tu-border-[#e8ece5]">
@@ -4261,26 +4521,94 @@ export default function App() {
                                 key={column.key}
                                 className={`tu-px-3 tu-py-2.5 tu-text-left ${column.key === 'name' ? 'tu-w-[360px] tu-min-w-[360px]' : ''}`}
                               >
-                                <button
-                                  type="button"
-                                  onClick={() => handleInventoryHealthSort(column.key)}
-                                  onMouseEnter={(event) => {
-                                    const rect = event.currentTarget.getBoundingClientRect();
-                                    setInventoryHealthHeaderTooltip({
-                                      key: column.tooltipKey,
-                                      x: Math.max(12, rect.left),
-                                      y: Math.max(12, rect.top - 12)
-                                    });
-                                  }}
-                                  onMouseLeave={() => setInventoryHealthHeaderTooltip(null)}
-                                  className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
-                                >
-                                  <span className="tu-text-left">
-                                    <span className="tu-block">{column.label}</span>
-                                    {column.subtitle ? <span className="tu-block tu-text-[11px] tu-font-medium">{column.subtitle}</span> : null}
-                                  </span>
-                                  {renderInventoryHealthSortIcon(column.key)}
-                                </button>
+                                {column.key === 'deadStocks' ? (
+                                  <div className="tu-relative">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleInventoryHealthSort(column.key)}
+                                      onMouseEnter={(event) => {
+                                        const rect = event.currentTarget.getBoundingClientRect();
+                                        setInventoryHealthHeaderTooltip({
+                                          key: column.tooltipKey,
+                                          x: Math.max(12, rect.left),
+                                          y: Math.max(12, rect.top - 12)
+                                        });
+                                      }}
+                                      onMouseLeave={() => setInventoryHealthHeaderTooltip(null)}
+                                      className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                                    >
+                                      <span className="tu-text-left">
+                                        <span className="tu-block">{column.label}</span>
+                                      </span>
+                                      {renderInventoryHealthSortIcon(column.key)}
+                                    </button>
+                                    <div className="tu-mt-0.5 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
+                                      <span>(Aging &gt; </span>
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setDeadStockAgingMenuOpen((current) => !current);
+                                        }}
+                                        className="tu-inline-flex tu-items-center tu-gap-0.5 tu-text-[11px] tu-font-normal tu-text-[#5f656c] hover:tu-text-[#2a2c2f]"
+                                        style={{ fontFamily: 'Poppins, sans-serif' }}
+                                      >
+                                        <span>{selectedDeadStockAgingDays}</span>
+                                        <span>Days</span>
+                                        <ChevronDown className="tu-h-3 tu-w-3" />
+                                      </button>
+                                      <span>)</span>
+                                    </div>
+                                    {deadStockAgingMenuOpen ? (
+                                      <div className="tu-absolute tu-left-0 tu-top-[calc(100%+6px)] tu-z-30 tu-w-[88px] tu-rounded-[10px] tu-border tu-border-[#e6e7e4] tu-bg-white tu-p-1.5 tu-shadow-[0_10px_24px_rgba(31,41,55,0.14)]">
+                                        <div className="tu-space-y-0.5">
+                                          {deadStockAgingDayOptions.map((item) => {
+                                            const isSelected = selectedDeadStockAgingDays === item;
+                                            return (
+                                              <button
+                                                key={item}
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedDeadStockAgingDays(item);
+                                                  setDeadStockAgingMenuOpen(false);
+                                                }}
+                                                className={`tu-flex tu-h-7 tu-w-full tu-items-center tu-justify-center tu-rounded-[7px] tu-text-[11px] tu-font-normal ${
+                                                  isSelected
+                                                    ? 'tu-bg-[#f3f5f1] tu-text-[#2a2c2f]'
+                                                    : 'tu-text-[#3f444a] hover:tu-bg-[#f7f8f5]'
+                                                }`}
+                                                style={{ fontFamily: 'Poppins, sans-serif' }}
+                                              >
+                                                {item}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleInventoryHealthSort(column.key)}
+                                    onMouseEnter={(event) => {
+                                      const rect = event.currentTarget.getBoundingClientRect();
+                                      setInventoryHealthHeaderTooltip({
+                                        key: column.tooltipKey,
+                                        x: Math.max(12, rect.left),
+                                        y: Math.max(12, rect.top - 12)
+                                      });
+                                    }}
+                                    onMouseLeave={() => setInventoryHealthHeaderTooltip(null)}
+                                    className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold tu-text-[#5f656c]"
+                                  >
+                                    <span className="tu-text-left">
+                                      <span className="tu-block">{column.label}</span>
+                                      {column.subtitle ? <span className="tu-block tu-text-[11px] tu-font-medium">{column.subtitle}</span> : null}
+                                    </span>
+                                    {renderInventoryHealthSortIcon(column.key)}
+                                  </button>
+                                )}
                               </th>
                             ))}
                           </tr>
@@ -4302,14 +4630,11 @@ export default function App() {
                                       </div>
                                     </div>
                                   ) : null}
-                                  {column.key === 'onHandQuantity' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.onHandQuantity.toLocaleString('en-US')}</span>
+                                  {column.key === 'quantityIn' ? (
+                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.quantityIn.toLocaleString('en-US')}</span>
                                   ) : null}
-                                  {column.key === 'committedQuantity' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.committedQuantity.toLocaleString('en-US')}</span>
-                                  ) : null}
-                                  {column.key === 'availableQuantity' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.availableQuantity.toLocaleString('en-US')}</span>
+                                  {column.key === 'quantityOut' ? (
+                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.quantityOut.toLocaleString('en-US')}</span>
                                   ) : null}
                                   {column.key === 'deadStocks' ? (
                                     <span className="tu-text-[13px] tu-text-[#333538]">{product.deadStocks.toLocaleString('en-US')}</span>
@@ -4317,14 +4642,11 @@ export default function App() {
                                   {column.key === 'salesVelocity' ? (
                                     <span className="tu-text-[13px] tu-text-[#333538]">{product.salesVelocity.toFixed(1)} units/day</span>
                                   ) : null}
-                                  {column.key === 'daysUntilStockout' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.daysUntilStockout} days</span>
+                                  {column.key === 'stockToSalesRatio' ? (
+                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.stockToSalesRatio.toFixed(2)}x</span>
                                   ) : null}
-                                  {column.key === 'overstockPercentage' ? (
-                                    <div className="tu-inline-flex tu-flex-col tu-items-center">
-                                      <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{product.overstockPercentage.toFixed(1)}%</span>
-                                      <span className="tu-text-[12px] tu-text-[#8f949b]">PKR {product.overstockValue.toLocaleString('en-US')}</span>
-                                    </div>
+                                  {column.key === 'inventoryTurnoverRatio' ? (
+                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.inventoryTurnoverRatio.toFixed(2)}x</span>
                                   ) : null}
                                 </td>
                               ))}
@@ -4337,11 +4659,11 @@ export default function App() {
                       <p className="tu-text-[12px] tu-text-[#7f838a]">
                         Showing {inventoryHealthVisibleProducts.length.toLocaleString('en-US')} of {inventoryHealthSortedProducts.length.toLocaleString('en-US')} products
                       </p>
-                      {inventoryHealthVisibleProducts.length < inventoryHealthSortedProducts.length ? (
-                        <p className="tu-text-[11px] tu-font-medium tu-text-[#8f949b]">Scroll down to load 20 more</p>
-                      ) : (
-                        <p className="tu-text-[11px] tu-font-medium tu-text-[#8f949b]">All products loaded</p>
-                      )}
+                      <p className="tu-text-[11px] tu-font-medium tu-text-[#8f949b]">
+                        {inventoryHealthVisibleProducts.length < inventoryHealthSortedProducts.length
+                          ? `Displaying first ${inventoryHealthDisplayLimit} products. Use Export for table data.`
+                          : 'Use Export to download table data.'}
+                      </p>
                     </div>
                   </div>
                   {inventoryHealthHeaderTooltip ? (
