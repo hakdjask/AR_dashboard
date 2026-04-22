@@ -6274,7 +6274,7 @@ export default function App() {
                                         {metric.value}
                                       </button>
                                       {showBreakdownPopover ? (
-                                        <div className="tu-absolute tu-bottom-[calc(100%+10px)] tu-left-0 tu-z-20 tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+                                        <div className="tu-absolute tu-right-[calc(100%+10px)] tu-top-0 tu-z-20 tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
                                           <div className="tu-space-y-1.5">
                                             {breakdownRows.map((item) => (
                                               <div
