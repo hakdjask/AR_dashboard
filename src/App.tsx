@@ -5200,10 +5200,10 @@ export default function App() {
 
                               {metricHoverOpen ? (
                                 <div
-                                  className={`tu-absolute tu-z-20 tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)] ${
+                                  className={`tu-absolute tu-z-[120] tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)] ${
                                     metric.key === 'netProfit'
                                       ? 'tu-left-auto tu-right-0 tu-top-[calc(100%+10px)] before:tu-top-[-7px] before:tu-right-[34px] before:tu-border-l before:tu-border-t'
-                                      : 'tu-bottom-[calc(100%+10px)] tu-left-0 before:tu-bottom-[-7px] before:tu-left-[34px] before:tu-border-b before:tu-border-r'
+                                      : 'tu-left-0 tu-top-[calc(100%+10px)] before:tu-top-[-7px] before:tu-left-[34px] before:tu-border-l before:tu-border-t'
                                   } before:tu-absolute before:tu-h-3.5 before:tu-w-3.5 before:tu-rotate-45 before:tu-border-[#ededed] before:tu-bg-white before:tu-content-['']`}
                                 >
                                   <div className="tu-space-y-1.5">
@@ -5235,7 +5235,7 @@ export default function App() {
                               ) : null}
 
                               {trendHoverOpen ? (
-                                <div className="tu-absolute tu-bottom-[calc(100%+10px)] tu-left-0 tu-z-20 tu-w-[245px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+                                <div className="tu-absolute tu-left-0 tu-top-[calc(100%+10px)] tu-z-[120] tu-w-[245px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
                                   <div className="tu-border-b tu-border-[#eceee8] tu-px-4 tu-py-2.5">
                                     <h3 className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">
                                       Current vs Previous Period
