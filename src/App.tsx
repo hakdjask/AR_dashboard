@@ -778,14 +778,6 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
     blocks: [
       { type: 'text', text: 'Total orders booked across selected stores and period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Total Orders = Sum of Orders Across Selected Stores' }
-    ]
-  },
-  'Total Orders': {
-    title: 'Total Orders',
-    blocks: [
-      { type: 'text', text: 'Total orders booked across selected stores and period.' },
-      { type: 'spacer' },
       { type: 'formula', text: 'Total Orders = Count of Orders with Booked Status' }
     ]
   },
@@ -1296,12 +1288,33 @@ const inventoryDateMultipliers: Record<string, { current: number; previous: numb
   'Last 365 Days': { current: 11.4, previous: 10.8 },
   Custom: { current: 1, previous: 0.95 }
 };
+const salesDateMultipliers: Record<string, { current: number; previous: number }> = {
+  'Last 7 Days': { current: 0.4, previous: 0.33 },
+  'Last 30 Days': { current: 1, previous: 0.9 },
+  'Last 90 Days': { current: 2.5, previous: 2.2 },
+  'Last 365 Days': { current: 9.4, previous: 8.8 },
+  Custom: { current: 1.15, previous: 1.02 }
+};
+const salesDatePointCount: Record<string, number> = {
+  'Last 7 Days': 7,
+  'Last 30 Days': 15,
+  'Last 90 Days': 15,
+  'Last 365 Days': 15,
+  Custom: 12
+};
 const inventoryDateDayCount: Record<string, number> = {
   'Last 7 Days': 7,
   'Last 30 Days': 30,
   'Last 90 Days': 90,
   'Last 365 Days': 365,
   Custom: 30
+};
+const salesStoreRegionMap: Record<string, string> = {
+  'Daraz-02': 'Sindh',
+  'Shopify-01': 'Punjab',
+  'WOO-01': 'Khyber Pakhtunkhwa',
+  'Shopify-02': 'Balochistan',
+  'Shopify-03': 'Gilgit Baltistan'
 };
 
 const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
@@ -2319,7 +2332,7 @@ export default function App() {
     inventoryHealthColumnBlueprint.map((column) => ({ ...column, visible: true }))
   );
   const [draggedInventoryHealthColumnKey, setDraggedInventoryHealthColumnKey] = useState<InventoryHealthSortKey | null>(null);
-  const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>(salesStoreOptions);
+  const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>([salesStoreOptions[0]]);
   const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Sales');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
   const [selectedSalesGroupBy, setSelectedSalesGroupBy] = useState('Days');
@@ -2414,6 +2427,10 @@ export default function App() {
     () => storeSeries.filter((series) => selectedSalesStore.includes(series.name)),
     [selectedSalesStore]
   );
+  const selectedSalesStoreName = selectedSalesStore[0] ?? salesStoreOptions[0];
+  const activeSelectedSalesStore = activeSalesStoreSeries.find((series) => series.name === selectedSalesStoreName) ?? storeSeries[0];
+  const selectedSalesStoreRegion = salesStoreRegionMap[selectedSalesStoreName] ?? '';
+  const isSelectedSalesStoreInRegion = selectedSalesRegion.includes(selectedSalesStoreRegion);
   const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
   const selectedGlancePeriodKey: PeriodKey =
     selectedGlanceDate === 'Last 365 Days'
@@ -2459,13 +2476,14 @@ export default function App() {
     }));
   }, [sectionSixMetricSections]);
   const dynamicSalesMetricCards = useMemo(() => {
-    const currentSnapshot = dayBreakdown[dayBreakdown.length - 1]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
-    const previousSnapshot = dayBreakdown[dayBreakdown.length - 2]?.stores.filter((store) => selectedSalesStore.includes(store.name)) ?? [];
-
-    const totalOrdersCurrent = currentSnapshot.reduce((sum, store) => sum + store.totalOrders, 0);
-    const totalOrdersPrevious = previousSnapshot.reduce((sum, store) => sum + store.totalOrders, 0);
-    const totalOrdersDirection = totalOrdersCurrent >= totalOrdersPrevious ? ('up' as const) : ('down' as const);
-    const totalOrdersTrend = `${getPercentDelta(totalOrdersCurrent, totalOrdersPrevious).toFixed(1)}%`;
+    const currentSnapshot =
+      dayBreakdown[dayBreakdown.length - 1]?.stores.filter((store) =>
+        selectedSalesRegion.includes(salesStoreRegionMap[store.name] ?? '')
+      ) ?? [];
+    const previousSnapshot =
+      dayBreakdown[dayBreakdown.length - 2]?.stores.filter((store) =>
+        selectedSalesRegion.includes(salesStoreRegionMap[store.name] ?? '')
+      ) ?? [];
 
     const metricKey = selectedStoreMetricConfig.key;
     const metricLabelMap = {
@@ -2494,6 +2512,18 @@ export default function App() {
     const previousMetricTotal = previousSnapshot.reduce((sum, store) => sum + store[metricKey], 0);
     const metricDirection = getStoreMetricDirection(selectedSalesMetric, currentMetricTotal, previousMetricTotal);
     const metricTrend = `${getPercentDelta(currentMetricTotal, previousMetricTotal).toFixed(1)}%`;
+    const selectedStoreCurrentSnapshot = currentSnapshot.find((store) => store.name === selectedSalesStoreName);
+    const selectedStorePreviousSnapshot = previousSnapshot.find((store) => store.name === selectedSalesStoreName);
+    const selectedStoreMetricCurrent = selectedStoreCurrentSnapshot?.[metricKey] ?? 0;
+    const selectedStoreMetricPrevious = selectedStorePreviousSnapshot?.[metricKey] ?? 0;
+    const selectedStoreMetricDirection = getStoreMetricDirection(selectedSalesMetric, selectedStoreMetricCurrent, selectedStoreMetricPrevious);
+    const selectedStoreMetricTrend = `${getPercentDelta(selectedStoreMetricCurrent, selectedStoreMetricPrevious).toFixed(1)}%`;
+    const selectedStoreMetricLabel =
+      selectedSalesMetric === 'Gross Sales'
+        ? `Gross Sales of ${selectedSalesStoreName}`
+        : selectedSalesMetric === 'Units Sold'
+          ? `Units Sold by ${selectedSalesStoreName}`
+          : `Order Returns by ${selectedSalesStoreName}`;
 
     const currentAverage = currentSnapshot.length > 0 ? currentMetricTotal / currentSnapshot.length : 0;
     const previousAverage = previousSnapshot.length > 0 ? previousMetricTotal / previousSnapshot.length : 0;
@@ -2522,17 +2552,6 @@ export default function App() {
 
     return [
       {
-        label: 'Total Orders',
-        value: totalOrdersCurrent.toLocaleString('en-US'),
-        trend: totalOrdersTrend,
-        direction: totalOrdersDirection,
-        comparison: {
-          current: totalOrdersCurrent.toLocaleString('en-US'),
-          previous: totalOrdersPrevious.toLocaleString('en-US'),
-          change: Math.abs(totalOrdersCurrent - totalOrdersPrevious).toLocaleString('en-US')
-        }
-      },
-      {
         label: metricLabels.total,
         value: formatStoreMetricValue(selectedSalesMetric, currentMetricTotal),
         trend: metricTrend,
@@ -2542,6 +2561,18 @@ export default function App() {
           previous: formatStoreMetricValue(selectedSalesMetric, previousMetricTotal),
           change: formatStoreMetricDelta(selectedSalesMetric, currentMetricTotal - previousMetricTotal)
         }
+      },
+      {
+        label: selectedStoreMetricLabel,
+        value: formatStoreMetricValue(selectedSalesMetric, selectedStoreMetricCurrent),
+        trend: selectedStoreMetricTrend,
+        direction: selectedStoreMetricDirection,
+        comparison: {
+          current: formatStoreMetricValue(selectedSalesMetric, selectedStoreMetricCurrent),
+          previous: formatStoreMetricValue(selectedSalesMetric, selectedStoreMetricPrevious),
+          change: formatStoreMetricDelta(selectedSalesMetric, selectedStoreMetricCurrent - selectedStoreMetricPrevious)
+        },
+        tooltipText: `${selectedSalesMetric} for ${selectedSalesStoreName} in the selected period.`
       },
       {
         label: metricLabels.top,
@@ -2579,12 +2610,9 @@ export default function App() {
         hideTrend: true
       }
     ];
-  }, [activeSalesStoreSeries, selectedSalesMetric, selectedSalesStore, selectedStoreMetricConfig]);
+  }, [selectedSalesMetric, selectedSalesRegion, selectedSalesStoreName, selectedStoreMetricConfig]);
 
-  const salesStoreSummaryLabel =
-    selectedSalesStore.length === salesStoreOptions.length
-      ? 'All Stores'
-      : formatMultiSelectLabel(selectedSalesStore, 'Select Stores', 'store', 'stores');
+  const salesStoreSummaryLabel = selectedSalesStoreName;
 
   const inventoryLocationSummaryLabel =
     selectedInventoryRegion.length === inventoryLocationOptions.length
@@ -3399,61 +3427,157 @@ export default function App() {
     );
   };
 
+  const salesDateAdjusted = useMemo(() => {
+    const sourceSeries = activeSelectedSalesStore[selectedStoreMetricConfig.key];
+    const totalPoints = salesDatePointCount[selectedSalesDate] ?? salesDatePointCount['Last 30 Days'];
+    const startIndex = Math.max(0, salesChartLabels.length - totalPoints);
+    const visibleSeries = sourceSeries.slice(startIndex);
+    const dateScale = salesDateMultipliers[selectedSalesDate] ?? salesDateMultipliers['Last 30 Days'];
+    const regionScale = isSelectedSalesStoreInRegion ? 1 : 0;
+    const currentScale = dateScale.current * regionScale;
+    const previousScale = dateScale.previous * regionScale;
+
+    const current = visibleSeries.map((value) => Math.round(value * currentScale));
+    const previous = visibleSeries.map((value, index) => {
+      const drift = 0.9 + deterministicNoise((index + 1) * (selectedSalesStoreName.length + 5)) * 0.2;
+      return Math.round(value * previousScale * drift);
+    });
+
+    const sourceOrdersSeries = salesChartLabels.map((_, index) => {
+      const snapshot = dayBreakdown[index % dayBreakdown.length];
+      const selectedStoreSnapshot = snapshot?.stores.find((store) => store.name === selectedSalesStoreName);
+      return selectedStoreSnapshot?.totalOrders ?? 0;
+    });
+    const visibleOrders = sourceOrdersSeries.slice(startIndex);
+    const currentOrders = visibleOrders.map((value) => Math.round(value * currentScale));
+    const previousOrders = visibleOrders.map((value, index) => {
+      const drift = 0.92 + deterministicNoise((index + 11) * (selectedSalesStoreName.length + 7)) * 0.16;
+      return Math.round(value * previousScale * drift);
+    });
+
+    const dayStepMap: Record<string, number> = {
+      'Last 7 Days': 1,
+      'Last 30 Days': 2,
+      'Last 90 Days': 6,
+      'Last 365 Days': 24,
+      Custom: 2
+    };
+    const dayStep = dayStepMap[selectedSalesDate] ?? dayStepMap['Last 30 Days'];
+    const endDate = new Date();
+    endDate.setHours(0, 0, 0, 0);
+    const currentDates = Array.from({ length: visibleSeries.length }, (_, index) => {
+      const date = new Date(endDate);
+      date.setDate(endDate.getDate() - (visibleSeries.length - 1 - index) * dayStep);
+      return date;
+    });
+    const previousDates = currentDates.map((date) => {
+      const previousDate = new Date(date);
+      previousDate.setDate(date.getDate() - visibleSeries.length * dayStep);
+      return previousDate;
+    });
+
+    return {
+      currentDates,
+      previousDates,
+      current,
+      previous,
+      currentOrders,
+      previousOrders
+    };
+  }, [activeSelectedSalesStore, isSelectedSalesStoreInRegion, selectedSalesDate, selectedSalesStoreName, selectedStoreMetricConfig]);
+
   const groupedSalesChartData = useMemo(() => {
-    const sourceLabels = salesChartLabels;
+    const sourceCurrentDates = salesDateAdjusted.currentDates;
+    const sourcePreviousDates = salesDateAdjusted.previousDates;
+    const sourceCurrent = salesDateAdjusted.current;
+    const sourcePrevious = salesDateAdjusted.previous;
+    const sourceCurrentOrders = salesDateAdjusted.currentOrders;
+    const sourcePreviousOrders = salesDateAdjusted.previousOrders;
+
     const groupSizeMap: Record<string, number> = {
       Days: 1,
       Weeks: 3,
       Months: 5,
-      Years: Math.ceil(sourceLabels.length / 2)
+      Years: Math.ceil(sourceCurrent.length / 2)
     };
     const groupSize = groupSizeMap[selectedSalesGroupBy] ?? 1;
 
     const labels: string[] = [];
-    for (let index = 0; index < sourceLabels.length; index += groupSize) {
+    const currentDates: Date[] = [];
+    const previousDates: Date[] = [];
+    const current: number[] = [];
+    const previous: number[] = [];
+    const currentOrders: number[] = [];
+    const previousOrders: number[] = [];
+
+    for (let index = 0; index < sourceCurrent.length; index += groupSize) {
       const bucket = Math.floor(index / groupSize) + 1;
-      if (selectedSalesGroupBy === 'Days') labels.push(sourceLabels[index]);
+      const currentSlice = sourceCurrent.slice(index, index + groupSize);
+      const previousSlice = sourcePrevious.slice(index, index + groupSize);
+      const currentOrderSlice = sourceCurrentOrders.slice(index, index + groupSize);
+      const previousOrderSlice = sourcePreviousOrders.slice(index, index + groupSize);
+      const currentDateSlice = sourceCurrentDates.slice(index, index + groupSize);
+      const previousDateSlice = sourcePreviousDates.slice(index, index + groupSize);
+
+      if (selectedSalesGroupBy === 'Days') {
+        const labelDate = currentDateSlice[currentDateSlice.length - 1] ?? sourceCurrentDates[sourceCurrentDates.length - 1] ?? new Date();
+        labels.push(labelDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
+      }
       if (selectedSalesGroupBy === 'Weeks') labels.push(`Week ${bucket}`);
       if (selectedSalesGroupBy === 'Months') labels.push(`Month ${bucket}`);
       if (selectedSalesGroupBy === 'Years') labels.push(`Year ${bucket}`);
+
+      currentDates.push(currentDateSlice[currentDateSlice.length - 1] ?? sourceCurrentDates[sourceCurrentDates.length - 1] ?? new Date());
+      previousDates.push(
+        previousDateSlice[previousDateSlice.length - 1] ?? sourcePreviousDates[sourcePreviousDates.length - 1] ?? new Date()
+      );
+      current.push(currentSlice.reduce((sum, value) => sum + value, 0));
+      previous.push(previousSlice.reduce((sum, value) => sum + value, 0));
+      currentOrders.push(currentOrderSlice.reduce((sum, value) => sum + value, 0));
+      previousOrders.push(previousOrderSlice.reduce((sum, value) => sum + value, 0));
     }
 
-    const datasets = activeSalesStoreSeries.map((series) => {
-      const sourceSeries = series[selectedStoreMetricConfig.key];
-      const groupedValues: number[] = [];
-      for (let index = 0; index < sourceSeries.length; index += groupSize) {
-        groupedValues.push(sourceSeries.slice(index, index + groupSize).reduce((sum, value) => sum + value, 0));
-      }
-
-      return {
-        label: series.name,
-        data: groupedValues,
-        borderColor: series.color,
-        backgroundColor: series.color,
-        pointBackgroundColor: series.color,
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 1.5,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-        borderWidth: 2.5,
-        cubicInterpolationMode: 'monotone' as const,
-        tension: selectedSalesGroupBy === 'Days' ? 0.38 : 0.24
-      };
-    });
-
-    return { labels, datasets };
-  }, [activeSalesStoreSeries, selectedStoreMetricConfig, selectedSalesGroupBy]);
+    return { labels, currentDates, previousDates, current, previous, currentOrders, previousOrders };
+  }, [salesDateAdjusted, selectedSalesGroupBy]);
 
   const salesChartData = useMemo(
     () => ({
       labels: groupedSalesChartData.labels,
-      datasets: groupedSalesChartData.datasets
+      datasets: [
+        {
+          label: 'Current Period',
+          data: groupedSalesChartData.current,
+          borderColor: '#10c562',
+          backgroundColor: '#10c562',
+          pointBackgroundColor: '#10c562',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: 2.8,
+          pointHoverRadius: 4.5,
+          borderWidth: 2.2,
+          tension: 0.38
+        },
+        {
+          label: 'Previous Period',
+          data: groupedSalesChartData.previous,
+          borderColor: 'rgba(156,163,175,0.75)',
+          backgroundColor: 'rgba(156,163,175,0.75)',
+          pointBackgroundColor: 'rgba(156,163,175,0.75)',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: 2.8,
+          pointHoverRadius: 4.5,
+          borderWidth: 2.1,
+          tension: 0.38,
+          borderDash: [7, 6]
+        }
+      ]
     }),
     [groupedSalesChartData]
   );
 
   const salesChartOptions = useMemo(() => {
-    const allSeriesValues = groupedSalesChartData.datasets.flatMap((dataset) => dataset.data);
+    const allSeriesValues = [...groupedSalesChartData.current, ...groupedSalesChartData.previous];
     const currentMax = allSeriesValues.length > 0 ? Math.max(...allSeriesValues) : selectedStoreMetricConfig.axisMax;
     const paddedMax = Math.max(selectedStoreMetricConfig.axisMax, currentMax * 1.12);
     const roundingBase = paddedMax >= 1000 ? Math.pow(10, Math.floor(Math.log10(paddedMax)) - 1) : 10;
@@ -3539,16 +3663,26 @@ export default function App() {
         }
       }
     };
-  }, [groupedSalesChartData.datasets, groupedSalesChartData.labels, selectedSalesGroupBy, selectedStoreMetricConfig]);
+  }, [groupedSalesChartData, selectedSalesGroupBy, selectedStoreMetricConfig]);
 
   const salesTooltipData = hoveredSalesPoint
-    ? {
-        date: groupedSalesChartData.labels[hoveredSalesPoint.dataIndex] ?? '-',
-        stores: dayBreakdown[hoveredSalesPoint.dataIndex % dayBreakdown.length].stores.filter((store) =>
-          selectedSalesStore.includes(store.name)
-        ),
-        metric: selectedStoreMetricConfig
-      }
+    ? (() => {
+        const current = groupedSalesChartData.current[hoveredSalesPoint.dataIndex] ?? 0;
+        const previous = groupedSalesChartData.previous[hoveredSalesPoint.dataIndex] ?? 0;
+        return {
+          label: groupedSalesChartData.labels[hoveredSalesPoint.dataIndex] ?? '-',
+          currentDate: groupedSalesChartData.currentDates[hoveredSalesPoint.dataIndex] ?? new Date(),
+          previousDate: groupedSalesChartData.previousDates[hoveredSalesPoint.dataIndex] ?? new Date(),
+          current,
+          previous,
+          currentOrders: groupedSalesChartData.currentOrders[hoveredSalesPoint.dataIndex] ?? 0,
+          previousOrders: groupedSalesChartData.previousOrders[hoveredSalesPoint.dataIndex] ?? 0,
+          change: current - previous,
+          changePercent: `${getPercentDelta(current, previous).toFixed(1)}%`,
+          metric: selectedStoreMetricConfig,
+          store: selectedSalesStoreName
+        };
+      })()
     : null;
 
   const selectedLocationMetricConfig = locationMetricConfig[selectedLocationMetric];
@@ -4476,8 +4610,8 @@ export default function App() {
                         <div
                           className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#e5e9e2] tu-bg-white tu-p-4 tu-shadow-[0_18px_40px_rgba(31,41,55,0.16)]"
                           style={{
-                            left: Math.min(Math.max(hoveredInventoryMovementPoint.x - 143, 12), 640),
-                            top: Math.max(hoveredInventoryMovementPoint.y - 146, 12)
+                            left: Math.min(Math.max(hoveredInventoryMovementPoint!.x - 143, 12), 640),
+                            top: Math.max(hoveredInventoryMovementPoint!.y - 146, 12)
                           }}
                         >
                           <h3 className="tu-text-[14px] tu-font-semibold tu-leading-5 tu-text-[#333538]">Current vs Previous Period</h3>
@@ -4488,11 +4622,11 @@ export default function App() {
                               <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
                                 <span className="tu-text-[12px] tu-text-[#44464b]">Current</span>
                                 <span className="tu-text-[12px] tu-text-[#44464b]">
-                                  {formatTooltipPeriodDate(inventoryMovementTooltipData.currentDate)}
+                                  {formatTooltipPeriodDate(inventoryMovementTooltipData!.currentDate)}
                                 </span>
                               </div>
                               <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                {inventoryMovementTooltipData.current.toLocaleString('en-US')}
+                                {inventoryMovementTooltipData!.current.toLocaleString('en-US')}
                               </p>
                             </div>
 
@@ -4502,11 +4636,11 @@ export default function App() {
                               <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
                                 <span className="tu-text-[12px] tu-text-[#44464b]">Previous</span>
                                 <span className="tu-text-[12px] tu-text-[#44464b]">
-                                  {formatTooltipPeriodDate(inventoryMovementTooltipData.previousDate)}
+                                  {formatTooltipPeriodDate(inventoryMovementTooltipData!.previousDate)}
                                 </span>
                               </div>
                               <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                {inventoryMovementTooltipData.previous.toLocaleString('en-US')}
+                                {inventoryMovementTooltipData!.previous.toLocaleString('en-US')}
                               </p>
                             </div>
 
@@ -4516,20 +4650,20 @@ export default function App() {
                               <div>
                                 <p className="tu-text-[12px] tu-font-semibold tu-text-[#333538]">Change</p>
                                 <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                  {Math.abs(inventoryMovementTooltipData.change).toLocaleString('en-US')}
+                                  {Math.abs(inventoryMovementTooltipData!.change).toLocaleString('en-US')}
                                 </p>
                               </div>
                               <span
                                 className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${
-                                  inventoryMovementTooltipData.change >= 0 ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]'
+                                  inventoryMovementTooltipData!.change >= 0 ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]'
                                 }`}
                               >
-                                {inventoryMovementTooltipData.change >= 0 ? (
+                                {inventoryMovementTooltipData!.change >= 0 ? (
                                   <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
                                 ) : (
                                   <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
                                 )}
-                                {inventoryMovementTooltipData.changePercent}
+                                {inventoryMovementTooltipData!.changePercent}
                               </span>
                             </div>
                           </div>
@@ -5398,8 +5532,14 @@ export default function App() {
                         <SearchableDropdownMenu
                           open={salesMenus[menu.key as keyof typeof salesMenus]}
                           options={menu.options}
-                          selected={menu.key === 'store' ? selectedSalesStore : menu.key === 'metric' ? selectedSalesMetric : selectedSalesDate}
-                          multiSelect={menu.key === 'store'}
+                          selected={
+                            menu.key === 'store'
+                              ? selectedSalesStoreName
+                              : menu.key === 'metric'
+                                ? selectedSalesMetric
+                                : selectedSalesDate
+                          }
+                          multiSelect={false}
                           searchable={menu.key !== 'date'}
                           searchValue={salesMenuSearch[menu.key as keyof typeof salesMenuSearch]}
                           onSearchChange={
@@ -5411,7 +5551,8 @@ export default function App() {
                           showChevronForCustom={menu.key === 'date'}
                           onSelect={(item) => {
                             if (menu.key === 'store') {
-                              setSelectedSalesStore((current) => toggleMultiSelectValue(current, item));
+                              setSelectedSalesStore([item]);
+                              setSalesMenus({ store: false, metric: false, date: false, region: false, groupBy: false });
                               return;
                             }
                             if (menu.key === 'metric') setSelectedSalesMetric(item);
@@ -5457,7 +5598,7 @@ export default function App() {
                               {metric.label}
                             </button>
                             <InfoTooltip
-                              text={salesKpiTooltips[metric.label]}
+                              text={metric.tooltipText ?? salesKpiTooltips[metric.label]}
                               widthClass={
                                 metric.label.includes('Average') ? 'tu-w-[280px]' : 'tu-w-[190px]'
                               }
@@ -5521,37 +5662,73 @@ export default function App() {
                     <Line data={salesChartData} options={salesChartOptions} />
                   </div>
 
-                  {hoveredSalesPoint && salesTooltipData && salesTooltipData.stores.length > 0 ? (
+                  {hoveredSalesPoint && salesTooltipData ? (
                     <div
-                      className="tu-pointer-events-none tu-absolute tu-z-20 tu-w-[420px] tu-rounded-[16px] tu-border tu-border-[#ededed] tu-bg-white tu-p-4 tu-shadow-[0_20px_40px_rgba(31,41,55,0.20)]"
+                      className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
                       style={{
-                        left: Math.min(Math.max(hoveredSalesPoint.x - 150, 12), 450),
-                        top: Math.max(hoveredSalesPoint.y - 185, 12)
+                        left: Math.min(Math.max(hoveredSalesPoint.x - 143, 12), 640),
+                        top: Math.max(hoveredSalesPoint.y - 150, 12)
                       }}
                     >
-                      <div className="tu-flex tu-justify-end">
-                        <h3 className="tu-text-[14px] tu-font-semibold tu-text-[#333538]">{salesTooltipData.date}</h3>
+                      <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                        <h4 className="tu-text-[12px] tu-font-semibold tu-leading-none tu-text-[#22302a]">{salesTooltipData.label}</h4>
+                        <span className="tu-rounded-full tu-bg-[#edf9f1] tu-px-2 tu-py-0.5 tu-text-[9px] tu-font-medium tu-text-[#17995a]">
+                          {salesTooltipData.store}
+                        </span>
                       </div>
-                      <div className="tu-mt-4 tu-grid tu-grid-cols-[1.3fr_0.7fr_1fr] tu-gap-4 tu-text-[10px] tu-font-semibold tu-uppercase tu-tracking-[0.04em] tu-text-[#9a9ca2]">
-                        <span />
-                        <span className="tu-whitespace-nowrap">Total Orders</span>
-                        <span>{salesTooltipData.metric.label}</span>
-                      </div>
-                      <div className="tu-mt-3 tu-space-y-2.5">
-                        {salesTooltipData.stores.map((store) => (
-                          <div key={`${salesTooltipData.date}-${store.name}`} className="tu-grid tu-grid-cols-[1.3fr_0.7fr_1fr] tu-gap-4 tu-items-center">
-                            <div className="tu-flex tu-items-center tu-gap-2.5">
-                              <span className="tu-h-2.5 tu-w-2.5 tu-rounded-full" style={{ backgroundColor: store.color }} />
-                              <span className="tu-text-[13px] tu-text-[#4b4e53]">{store.name}</span>
-                            </div>
-                            <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
-                              {store.totalOrders.toLocaleString('en-US')}
+
+                      <div className="tu-mt-3 tu-space-y-3">
+                        <div>
+                          <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                              <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#10c562]" />
+                              Current Period
                             </span>
-                            <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
-                              {salesTooltipData.metric.formatValue(store[salesTooltipData.metric.key])}
+                            <span className="tu-text-[10px] tu-text-[#6a7270]">{formatTooltipPeriodDate(salesTooltipData.currentDate)}</span>
+                          </div>
+                          <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#22302a]">
+                            {salesTooltipData.metric.formatValue(salesTooltipData.current)}
+                          </p>
+                          <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
+                            Orders: {salesTooltipData.currentOrders.toLocaleString('en-US')}
+                          </p>
+                        </div>
+
+                        <div className="tu-h-px tu-bg-[#e5eee8]" />
+
+                        <div>
+                          <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                              <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#9ca3af]" />
+                              Previous Period
+                            </span>
+                            <span className="tu-text-[10px] tu-text-[#6a7270]">
+                              {formatTooltipPeriodDate(salesTooltipData.previousDate)}
                             </span>
                           </div>
-                        ))}
+                          <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#2e3338]">
+                            {salesTooltipData.metric.formatValue(salesTooltipData.previous)}
+                          </p>
+                          <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
+                            Orders: {salesTooltipData.previousOrders.toLocaleString('en-US')}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
+                        <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
+                        <span
+                          className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
+                            salesTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
+                          }`}
+                        >
+                          {salesTooltipData.change >= 0 ? (
+                            <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                          ) : (
+                            <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                          )}
+                          {salesTooltipData.changePercent} ({formatStoreMetricDelta(selectedSalesMetric, salesTooltipData.change)})
+                        </span>
                       </div>
                     </div>
                   ) : null}
