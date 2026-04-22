@@ -1155,19 +1155,27 @@ const inventoryDateMultipliers: Record<string, { current: number; previous: numb
   'Last 365 Days': { current: 11.4, previous: 10.8 },
   Custom: { current: 1, previous: 0.95 }
 };
+const inventoryDateDayCount: Record<string, number> = {
+  'Last 7 Days': 7,
+  'Last 30 Days': 30,
+  'Last 90 Days': 90,
+  'Last 365 Days': 365,
+  Custom: 30
+};
 
 const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
-  'Total Inventory Value': 'Total monetary value of available inventory in the selected period and filters.',
-  'Total Products': 'Total unique products currently tracked in inventory across selected stores and locations.',
-  'Stockout Products': 'Products that reached zero available stock at least once during the selected period.',
-  'Products In Reorder Threshold': {
-    title: 'Products In Reorder Threshold',
+  'Total Inventory Value':
+    'Total monetary value of available inventory in the selected period and filters, with the contributing product count shown below.',
+  'Average Fulfillment Rate': {
+    title: 'Average Fulfillment Rate',
     blocks: [
-      { type: 'text', text: 'Products whose available stock is at or below the reorder level.' },
+      { type: 'text', text: 'Share of outbound fulfillment versus inbound quantity for the selected scope.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Under Threshold = Products where Current Stock <= Reorder Point' }
+      { type: 'formula', text: 'Fulfillment Rate (%) = (Quantity Out / Quantity In) x 100' }
     ]
-  }
+  },
+  'Quantity In': 'Total inbound inventory quantity received during the selected period and locations.',
+  'Quantity Out': 'Total outbound inventory quantity fulfilled during the selected period and locations.'
 };
 const pakistanLocationHierarchy = [
   {
@@ -1619,6 +1627,23 @@ const getStoreMetricDirection = (metric: string, current: number, previous: numb
 const getPercentDelta = (current: number, previous: number) => {
   if (previous === 0) return current === 0 ? 0 : 100;
   return (Math.abs(current - previous) / previous) * 100;
+};
+
+const buildInventorySeries = (total: number, dayCount: number, phaseShift: number) => {
+  if (dayCount <= 0) return [];
+
+  const weights = Array.from({ length: dayCount }, (_, index) => {
+    const progress = dayCount === 1 ? 1 : index / (dayCount - 1);
+    const seasonality = 1 + 0.14 * Math.sin((index + phaseShift) * 0.42) + 0.08 * Math.cos((index + phaseShift) * 0.19);
+    const trend = 0.9 + progress * 0.22;
+    return Math.max(0.15, seasonality * trend);
+  });
+
+  const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+  const values = weights.map((weight) => Math.round((weight / weightTotal) * total));
+  const allocated = values.reduce((sum, value) => sum + value, 0);
+  values[values.length - 1] = Math.max(0, values[values.length - 1] + (total - allocated));
+  return values;
 };
 
 function InfoTooltip({
@@ -2078,6 +2103,11 @@ export default function App() {
     y: number;
     index: number;
   } | null>(null);
+  const [hoveredInventoryValuePoint, setHoveredInventoryValuePoint] = useState<{
+    x: number;
+    y: number;
+    index: number;
+  } | null>(null);
   const [hoveredSalesKpi, setHoveredSalesKpi] = useState<string | null>(null);
   const [hoveredLocationKpi, setHoveredLocationKpi] = useState<string | null>(null);
   const [hoveredProductKpi, setHoveredProductKpi] = useState<string | null>(null);
@@ -2321,7 +2351,7 @@ export default function App() {
     const aggregate = (
       metricKey: keyof Pick<
         InventoryStoreSnapshot,
-        'totalInventoryValue' | 'totalProducts' | 'stockoutProducts' | 'reorderProducts'
+        'totalInventoryValue' | 'totalProducts' | 'inboundQuantity' | 'outboundQuantity'
       >
     ) => {
       const current = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].current * multiplier.current, 0);
@@ -2331,8 +2361,10 @@ export default function App() {
 
     const inventoryValue = aggregate('totalInventoryValue');
     const totalProducts = aggregate('totalProducts');
-    const stockoutProducts = aggregate('stockoutProducts');
-    const reorderProducts = aggregate('reorderProducts');
+    const quantityIn = aggregate('inboundQuantity');
+    const quantityOut = aggregate('outboundQuantity');
+    const fulfillmentRateCurrent = quantityIn.current === 0 ? 0 : (quantityOut.current / quantityIn.current) * 100;
+    const fulfillmentRatePrevious = quantityIn.previous === 0 ? 0 : (quantityOut.previous / quantityIn.previous) * 100;
 
     return [
       {
@@ -2340,6 +2372,8 @@ export default function App() {
         value: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
         trend: `${getPercentDelta(inventoryValue.current, inventoryValue.previous).toFixed(1)}%`,
         sublabel: 'vs previous period',
+        secondaryLabel: 'Total Products',
+        secondaryValue: totalProducts.current.toLocaleString('en-US'),
         direction: inventoryValue.current >= inventoryValue.previous ? ('up' as const) : ('down' as const),
         comparison: {
           current: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
@@ -2348,43 +2382,247 @@ export default function App() {
         }
       },
       {
-        label: 'Total Products',
-        value: totalProducts.current.toLocaleString('en-US'),
-        trend: `${getPercentDelta(totalProducts.current, totalProducts.previous).toFixed(1)}%`,
+        label: 'Average Fulfillment Rate',
+        value: `${fulfillmentRateCurrent.toFixed(1)}%`,
+        trend: `${getPercentDelta(fulfillmentRateCurrent, fulfillmentRatePrevious).toFixed(1)}%`,
         sublabel: 'vs previous period',
-        direction: totalProducts.current >= totalProducts.previous ? ('up' as const) : ('down' as const),
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: fulfillmentRateCurrent >= fulfillmentRatePrevious ? ('up' as const) : ('down' as const),
         comparison: {
-          current: totalProducts.current.toLocaleString('en-US'),
-          previous: totalProducts.previous.toLocaleString('en-US'),
-          change: Math.abs(totalProducts.current - totalProducts.previous).toLocaleString('en-US')
+          current: `${fulfillmentRateCurrent.toFixed(1)}%`,
+          previous: `${fulfillmentRatePrevious.toFixed(1)}%`,
+          change: `${Math.abs(fulfillmentRateCurrent - fulfillmentRatePrevious).toFixed(1)} pp`
         }
       },
       {
-        label: 'Stockout Products',
-        value: stockoutProducts.current.toLocaleString('en-US'),
-        trend: `${getPercentDelta(stockoutProducts.current, stockoutProducts.previous).toFixed(1)}%`,
+        label: 'Quantity In',
+        value: quantityIn.current.toLocaleString('en-US'),
+        trend: `${getPercentDelta(quantityIn.current, quantityIn.previous).toFixed(1)}%`,
         sublabel: 'vs previous period',
-        direction: stockoutProducts.current >= stockoutProducts.previous ? ('up' as const) : ('down' as const),
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: quantityIn.current >= quantityIn.previous ? ('up' as const) : ('down' as const),
         comparison: {
-          current: stockoutProducts.current.toLocaleString('en-US'),
-          previous: stockoutProducts.previous.toLocaleString('en-US'),
-          change: Math.abs(stockoutProducts.current - stockoutProducts.previous).toLocaleString('en-US')
+          current: quantityIn.current.toLocaleString('en-US'),
+          previous: quantityIn.previous.toLocaleString('en-US'),
+          change: Math.abs(quantityIn.current - quantityIn.previous).toLocaleString('en-US')
         }
       },
       {
-        label: 'Products In Reorder Threshold',
-        value: reorderProducts.current.toLocaleString('en-US'),
-        trend: `${getPercentDelta(reorderProducts.current, reorderProducts.previous).toFixed(1)}%`,
+        label: 'Quantity Out',
+        value: quantityOut.current.toLocaleString('en-US'),
+        trend: `${getPercentDelta(quantityOut.current, quantityOut.previous).toFixed(1)}%`,
         sublabel: 'vs previous period',
-        direction: reorderProducts.current >= reorderProducts.previous ? ('up' as const) : ('down' as const),
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: quantityOut.current >= quantityOut.previous ? ('up' as const) : ('down' as const),
         comparison: {
-          current: reorderProducts.current.toLocaleString('en-US'),
-          previous: reorderProducts.previous.toLocaleString('en-US'),
-          change: Math.abs(reorderProducts.current - reorderProducts.previous).toLocaleString('en-US')
+          current: quantityOut.current.toLocaleString('en-US'),
+          previous: quantityOut.previous.toLocaleString('en-US'),
+          change: Math.abs(quantityOut.current - quantityOut.previous).toLocaleString('en-US')
         }
       },
     ];
   }, [activeInventorySnapshots, selectedInventoryDate]);
+
+  const inventoryValueTrend = useMemo(() => {
+    const multiplier = inventoryDateMultipliers[selectedInventoryDate] ?? inventoryDateMultipliers['Last 30 Days'];
+    const totalDays = inventoryDateDayCount[selectedInventoryDate] ?? inventoryDateDayCount['Last 30 Days'];
+    const currentTotal = Math.round(
+      activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot.totalInventoryValue.current * multiplier.current, 0)
+    );
+    const previousTotal = Math.round(
+      activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot.totalInventoryValue.previous * multiplier.previous, 0)
+    );
+
+    const endDate = new Date();
+    endDate.setHours(0, 0, 0, 0);
+    const currentDates = Array.from({ length: totalDays }, (_, index) => {
+      const date = new Date(endDate);
+      date.setDate(endDate.getDate() - (totalDays - 1 - index));
+      return date;
+    });
+    const previousDates = currentDates.map((date) => {
+      const previousDate = new Date(date);
+      previousDate.setDate(date.getDate() - totalDays);
+      return previousDate;
+    });
+
+    return {
+      labels: currentDates.map((date) => date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })),
+      currentDates,
+      previousDates,
+      current: buildInventorySeries(currentTotal, totalDays, 2),
+      previous: buildInventorySeries(previousTotal, totalDays, 11)
+    };
+  }, [activeInventorySnapshots, selectedInventoryDate]);
+
+  const inventoryValueChartData = useMemo(
+    () => ({
+      labels: inventoryValueTrend.labels,
+      datasets: [
+        {
+          label: 'Current Period',
+          data: inventoryValueTrend.current,
+          borderColor: '#10c562',
+          backgroundColor: '#10c562',
+          pointBackgroundColor: '#10c562',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: 2.6,
+          pointHoverRadius: 4.2,
+          borderWidth: 2.2,
+          tension: 0.36
+        },
+        {
+          label: 'Previous Period',
+          data: inventoryValueTrend.previous,
+          borderColor: 'rgba(156,163,175,0.72)',
+          backgroundColor: 'rgba(156,163,175,0.72)',
+          pointBackgroundColor: 'rgba(156,163,175,0.72)',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: 2.6,
+          pointHoverRadius: 4.2,
+          borderWidth: 2.2,
+          tension: 0.36,
+          borderDash: [7, 6]
+        }
+      ]
+    }),
+    [inventoryValueTrend]
+  );
+
+  const inventoryValueChartOptions = useMemo(() => {
+    const allValues = [...inventoryValueTrend.current, ...inventoryValueTrend.previous];
+    const currentMax = allValues.length > 0 ? Math.max(...allValues) : 1000;
+    const paddedMax = currentMax * 1.12;
+    const roundingBase = paddedMax >= 100000 ? 10000 : paddedMax >= 10000 ? 1000 : 100;
+    const dynamicAxisMax = Math.ceil(paddedMax / roundingBase) * roundingBase;
+    const dynamicStepSize = Math.max(1, Math.ceil(dynamicAxisMax / 5 / roundingBase) * roundingBase);
+    const labelInterval =
+      inventoryValueTrend.labels.length > 120
+        ? 30
+        : inventoryValueTrend.labels.length > 60
+          ? 10
+          : inventoryValueTrend.labels.length > 30
+            ? 5
+            : inventoryValueTrend.labels.length > 14
+              ? 2
+              : 1;
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index' as const,
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          position: 'top' as const,
+          align: 'center' as const,
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle' as const,
+            boxWidth: 8,
+            boxHeight: 8,
+            color: '#3A3D42',
+            font: {
+              family: 'Poppins',
+              size: 12
+            },
+            padding: 18
+          }
+        },
+        tooltip: {
+          enabled: false
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#5F6368',
+            font: {
+              family: 'Poppins',
+              size: 11
+            },
+            maxRotation: 0,
+            minRotation: 0,
+            callback: (value: string | number, index: number) =>
+              index % labelInterval === 0 ? inventoryValueTrend.labels[index] ?? value : ''
+          },
+          border: {
+            display: false
+          }
+        },
+        y: {
+          min: 0,
+          max: dynamicAxisMax,
+          ticks: {
+            stepSize: dynamicStepSize,
+            color: '#7D828A',
+            font: {
+              family: 'Poppins',
+              size: 10
+            },
+            callback: (value: string | number) => `PKR ${Number(value).toLocaleString('en-US')}`
+          },
+          grid: {
+            color: '#EEF0EB'
+          },
+          border: {
+            display: false
+          }
+        }
+      },
+      onHover: (_event: unknown, elements: { index: number; element: { x: number; y: number } }[]) => {
+        if (elements.length > 0) {
+          const active = elements[0];
+          setHoveredInventoryValuePoint({
+            x: active.element.x,
+            y: active.element.y,
+            index: active.index
+          });
+        } else {
+          setHoveredInventoryValuePoint(null);
+        }
+      }
+    };
+  }, [inventoryValueTrend]);
+
+  const inventoryValueTooltipData = hoveredInventoryValuePoint
+    ? {
+        label: inventoryValueTrend.labels[hoveredInventoryValuePoint.index] ?? '-',
+        currentDate: inventoryValueTrend.currentDates[hoveredInventoryValuePoint.index] ?? new Date(),
+        previousDate: inventoryValueTrend.previousDates[hoveredInventoryValuePoint.index] ?? new Date(),
+        current: inventoryValueTrend.current[hoveredInventoryValuePoint.index] ?? 0,
+        previous: inventoryValueTrend.previous[hoveredInventoryValuePoint.index] ?? 0,
+        change:
+          (inventoryValueTrend.current[hoveredInventoryValuePoint.index] ?? 0) -
+          (inventoryValueTrend.previous[hoveredInventoryValuePoint.index] ?? 0),
+        changePercent: `${getPercentDelta(
+          inventoryValueTrend.current[hoveredInventoryValuePoint.index] ?? 0,
+          inventoryValueTrend.previous[hoveredInventoryValuePoint.index] ?? 0
+        ).toFixed(1)}%`
+      }
+    : null;
+
+  const inventoryValueComparisonDateLabel = useMemo(() => {
+    const formatRangeDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (inventoryValueTrend.currentDates.length === 0 || inventoryValueTrend.previousDates.length === 0) return 'No date range';
+
+    const currentStart = inventoryValueTrend.currentDates[0];
+    const currentEnd = inventoryValueTrend.currentDates[inventoryValueTrend.currentDates.length - 1];
+    const previousStart = inventoryValueTrend.previousDates[0];
+    const previousEnd = inventoryValueTrend.previousDates[inventoryValueTrend.previousDates.length - 1];
+
+    return `${formatRangeDate(currentStart)} - ${formatRangeDate(currentEnd)} vs ${formatRangeDate(previousStart)} - ${formatRangeDate(previousEnd)}`;
+  }, [inventoryValueTrend]);
 
   const inventoryMovementLocationSummaryLabel =
     selectedInventoryMovementRegion.length === inventoryLocationOptions.length
@@ -2402,14 +2640,7 @@ export default function App() {
   const activeInventoryStatusKey = inventoryStatusFromLabel[selectedInventoryStatus] ?? 'onHand';
 
   const inventoryMovementDateAdjusted = useMemo(() => {
-    const dayCountMap: Record<string, number> = {
-      'Last 7 Days': 7,
-      'Last 30 Days': 30,
-      'Last 90 Days': 90,
-      'Last 365 Days': 365,
-      Custom: 30
-    };
-    const totalDays = dayCountMap[selectedInventoryMovementDate] ?? 30;
+    const totalDays = inventoryDateDayCount[selectedInventoryMovementDate] ?? inventoryDateDayCount['Last 30 Days'];
     const baseScale = inventoryDateScale[selectedInventoryMovementDate] ?? 1;
     const currentMultiplier = baseScale;
     const previousMultiplier = Math.max(0.6, baseScale * 0.87);
@@ -3398,8 +3629,9 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
-                        {dynamicInventoryMetricCards.map((metric) => {
+                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-9">
+                        {dynamicInventoryMetricCards.map((metric, index) => {
+                          const isPrimaryInventoryValueCard = index === 0;
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                           const trendPillClass =
                             metric.direction === 'up'
@@ -3411,43 +3643,178 @@ export default function App() {
                               key={metric.label}
                               role="button"
                               tabIndex={0}
-                              className="tu-group tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)]"
+                              className={`tu-group tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] ${
+                                isPrimaryInventoryValueCard
+                                  ? 'tu-p-3 xl:tu-col-span-3'
+                                  : 'tu-p-2.5 xl:tu-col-span-2'
+                              }`}
                             >
                               <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                                 <div className="tu-min-w-0">
-                                  <div className="tu-group/tooltip tu-relative tu-inline-block">
-                                    <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
-                                    <InfoTooltip
-                                      text={inventoryKpiTooltips[metric.label]}
-                                      widthClass={metric.label.includes('Inbound') ? 'tu-w-[280px]' : 'tu-w-[220px]'}
-                                    />
-                                  </div>
-                                  <div className="tu-mt-1">
-                                    <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
-                                  </div>
+                                  {isPrimaryInventoryValueCard ? (
+                                    <div className="tu-grid tu-gap-6 sm:tu-grid-cols-[1.18fr_auto_0.82fr] sm:tu-items-start">
+                                      <div className="tu-min-w-0">
+                                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                          <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
+                                          <InfoTooltip text={inventoryKpiTooltips[metric.label]} widthClass="tu-w-[240px]" />
+                                        </div>
+                                        <p className="tu-mt-1 tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+
+                                        <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                                          <div className="tu-relative">
+                                            <button
+                                              type="button"
+                                              onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
+                                              onMouseLeave={() => setHoveredInventoryKpi(null)}
+                                              className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                                            >
+                                              {metric.trend}
+                                              <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                            </button>
+                                            {hoveredInventoryKpi === metric.label ? (
+                                              <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                            ) : null}
+                                          </div>
+                                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                                        </div>
+                                      </div>
+
+                                      <div className="tu-hidden sm:tu-block tu-h-[86px] tu-w-px tu-self-center tu-bg-[#d7dcd4]" />
+
+                                      <div className="tu-min-w-0 sm:tu-pl-2">
+                                        <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.secondaryLabel}</span>
+                                        <p className="tu-mt-1 tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.secondaryValue}</p>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="tu-flex tu-items-center tu-justify-between tu-gap-2">
+                                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                          <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
+                                          <InfoTooltip
+                                            text={inventoryKpiTooltips[metric.label]}
+                                            widthClass={
+                                              metric.label.includes('Quantity') || metric.label.includes('Fulfillment')
+                                                ? 'tu-w-[280px]'
+                                                : 'tu-w-[240px]'
+                                            }
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="tu-mt-1">
+                                        <p className="tu-font-semibold tu-text-[#333538] tu-text-[26px]">
+                                          {metric.value}
+                                        </p>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
-                              <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                                <div className="tu-relative">
-                                  <button
-                                    type="button"
-                                    onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
-                                    onMouseLeave={() => setHoveredInventoryKpi(null)}
-                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
-                                  >
-                                    {metric.trend}
-                                    <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                  </button>
-                                  {hoveredInventoryKpi === metric.label ? (
-                                    <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
-                                  ) : null}
+                              {!isPrimaryInventoryValueCard ? (
+                                <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                                  <div className="tu-relative">
+                                    <button
+                                      type="button"
+                                      onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
+                                      onMouseLeave={() => setHoveredInventoryKpi(null)}
+                                      className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                                    >
+                                      {metric.trend}
+                                      <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                    </button>
+                                    {hoveredInventoryKpi === metric.label ? (
+                                      <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                    ) : null}
+                                  </div>
+                                  <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                                 </div>
-                                <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
-                              </div>
+                              ) : null}
                             </article>
                           );
                         })}
                   </div>
+
+                  <article className="tu-mt-5 tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] sm:tu-p-4">
+                    <div className="tu-flex tu-flex-col tu-gap-1.5 sm:tu-flex-row sm:tu-items-center sm:tu-justify-between">
+                      <h3 className="tu-text-[16px] tu-font-semibold tu-text-[#333538]">Total Inventory Value</h3>
+                      <p className="tu-text-[12px] tu-text-[#7d828a]">{inventoryValueComparisonDateLabel}</p>
+                    </div>
+                    <div
+                      className="tu-relative tu-mt-3.5 tu-h-[300px]"
+                      onMouseLeave={() => setHoveredInventoryValuePoint(null)}
+                    >
+                      <Line data={inventoryValueChartData} options={inventoryValueChartOptions} />
+
+                      {hoveredInventoryValuePoint && inventoryValueTooltipData ? (
+                        <div
+                          className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[268px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
+                          style={{
+                            left: Math.min(Math.max(hoveredInventoryValuePoint.x - 134, 10), 760),
+                            top: Math.max(hoveredInventoryValuePoint.y - 150, 10)
+                          }}
+                        >
+                          <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                            <h4 className="tu-text-[12px] tu-font-semibold tu-leading-none tu-text-[#22302a]">
+                              {inventoryValueTooltipData.label}
+                            </h4>
+                            <span className="tu-rounded-full tu-bg-[#edf9f1] tu-px-2 tu-py-0.5 tu-text-[9px] tu-font-medium tu-text-[#17995a]">
+                              Total Value
+                            </span>
+                          </div>
+
+                          <div className="tu-mt-3 tu-space-y-3">
+                            <div>
+                              <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                                <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                                  <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#10c562]" />
+                                  Current Period
+                                </span>
+                                <span className="tu-text-[10px] tu-text-[#6a7270]">
+                                  {formatTooltipPeriodDate(inventoryValueTooltipData.currentDate)}
+                                </span>
+                              </div>
+                              <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#22302a]">
+                                PKR {inventoryValueTooltipData.current.toLocaleString('en-US')}
+                              </p>
+                            </div>
+
+                            <div className="tu-h-px tu-bg-[#e5eee8]" />
+
+                            <div>
+                              <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                                <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                                  <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#9ca3af]" />
+                                  Previous Period
+                                </span>
+                                <span className="tu-text-[10px] tu-text-[#6a7270]">
+                                  {formatTooltipPeriodDate(inventoryValueTooltipData.previousDate)}
+                                </span>
+                              </div>
+                              <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#2e3338]">
+                                PKR {inventoryValueTooltipData.previous.toLocaleString('en-US')}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
+                            <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
+                            <span
+                              className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
+                                inventoryValueTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
+                              }`}
+                            >
+                              {inventoryValueTooltipData.change >= 0 ? (
+                                <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                              ) : (
+                                <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                              )}
+                              {inventoryValueTooltipData.changePercent}
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </article>
                 </section>
                 <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
