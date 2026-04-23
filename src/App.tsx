@@ -483,6 +483,7 @@ type GlanceMetricCard = {
   comparison: ComparisonData;
   secondaryText?: string;
   secondaryTooltip?: string;
+  orderShare?: number;
 };
 
 const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
@@ -494,28 +495,60 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Total Orders = Count of Orders with Booked Status' }
     ]
   },
-  'Total Shipped': {
-    title: 'Total Shipped',
+  'Pending Orders': {
+    title: 'Pending Orders',
     blocks: [
-      { type: 'text', text: 'Total number of Total Orders dispatched to courier in the selected period.' },
+      { type: 'text', text: 'Orders waiting for processing before they move to fulfillment.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Total Shipped = Count of Orders with Shipped Status' }
+      { type: 'formula', text: 'Pending Orders = Count of Orders in Pending Status' }
     ]
   },
-  'Total Delivered': {
-    title: 'Total Delivered',
+  'Ready to Ship': {
+    title: 'Ready to Ship',
     blocks: [
-      { type: 'text', text: 'Total number of shipped orders delivered to customers in the selected period.' },
+      { type: 'text', text: 'Orders prepared and packed, waiting for courier handover.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Total Delivered = Count of Orders with Delivered Status' }
+      { type: 'formula', text: 'Ready to Ship = Count of Orders in Ready-to-Ship Status' }
     ]
   },
-  'Total Delivery Failed': {
-    title: 'Total Delivery Failed',
+  'Shipped to Couriers': {
+    title: 'Shipped to Couriers',
+    blocks: [
+      { type: 'text', text: 'Orders successfully handed over to courier partners.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Shipped to Couriers = Count of Orders with Courier-Shipped Status' }
+    ]
+  },
+  Delivered: {
+    title: 'Delivered',
+    blocks: [
+      { type: 'text', text: 'Orders completed and delivered to customers.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Delivered = Count of Orders with Delivered Status' }
+    ]
+  },
+  'Delivery Failed': {
+    title: 'Delivery Failed',
     blocks: [
       { type: 'text', text: 'Total number of shipment attempts that failed delivery in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Total Delivery Failed = Count of Orders with Failed Delivery Status' }
+      { type: 'formula', text: 'Delivery Failed = Count of Orders with Failed Delivery Status' }
+    ]
+  },
+  Returned: {
+    title: 'Returned',
+    blocks: [
+      { type: 'text', text: 'Orders returned back after delivery or failed acceptance.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Returned = Count of Orders with Returned Status' }
+    ]
+  },
+  Voided: {
+    title: 'Voided',
+    blocks: [
+      { type: 'text', text: 'Orders canceled or voided before final fulfillment.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Voided = Count of Orders with Voided Status' }
     ]
   },
   'Net Sales': metricTooltips.netSales,
@@ -548,46 +581,106 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'Total Shipped',
-        value: '1,076',
+        label: 'Pending Orders',
+        value: '182',
         sublabel: 'Since Yesterday',
-        trend: '4.8%',
-        direction: 'up',
+        trend: '3.7%',
+        direction: 'down',
         showStoreSelect: false,
         comparison: {
-          current: '1,076',
-          previous: '1,027',
-          change: '49',
+          current: '182',
+          previous: '189',
+          change: '7',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
       },
       {
-        label: 'Total Delivered',
-        value: '1,021',
+        label: 'Ready to Ship',
+        value: '141',
+        sublabel: 'Since Yesterday',
+        trend: '2.9%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '141',
+          previous: '137',
+          change: '4',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Shipped to Couriers',
+        value: '296',
         sublabel: 'Since Yesterday',
         trend: '5.1%',
         direction: 'up',
         showStoreSelect: false,
         comparison: {
-          current: '1,021',
-          previous: '971',
-          change: '50',
+          current: '296',
+          previous: '281',
+          change: '15',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
       },
       {
-        label: 'Total Delivery Failed',
-        value: '55',
+        label: 'Delivered',
+        value: '512',
+        sublabel: 'Since Yesterday',
+        trend: '5.1%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '512',
+          previous: '489',
+          change: '23',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Delivery Failed',
+        value: '61',
         sublabel: 'Since Yesterday',
         trend: '2.3%',
         direction: 'down',
         showStoreSelect: false,
         comparison: {
-          current: '55',
-          previous: '58',
+          current: '61',
+          previous: '63',
+          change: '2',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Returned',
+        value: '38',
+        sublabel: 'Since Yesterday',
+        trend: '7.3%',
+        direction: 'down',
+        showStoreSelect: false,
+        comparison: {
+          current: '38',
+          previous: '41',
           change: '3',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Voided',
+        value: '18',
+        sublabel: 'Since Yesterday',
+        trend: '10.0%',
+        direction: 'down',
+        showStoreSelect: false,
+        comparison: {
+          current: '18',
+          previous: '20',
+          change: '2',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -1486,16 +1579,16 @@ const locationKpiCards = [
 ];
 
 const locationPerformanceData = [
-  { location: 'Karachi', ordersCurrent: 400, ordersPrevious: 350, revenueCurrent: 4200000, revenuePrevious: 3720000 },
-  { location: 'Lahore', ordersCurrent: 350, ordersPrevious: 250, revenueCurrent: 3650000, revenuePrevious: 2840000 },
-  { location: 'Islamabad', ordersCurrent: 300, ordersPrevious: 340, revenueCurrent: 3180000, revenuePrevious: 3520000 },
-  { location: 'Peshawar', ordersCurrent: 250, ordersPrevious: 187, revenueCurrent: 2540000, revenuePrevious: 1960000 },
-  { location: 'Quetta', ordersCurrent: 200, ordersPrevious: 240, revenueCurrent: 2280000, revenuePrevious: 2590000 },
-  { location: 'Gilgit', ordersCurrent: 180, ordersPrevious: 120, revenueCurrent: 2010000, revenuePrevious: 1460000 },
-  { location: 'Hub', ordersCurrent: 160, ordersPrevious: 180, revenueCurrent: 1760000, revenuePrevious: 1930000 },
-  { location: 'Kashmir', ordersCurrent: 140, ordersPrevious: 150, revenueCurrent: 1620000, revenuePrevious: 1710000 },
-  { location: 'Bahawalpur', ordersCurrent: 120, ordersPrevious: 140, revenueCurrent: 1380000, revenuePrevious: 1520000 },
-  { location: 'Rawalpindi', ordersCurrent: 100, ordersPrevious: 55, revenueCurrent: 1140000, revenuePrevious: 760000 }
+  { location: 'Karachi', province: 'Sindh', ordersCurrent: 400, ordersPrevious: 350, revenueCurrent: 4200000, revenuePrevious: 3720000 },
+  { location: 'Lahore', province: 'Punjab', ordersCurrent: 350, ordersPrevious: 250, revenueCurrent: 3650000, revenuePrevious: 2840000 },
+  { location: 'Islamabad', province: 'Punjab', ordersCurrent: 300, ordersPrevious: 340, revenueCurrent: 3180000, revenuePrevious: 3520000 },
+  { location: 'Peshawar', province: 'Khyber Pakhtunkhwa', ordersCurrent: 250, ordersPrevious: 187, revenueCurrent: 2540000, revenuePrevious: 1960000 },
+  { location: 'Quetta', province: 'Balochistan', ordersCurrent: 200, ordersPrevious: 240, revenueCurrent: 2280000, revenuePrevious: 2590000 },
+  { location: 'Gilgit', province: 'Gilgit Baltistan', ordersCurrent: 180, ordersPrevious: 120, revenueCurrent: 2010000, revenuePrevious: 1460000 },
+  { location: 'Hub', province: 'Balochistan', ordersCurrent: 160, ordersPrevious: 180, revenueCurrent: 1760000, revenuePrevious: 1930000 },
+  { location: 'Kashmir', province: 'Azad Jammu & Kashmir', ordersCurrent: 140, ordersPrevious: 150, revenueCurrent: 1620000, revenuePrevious: 1710000 },
+  { location: 'Bahawalpur', province: 'Punjab', ordersCurrent: 120, ordersPrevious: 140, revenueCurrent: 1380000, revenuePrevious: 1520000 },
+  { location: 'Rawalpindi', province: 'Punjab', ordersCurrent: 100, ordersPrevious: 55, revenueCurrent: 1140000, revenuePrevious: 760000 }
 ];
 
 const locationMetricConfig: Record<
@@ -1530,6 +1623,7 @@ const locationMetricConfig: Record<
 const productMetricOptions = ['Units Sold', 'Gross Sales'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const productPerformanceViewOptions = ['Top Performing', 'Under Performing'];
+const locationShowByOptions = ['City', 'Province'];
 const productTableDisplayOptions = ['20 Products', '30 Products', '50 Products', '100 Products'];
 const productTableLazyChunk = 20;
 
@@ -1562,6 +1656,14 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'text', text: 'Product generating the highest gross sales in the selected period.' },
       { type: 'spacer' },
       { type: 'formula', text: 'Top Gross Sales Product = Product with MAX(Gross Sales)' }
+    ]
+  },
+  'Avg. Gross Profit Margin per Product': {
+    title: 'Avg. Gross Profit Margin per Product',
+    blocks: [
+      { type: 'text', text: 'Average gross profit margin generated per product in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Avg. Gross Profit Margin per Product = ((Total Gross Sales - Total COGS) / Total Gross Sales) x 100' }
     ]
   },
   'Most Improved Product': {
@@ -1610,6 +1712,47 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'text', text: 'Average gross sales per product across the selected products.' },
       { type: 'spacer' },
       { type: 'formula', text: 'Avg. Gross Sales Per Product = Gross Sales / Total Products' }
+    ]
+  }
+};
+
+const productTableColumnTooltips: Record<ProductTableSortKey, string | TooltipContent> = {
+  product: {
+    title: 'Products',
+    blocks: [
+      { type: 'text', text: 'Product title and SKU shown for each row in the selected filters.' }
+    ]
+  },
+  units: {
+    title: 'Units Sold',
+    blocks: [
+      { type: 'text', text: 'Total sellable units sold in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Units Sold = Sum of Quantity Sold per Product' }
+    ]
+  },
+  grossSales: {
+    title: 'Gross Sales',
+    blocks: [
+      { type: 'text', text: 'Total product revenue before deductions in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Sales = Sum of Product Revenue Before Taxes/Discounts/Returns' }
+    ]
+  },
+  contribution: {
+    title: '% of Revenue',
+    blocks: [
+      { type: 'text', text: 'Share of each product in total gross sales across visible products.' },
+      { type: 'spacer' },
+      { type: 'formula', text: '% of Revenue = (Product Gross Sales / Total Gross Sales) x 100' }
+    ]
+  },
+  grossProfit: {
+    title: 'Gross Profit',
+    blocks: [
+      { type: 'text', text: 'Profit remaining after product cost of goods sold (COGS).' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Profit = Gross Sales - COGS' }
     ]
   }
 };
@@ -2056,35 +2199,37 @@ function InfoTooltip({
         alignRight ? 'tu-right-0' : 'tu-left-0'
       } tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
     >
-      {typeof text === 'string' ? (
-        text
-      ) : (
-        <div className="tu-space-y-0">
-          {text.title ? <p className="tu-mb-2 tu-text-[13px] tu-font-semibold tu-leading-5">{text.title}</p> : null}
-          {text.blocks.map((block, index) => {
-            if (block.type === 'spacer') {
-              return <div key={`spacer-${index}`} className="tu-h-2" />;
-            }
+      {typeof text === 'string' ? text : <TooltipRichContent text={text} />}
+    </div>
+  );
+}
 
-            if (block.type === 'formula') {
-              return (
-                <p
-                  key={`formula-${index}`}
-                  className="tu-rounded-[8px] tu-bg-white/10 tu-px-3 tu-py-2 tu-text-[11px] tu-font-medium tu-leading-5 tu-text-[#f2f4f1]"
-                >
-                  {block.text}
-                </p>
-              );
-            }
+function TooltipRichContent({ text }: { text: TooltipContent }) {
+  return (
+    <div className="tu-space-y-0">
+      {text.title ? <p className="tu-mb-2 tu-text-[13px] tu-font-semibold tu-leading-5">{text.title}</p> : null}
+      {text.blocks.map((block, index) => {
+        if (block.type === 'spacer') {
+          return <div key={`spacer-${index}`} className="tu-h-2" />;
+        }
 
-            return (
-              <p key={`text-${index}`} className="tu-leading-5">
-                {block.text}
-              </p>
-            );
-          })}
-        </div>
-      )}
+        if (block.type === 'formula') {
+          return (
+            <p
+              key={`formula-${index}`}
+              className="tu-rounded-[8px] tu-bg-white/10 tu-px-3 tu-py-2 tu-text-[11px] tu-font-medium tu-leading-5 tu-text-[#f2f4f1]"
+            >
+              {block.text}
+            </p>
+          );
+        }
+
+        return (
+          <p key={`text-${index}`} className="tu-leading-5">
+            {block.text}
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -2485,21 +2630,25 @@ export default function App() {
   const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '', groupBy: '' });
   const [salesRegionProvince, setSalesRegionProvince] = useState<string | null>(null);
   const [locationMenus, setLocationMenus] = useState<{
+    showBy: boolean;
     performance: boolean;
     metric: boolean;
     date: boolean;
     region: boolean;
   }>({
+    showBy: false,
     performance: false,
     metric: false,
     date: false,
     region: false
   });
+  const [selectedLocationShowBy, setSelectedLocationShowBy] = useState('City');
   const [selectedLocationPerformanceView, setSelectedLocationPerformanceView] = useState('Top Performing');
   const [selectedLocationMetric, setSelectedLocationMetric] = useState('Orders Volume');
   const [selectedLocationDate, setSelectedLocationDate] = useState('Last 30 Days');
   const [selectedLocationRegion, setSelectedLocationRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [locationMenuSearch, setLocationMenuSearch] = useState({
+    showBy: '',
     performance: '',
     metric: '',
     date: '',
@@ -2554,6 +2703,11 @@ export default function App() {
   const [productTableKpiInnerCardHeight, setProductTableKpiInnerCardHeight] = useState<number>(520);
   const showSalesCityChart = true;
   const showSalesProductsChart = true;
+  const [productHeaderTooltip, setProductHeaderTooltip] = useState<{
+    text: string | TooltipContent;
+    left: number;
+    top: number;
+  } | null>(null);
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredInventoryKpi, setHoveredInventoryKpi] = useState<string | null>(null);
   const [hoveredInventoryMovementKpi, setHoveredInventoryMovementKpi] = useState<string | null>(null);
@@ -2569,6 +2723,7 @@ export default function App() {
   } | null>(null);
   const [hoveredSalesKpi, setHoveredSalesKpi] = useState<string | null>(null);
   const [hoveredLocationKpi, setHoveredLocationKpi] = useState<string | null>(null);
+  const [hoveredLocationPoint, setHoveredLocationPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredProductKpi, setHoveredProductKpi] = useState<string | null>(null);
   const [cardDates, setCardDates] = useState<
     Record<PeriodKey, { title: string; dateLabel: string; from: string; to: string }>
@@ -2643,33 +2798,32 @@ export default function App() {
     selectedGlanceDate === 'Custom' ? 'vs custom range' : `vs ${selectedGlanceDate.toLowerCase()}`;
   const sectionSixMetricSections = useMemo(
     () =>
-      sectionSixMetricSectionsBase.map((metricSection) => ({
-        ...metricSection,
-        metrics: metricSection.metrics.map((metric) => ({
+      sectionSixMetricSectionsBase.map((metricSection) => {
+        const scaledMetrics = metricSection.metrics.map((metric) => ({
           ...metric,
           sublabel: glanceMetricSublabel,
           value: scaleMetricValueByPeriod(metric.value, selectedGlancePeriodKey),
           comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey)
-        }))
-      })),
+        }));
+
+        if (metricSection.title !== 'Orders') {
+          return { ...metricSection, metrics: scaledMetrics };
+        }
+
+        const totalOrders = Number(scaledMetrics[0]?.value.replace(/[^0-9.]/g, '')) || 1;
+        return {
+          ...metricSection,
+          metrics: scaledMetrics.map((metric, index) => {
+            const metricValue = Number(metric.value.replace(/[^0-9.]/g, '')) || 0;
+            return {
+              ...metric,
+              orderShare: index === 0 ? 100 : (metricValue / totalOrders) * 100
+            };
+          })
+        };
+      }),
     [glanceMetricSublabel, selectedGlancePeriodKey]
   );
-  const salesOrderRibbonMetrics = useMemo(() => {
-    const ordersSection = sectionSixMetricSections.find((section) => section.title === 'Orders');
-    if (!ordersSection) return [];
-
-    const orderMetricLabelMap: Record<string, string> = {
-      'Total Orders': 'Total Orders',
-      'Total Shipped': 'Total Shipped',
-      'Total Delivered': 'Total Delivered',
-      'Total Delivery Failed': 'Total Delivery Failed'
-    };
-
-    return ordersSection.metrics.map((metric) => ({
-      label: orderMetricLabelMap[metric.label] ?? metric.label,
-      value: metric.value
-    }));
-  }, [sectionSixMetricSections]);
   const dynamicSalesMetricCards = useMemo(() => {
     const currentSnapshot =
       dayBreakdown[dayBreakdown.length - 1]?.stores.filter((store) =>
@@ -3903,128 +4057,302 @@ export default function App() {
     : null;
 
   const selectedLocationMetricConfig = locationMetricConfig[selectedLocationMetric];
+  const locationDateMultiplier = useMemo(
+    () => salesDateMultipliers[selectedLocationDate] ?? salesDateMultipliers['Last 30 Days'],
+    [selectedLocationDate]
+  );
+  const getSignedPercentDelta = (current: number, previous: number) => {
+    if (previous === 0) return current === 0 ? 0 : 100;
+    return ((current - previous) / previous) * 100;
+  };
+  const formatLocationMetricValue = (value: number) =>
+    selectedLocationMetric === 'Gross Sales'
+      ? `PKR ${Math.round(value).toLocaleString('en-US')}`
+      : Math.round(value).toLocaleString('en-US');
+  const formatLocationChartValue = (value: number) => {
+    if (selectedLocationMetric === 'Gross Sales') {
+      if (value >= 1000000) return `PKR ${(value / 1000000).toFixed(1)}M`;
+      return `PKR ${(value / 1000).toFixed(0)}K`;
+    }
+
+    return Math.round(value).toLocaleString('en-US');
+  };
+  const locationScopedData = useMemo(() => {
+    const activeRegions = selectedLocationRegion.length === 0 ? [...pakistanProvinceOptions] : selectedLocationRegion;
+    const regionSet = new Set(activeRegions);
+    const scopedCities = locationPerformanceData
+      .filter((item) => regionSet.has(item.province))
+      .map((item) => ({
+        ...item,
+        ordersCurrent: Math.round(item.ordersCurrent * locationDateMultiplier.current),
+        ordersPrevious: Math.round(item.ordersPrevious * locationDateMultiplier.previous),
+        revenueCurrent: Math.round(item.revenueCurrent * locationDateMultiplier.current),
+        revenuePrevious: Math.round(item.revenuePrevious * locationDateMultiplier.previous)
+      }));
+
+    if (selectedLocationShowBy === 'City') return scopedCities;
+
+    const provinceMap = new Map<
+      string,
+      { location: string; province: string; ordersCurrent: number; ordersPrevious: number; revenueCurrent: number; revenuePrevious: number }
+    >();
+    scopedCities.forEach((item) => {
+      const existing = provinceMap.get(item.province);
+      if (existing) {
+        existing.ordersCurrent += item.ordersCurrent;
+        existing.ordersPrevious += item.ordersPrevious;
+        existing.revenueCurrent += item.revenueCurrent;
+        existing.revenuePrevious += item.revenuePrevious;
+        return;
+      }
+
+      provinceMap.set(item.province, {
+        location: item.province,
+        province: item.province,
+        ordersCurrent: item.ordersCurrent,
+        ordersPrevious: item.ordersPrevious,
+        revenueCurrent: item.revenueCurrent,
+        revenuePrevious: item.revenuePrevious
+      });
+    });
+
+    return [...provinceMap.values()];
+  }, [locationDateMultiplier.current, locationDateMultiplier.previous, selectedLocationRegion, selectedLocationShowBy]);
+
   const locationRankedData = useMemo(() => {
     const currentMetricKey = selectedLocationMetricConfig.currentKey;
-    return [...locationPerformanceData].sort((a, b) =>
+    return [...locationScopedData].sort((a, b) =>
       selectedLocationPerformanceView === 'Top Performing'
         ? b[currentMetricKey] - a[currentMetricKey]
         : a[currentMetricKey] - b[currentMetricKey]
     );
-  }, [selectedLocationMetricConfig, selectedLocationPerformanceView]);
-
-  const dynamicLocationKpiCards = useMemo(() => {
+  }, [locationScopedData, selectedLocationMetricConfig, selectedLocationPerformanceView]);
+  const locationGrowthRanking = useMemo(() => {
     const currentMetricKey = selectedLocationMetricConfig.currentKey;
     const previousMetricKey = selectedLocationMetricConfig.previousKey;
-    const formatMetricValue = (value: number) =>
-      selectedLocationMetric === 'Gross Sales'
-        ? `PKR ${Math.round(value).toLocaleString('en-US')}`
-        : Math.round(value).toLocaleString('en-US');
-    const calculateSignedPercent = (current: number, previous: number) => {
-      if (previous === 0) return current === 0 ? 0 : 100;
-      return ((current - previous) / previous) * 100;
-    };
-
-    const fallbackCity = locationPerformanceData[0];
-    const topCity = locationRankedData[0] ?? fallbackCity;
-    const secondCity = locationRankedData[1] ?? topCity;
-    const citiesByGrowth = [...locationRankedData].sort(
+    return [...locationRankedData].sort(
       (a, b) =>
-        calculateSignedPercent(b[currentMetricKey], b[previousMetricKey]) -
-        calculateSignedPercent(a[currentMetricKey], a[previousMetricKey])
+        getSignedPercentDelta(b[currentMetricKey], b[previousMetricKey]) -
+        getSignedPercentDelta(a[currentMetricKey], a[previousMetricKey])
     );
-    const mostImprovedCity = citiesByGrowth[0] ?? fallbackCity;
-    const mostDeclinedCity = citiesByGrowth[citiesByGrowth.length - 1] ?? fallbackCity;
-    const topCityDelta = calculateSignedPercent(topCity[currentMetricKey], topCity[previousMetricKey]);
-    const improvedDelta = calculateSignedPercent(
-      mostImprovedCity[currentMetricKey],
-      mostImprovedCity[previousMetricKey]
+  }, [locationRankedData, selectedLocationMetricConfig.currentKey, selectedLocationMetricConfig.previousKey]);
+  const mostImprovedLocationName = locationGrowthRanking[0]?.location ?? '';
+  const mostDeclinedLocationName = locationGrowthRanking[locationGrowthRanking.length - 1]?.location ?? '';
+  const locationAxisMax = useMemo(() => {
+    const peakValue = locationRankedData.reduce(
+      (max, item) =>
+        Math.max(max, item[selectedLocationMetricConfig.currentKey], item[selectedLocationMetricConfig.previousKey]),
+      0
     );
-    const declinedDelta = calculateSignedPercent(
-      mostDeclinedCity[currentMetricKey],
-      mostDeclinedCity[previousMetricKey]
+    const paddedPeak = peakValue * 1.1;
+    const roundedMax = Math.ceil(paddedPeak / selectedLocationMetricConfig.stepSize) * selectedLocationMetricConfig.stepSize;
+    return Math.max(selectedLocationMetricConfig.stepSize * 2, roundedMax);
+  }, [locationRankedData, selectedLocationMetricConfig]);
+
+  const dynamicLocationKpiCards = useMemo(() => {
+    const entityLabel = selectedLocationShowBy === 'Province' ? 'Province' : 'City';
+    const currentMetricKey = selectedLocationMetricConfig.currentKey;
+    const previousMetricKey = selectedLocationMetricConfig.previousKey;
+    const fallbackLocation = locationRankedData[0] ?? locationScopedData[0] ?? {
+      location: '-',
+      ordersCurrent: 0,
+      ordersPrevious: 0,
+      revenueCurrent: 0,
+      revenuePrevious: 0
+    };
+    const topLocation = locationRankedData[0] ?? fallbackLocation;
+    const secondLocation = locationRankedData[1] ?? topLocation;
+    const mostImprovedLocation = locationGrowthRanking[0] ?? fallbackLocation;
+    const mostDeclinedLocation = locationGrowthRanking[locationGrowthRanking.length - 1] ?? fallbackLocation;
+    const topDelta = getSignedPercentDelta(topLocation[currentMetricKey], topLocation[previousMetricKey]);
+    const improvedDelta = getSignedPercentDelta(
+      mostImprovedLocation[currentMetricKey],
+      mostImprovedLocation[previousMetricKey]
+    );
+    const declinedDelta = getSignedPercentDelta(
+      mostDeclinedLocation[currentMetricKey],
+      mostDeclinedLocation[previousMetricKey]
     );
     const averageCurrent =
-      locationRankedData.reduce((sum, city) => sum + city[currentMetricKey], 0) / Math.max(locationRankedData.length, 1);
+      locationRankedData.reduce((sum, item) => sum + item[currentMetricKey], 0) / Math.max(locationRankedData.length, 1);
     const averagePrevious =
-      locationRankedData.reduce((sum, city) => sum + city[previousMetricKey], 0) / Math.max(locationRankedData.length, 1);
+      locationRankedData.reduce((sum, item) => sum + item[previousMetricKey], 0) / Math.max(locationRankedData.length, 1);
     const averageDelta = averageCurrent - averagePrevious;
-    const averagePercent = calculateSignedPercent(averageCurrent, averagePrevious);
+    const averagePercent = getSignedPercentDelta(averageCurrent, averagePrevious);
 
     return [
       {
-        label: selectedLocationPerformanceView === 'Top Performing' ? 'Top Performing City' : 'Under Performing City',
-        value: topCity.location,
-        trend: `${Math.abs(topCityDelta).toFixed(1)}%`,
-        direction: topCityDelta >= 0 ? ('up' as const) : ('down' as const),
+        label: selectedLocationPerformanceView === 'Top Performing' ? `Top Performing ${entityLabel}` : `Under Performing ${entityLabel}`,
+        value: topLocation.location,
+        trend: `${Math.abs(topDelta).toFixed(1)}%`,
+        direction: topDelta >= 0 ? ('up' as const) : ('down' as const),
         comparison: {
-          current: topCity.location,
-          previous: secondCity.location,
-          change: `${Math.abs(topCityDelta).toFixed(1)}%`
+          current: topLocation.location,
+          previous: secondLocation.location,
+          change: `${Math.abs(topDelta).toFixed(1)}%`
         }
       },
       {
-        label: 'Most Improved City',
-        value: mostImprovedCity.location,
+        label: `Most Improved ${entityLabel}`,
+        value: mostImprovedLocation.location,
         trend: `${Math.abs(improvedDelta).toFixed(1)}%`,
         direction: improvedDelta >= 0 ? ('up' as const) : ('down' as const),
         comparison: {
-          current: mostImprovedCity.location,
-          previous: topCity.location,
+          current: mostImprovedLocation.location,
+          previous: topLocation.location,
           change: `${Math.abs(improvedDelta).toFixed(1)}%`
         }
       },
       {
-        label: 'Most Declined City',
-        value: mostDeclinedCity.location,
+        label: `Most Declined ${entityLabel}`,
+        value: mostDeclinedLocation.location,
         trend: `${Math.abs(declinedDelta).toFixed(1)}%`,
         direction: declinedDelta >= 0 ? ('up' as const) : ('down' as const),
         comparison: {
-          current: mostDeclinedCity.location,
-          previous: topCity.location,
+          current: mostDeclinedLocation.location,
+          previous: topLocation.location,
           change: `${Math.abs(declinedDelta).toFixed(1)}%`
         }
       },
       {
-        label: selectedLocationMetric === 'Gross Sales' ? 'Average Gross Sales per City' : 'Average Orders Per City',
-        value: formatMetricValue(averageCurrent),
+        label: selectedLocationMetric === 'Gross Sales' ? `Average Gross Sales per ${entityLabel}` : `Average Orders Per ${entityLabel}`,
+        value: formatLocationMetricValue(averageCurrent),
         trend: `${Math.abs(averagePercent).toFixed(1)}%`,
         direction: averageDelta >= 0 ? ('up' as const) : ('down' as const),
         comparison: {
-          current: formatMetricValue(averageCurrent),
-          previous: formatMetricValue(averagePrevious),
-          change: formatMetricValue(Math.abs(averageDelta))
+          current: formatLocationMetricValue(averageCurrent),
+          previous: formatLocationMetricValue(averagePrevious),
+          change: formatLocationMetricValue(Math.abs(averageDelta))
         }
       }
     ];
-  }, [locationRankedData, selectedLocationMetric, selectedLocationMetricConfig, selectedLocationPerformanceView]);
+  }, [
+    getSignedPercentDelta,
+    locationGrowthRanking,
+    locationRankedData,
+    locationScopedData,
+    selectedLocationMetric,
+    selectedLocationMetricConfig,
+    selectedLocationPerformanceView,
+    selectedLocationShowBy
+  ]);
+  const locationChartDecorPlugin = useMemo(
+    () => ({
+      id: 'locationChartDecorPlugin',
+      afterDatasetsDraw: (chart: any) => {
+        const currentMeta = chart.getDatasetMeta(0);
+        const previousMeta = chart.getDatasetMeta(1);
+        if (!currentMeta?.data?.length || !previousMeta?.data?.length) return;
+
+        const { ctx, chartArea } = chart;
+        const currentSeries = (chart.data.datasets[0]?.data ?? []) as number[];
+        const previousSeries = (chart.data.datasets[1]?.data ?? []) as number[];
+        const growthSeries = currentSeries.map((value, index) =>
+          getSignedPercentDelta(Number(value ?? 0), Number(previousSeries[index] ?? 0))
+        );
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        currentMeta.data.forEach((bar: any, index: number) => {
+          const previousBar = previousMeta.data[index];
+          if (!previousBar) return;
+
+          const growth = growthSeries[index] ?? 0;
+          const text = `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`;
+          const centerX = (bar.x + previousBar.x) / 2;
+          const textWidth = ctx.measureText(text).width;
+          const badgeWidth = textWidth + 14;
+          const badgeHeight = 17;
+          const anchorY = Math.min(bar.y, previousBar.y) - 14;
+          const safeY = Math.max(chartArea.top + 10, anchorY);
+          const badgeX = centerX - badgeWidth / 2;
+          const badgeY = safeY - badgeHeight / 2;
+          const radius = 9;
+          const positive = growth >= 0;
+
+          ctx.beginPath();
+          ctx.moveTo(badgeX + radius, badgeY);
+          ctx.lineTo(badgeX + badgeWidth - radius, badgeY);
+          ctx.quadraticCurveTo(badgeX + badgeWidth, badgeY, badgeX + badgeWidth, badgeY + radius);
+          ctx.lineTo(badgeX + badgeWidth, badgeY + badgeHeight - radius);
+          ctx.quadraticCurveTo(badgeX + badgeWidth, badgeY + badgeHeight, badgeX + badgeWidth - radius, badgeY + badgeHeight);
+          ctx.lineTo(badgeX + radius, badgeY + badgeHeight);
+          ctx.quadraticCurveTo(badgeX, badgeY + badgeHeight, badgeX, badgeY + badgeHeight - radius);
+          ctx.lineTo(badgeX, badgeY + radius);
+          ctx.quadraticCurveTo(badgeX, badgeY, badgeX + radius, badgeY);
+          ctx.closePath();
+          ctx.fillStyle = positive ? 'rgba(21, 186, 106, 0.14)' : 'rgba(233, 79, 79, 0.14)';
+          ctx.fill();
+
+          ctx.fillStyle = positive ? '#0da861' : '#d94f4f';
+          ctx.font = '600 10px Poppins';
+          ctx.fillText(text, centerX, safeY + 0.5);
+        });
+
+        ctx.restore();
+      }
+    }),
+    [getSignedPercentDelta]
+  );
 
   const locationChartData = useMemo(
-    () => ({
-      labels: locationRankedData.map((item) => item.location),
-      datasets: [
-        {
-          label: 'June',
-          data: locationRankedData.map((item) => item[selectedLocationMetricConfig.currentKey]),
-          backgroundColor: '#10c562',
-          borderRadius: 6,
-          maxBarThickness: 34
-        },
-        {
-          label: 'May',
-          data: locationRankedData.map((item) => item[selectedLocationMetricConfig.previousKey]),
-          backgroundColor: '#c9c9c9',
-          borderRadius: 6,
-          maxBarThickness: 34
-        }
-      ]
-    }),
-    [locationRankedData, selectedLocationMetricConfig]
+    () => {
+      const currentKey = selectedLocationMetricConfig.currentKey;
+      const previousKey = selectedLocationMetricConfig.previousKey;
+      const isProvinceView = selectedLocationShowBy === 'Province';
+      const locationBarThickness = isProvinceView ? 32 : 28;
+
+      return {
+        labels: locationRankedData.map((item) => item.location),
+        datasets: [
+          {
+            label: 'Current Period',
+            data: locationRankedData.map((item) => item[currentKey]),
+            backgroundColor: locationRankedData.map((item) => {
+              if (item.location === mostImprovedLocationName) return '#11c36f';
+              if (item.location === mostDeclinedLocationName) return '#f08074';
+              return item[currentKey] >= item[previousKey] ? '#34c883' : '#f3a39a';
+            }),
+            borderRadius: 4,
+            borderSkipped: false,
+            maxBarThickness: locationBarThickness
+          },
+          {
+            label: 'Previous Period',
+            data: locationRankedData.map((item) => item[previousKey]),
+            backgroundColor: locationRankedData.map((item) => {
+              if (item.location === mostImprovedLocationName) return '#d8eee0';
+              if (item.location === mostDeclinedLocationName) return '#f2e2df';
+              return '#d5dae0';
+            }),
+            borderRadius: 4,
+            borderSkipped: false,
+            maxBarThickness: locationBarThickness
+          }
+        ]
+      };
+    },
+    [locationRankedData, mostDeclinedLocationName, mostImprovedLocationName, selectedLocationMetricConfig, selectedLocationShowBy]
   );
 
   const locationChartOptions = useMemo(
-    () => ({
+    () => {
+      const isProvinceView = selectedLocationShowBy === 'Province';
+      const locationCategoryPercentage = isProvinceView ? 0.5 : 0.6;
+      const locationBarPercentage = isProvinceView ? 1 : 0.98;
+
+      return ({
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        mode: 'index' as const,
+        intersect: false
+      },
+      layout: {
+        padding: { top: 24, right: 8, left: 4, bottom: 2 }
+      },
       plugins: {
         legend: {
           position: 'top' as const,
@@ -4032,48 +4360,102 @@ export default function App() {
           labels: {
             usePointStyle: true,
             pointStyle: 'circle' as const,
-            boxWidth: 8,
-            boxHeight: 8,
-            color: '#3A3D42',
+            boxWidth: 9,
+            boxHeight: 9,
+            color: '#4b5563',
             font: {
               family: 'Poppins',
-              size: 12
+              size: 12,
+              weight: 600
             },
-            padding: 18
+            padding: 16
           }
         },
         tooltip: {
-          callbacks: {
-            label: (context: { dataset: { label?: string }; parsed: { y: number | null } }) =>
-              `${context.dataset.label ?? ''}: ${selectedLocationMetricConfig.tooltipFormatter(context.parsed.y ?? 0)}`
-          }
+          enabled: false
+        }
+      },
+      datasets: {
+        bar: {
+          categoryPercentage: locationCategoryPercentage,
+          barPercentage: locationBarPercentage
         }
       },
       scales: {
         x: {
-          grid: { display: false },
+          grid: {
+            display: false
+          },
           ticks: {
-            color: '#3f4348',
-            font: { family: 'Poppins', size: 11 }
+            color: '#4b5563',
+            font: { family: 'Poppins', size: 11, weight: 500 }
           },
           border: { display: false }
         },
         y: {
           beginAtZero: true,
-          max: selectedLocationMetricConfig.axisMax,
+          max: locationAxisMax,
           ticks: {
             stepSize: selectedLocationMetricConfig.stepSize,
-            color: '#7D828A',
-            font: { family: 'Poppins', size: 11 },
+            color: '#94a3b8',
+            font: { family: 'Poppins', size: 10 },
             callback: (value: string | number) => selectedLocationMetricConfig.tickFormatter(Number(value))
           },
-          grid: { color: '#EEF0EB' },
+          grid: {
+            color: '#edf1f4',
+            lineWidth: 1
+          },
           border: { display: false }
         }
+      },
+      onHover: (_event: unknown, elements: { index: number; element: { x: number; y: number } }[]) => {
+        if (elements.length > 0) {
+          const active = elements[0];
+          setHoveredLocationPoint({
+            x: active.element.x,
+            y: active.element.y,
+            dataIndex: active.index
+          });
+        } else {
+          setHoveredLocationPoint(null);
+        }
       }
-    }),
-    [selectedLocationMetricConfig]
+    });
+    },
+    [locationAxisMax, selectedLocationMetricConfig, selectedLocationShowBy]
   );
+  const locationTooltipData = hoveredLocationPoint
+    ? (() => {
+        const item = locationRankedData[hoveredLocationPoint.dataIndex];
+        if (!item) return null;
+
+        const current = Number(item[selectedLocationMetricConfig.currentKey] ?? 0);
+        const previous = Number(item[selectedLocationMetricConfig.previousKey] ?? 0);
+        const changeValue = current - previous;
+        const changePercent = getSignedPercentDelta(current, previous);
+        const supportMetricLabel = selectedLocationMetric === 'Gross Sales' ? 'Orders' : 'Gross Sales';
+        const supportCurrent =
+          selectedLocationMetric === 'Gross Sales'
+            ? item.ordersCurrent.toLocaleString('en-US')
+            : `PKR ${Math.round(item.revenueCurrent).toLocaleString('en-US')}`;
+        const supportPrevious =
+          selectedLocationMetric === 'Gross Sales'
+            ? item.ordersPrevious.toLocaleString('en-US')
+            : `PKR ${Math.round(item.revenuePrevious).toLocaleString('en-US')}`;
+
+        return {
+          location: item.location,
+          currentValue: selectedLocationMetricConfig.tooltipFormatter(current),
+          previousValue: selectedLocationMetricConfig.tooltipFormatter(previous),
+          changeValue: selectedLocationMetricConfig.tooltipFormatter(Math.abs(changeValue)),
+          changePercent: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
+          positive: changeValue >= 0,
+          supportMetricLabel,
+          supportCurrent,
+          supportPrevious
+        };
+      })()
+    : null;
 
   const selectedProductMetricConfig = productMetricConfig[selectedProductMetric];
   const productRankedData = useMemo(() => {
@@ -4113,9 +4495,11 @@ export default function App() {
           comparison: { current: 'PKR 11,500,000', previous: 'PKR 10,230,000', change: 'PKR 1,270,000' }
         },
         {
-          label: 'Top Gross Sales Product',
-          value: 'Earbuds X',
-          extraItems: ['Travel Pack', 'Smart Watch']
+          label: 'Avg. Gross Profit Margin per Product',
+          value: '42.6%',
+          trend: '3.2%',
+          direction: 'up' as const,
+          comparison: { current: '42.6%', previous: '41.3%', change: '1.3 pp' }
         },
         {
           label: 'Most Improved Gross Sales Product',
@@ -4146,9 +4530,11 @@ export default function App() {
         comparison: { current: '44,000', previous: '40,000', change: '4,000' }
       },
       {
-        label: 'Best Selling Product',
-        value: 'Core Tee',
-        extraItems: ['Fleece Hoodie', 'Runner Pro']
+        label: 'Avg. Gross Profit Margin per Product',
+        value: '42.6%',
+        trend: '3.2%',
+        direction: 'up' as const,
+        comparison: { current: '42.6%', previous: '41.3%', change: '1.3 pp' }
       },
       {
         label: 'Most Improved Product',
@@ -4375,6 +4761,7 @@ export default function App() {
   }, [selectedProductTableMetric]);
 
   const handleProductTableScroll = (event: { currentTarget: HTMLDivElement }) => {
+    setProductHeaderTooltip(null);
     if (!productTableHasMoreRows) return;
 
     const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
@@ -6287,13 +6674,18 @@ export default function App() {
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by City</h2>
+                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">{`Sales Performance by ${selectedLocationShowBy}`}</h2>
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
                     {
+                      key: 'showBy',
+                      value: `Show by: ${selectedLocationShowBy}`,
+                      options: locationShowByOptions
+                    },
+                    {
                       key: 'performance',
-                      value: `Show Cities by: ${selectedLocationPerformanceView}`,
+                      value: `Show ${selectedLocationShowBy === 'City' ? 'Cities' : 'Provinces'} by: ${selectedLocationPerformanceView}`,
                       options: locationPerformanceViewOptions
                     },
                     { key: 'metric', value: selectedLocationMetric, options: locationMetricOptions },
@@ -6310,6 +6702,7 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             setLocationMenus((current) => ({
+                              showBy: false,
                               performance: false,
                               metric: false,
                               date: false,
@@ -6321,7 +6714,7 @@ export default function App() {
                           }}
                           className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                         >
-                          {menu.key === 'performance' ? <ArrowUpDown className="tu-h-3.5 tu-w-3.5" /> : null}
+                          {menu.key === 'performance' || menu.key === 'showBy' ? <ArrowUpDown className="tu-h-3.5 tu-w-3.5" /> : null}
                           <span>{menu.value}</span>
                           <ChevronDown className="tu-h-3 tu-w-3" />
                         </button>
@@ -6341,30 +6734,33 @@ export default function App() {
                             open={locationMenus[menu.key as keyof typeof locationMenus]}
                             options={menu.options}
                             selected={
-                              menu.key === 'performance'
+                              menu.key === 'showBy'
+                                ? selectedLocationShowBy
+                                : menu.key === 'performance'
                                 ? selectedLocationPerformanceView
                                 : menu.key === 'metric'
                                   ? selectedLocationMetric
                                   : selectedLocationDate
                             }
-                            searchable={menu.key === 'metric'}
+                            searchable={menu.key === 'metric' || menu.key === 'showBy'}
                             searchValue={locationMenuSearch[menu.key as keyof typeof locationMenuSearch]}
                             onSearchChange={
-                              menu.key === 'metric'
+                              menu.key === 'metric' || menu.key === 'showBy'
                                 ? (value) => setLocationMenuSearch((current) => ({ ...current, [menu.key]: value }))
                                 : undefined
                             }
                             widthClass="tu-w-[190px]"
                             onSelect={(item) => {
+                              if (menu.key === 'showBy') setSelectedLocationShowBy(item);
                               if (menu.key === 'performance') setSelectedLocationPerformanceView(item);
                               if (menu.key === 'metric') setSelectedLocationMetric(item);
                               if (menu.key === 'date') setSelectedLocationDate(item);
-                              setLocationMenus({ performance: false, metric: false, date: false, region: false });
+                              setLocationMenus({ showBy: false, performance: false, metric: false, date: false, region: false });
                             }}
                           />
                         )}
                       </div>
-                      {menu.key === 'performance' ? <span className="tu-text-[13px] tu-text-[#d4d8cf]">|</span> : null}
+                      {menu.key === 'showBy' ? <span className="tu-text-[13px] tu-text-[#d4d8cf]">|</span> : null}
                     </div>
                   ))}
                 </div>
@@ -6373,6 +6769,7 @@ export default function App() {
               <div className="tu-mt-6 tu-grid tu-gap-3 lg:tu-grid-cols-4">
                 {dynamicLocationKpiCards.map((metric) => {
                   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                  const locationTooltipKey = metric.label.replace('Province', 'City');
                   const trendPillClass =
                     metric.direction === 'up'
                       ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
@@ -6381,7 +6778,13 @@ export default function App() {
                   return (
                     <article
                       key={metric.label}
-                      className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                      className={`tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 ${
+                        metric.label.includes('Most Improved')
+                          ? 'tu-border-[#d9f3e6] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f2fcf7_100%)] hover:tu-border-[#b7e7cd]'
+                          : metric.label.includes('Most Declined')
+                            ? 'tu-border-[#f3dddb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fff6f5_100%)] hover:tu-border-[#efcbc7]'
+                            : 'tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]'
+                      }`}
                     >
                       <a
                         href="/reports"
@@ -6395,7 +6798,7 @@ export default function App() {
                           {metric.label}
                         </button>
                         <InfoTooltip
-                          text={locationKpiTooltips[metric.label]}
+                          text={locationKpiTooltips[locationTooltipKey] ?? locationKpiTooltips[metric.label]}
                           widthClass={metric.label.includes('Average') ? 'tu-w-[280px]' : 'tu-w-[190px]'}
                         />
                       </div>
@@ -6426,10 +6829,79 @@ export default function App() {
               </div>
 
               {showSalesCityChart ? (
-                <div className="tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]">
+                <div
+                  className="tu-relative tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#e9eef1] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] tu-p-4 tu-shadow-[0_10px_26px_rgba(31,41,55,0.08)]"
+                  onMouseLeave={() => setHoveredLocationPoint(null)}
+                >
                   <div className="tu-h-[420px]">
-                    <Bar data={locationChartData} options={locationChartOptions} />
+                    <Bar data={locationChartData} options={locationChartOptions} plugins={[locationChartDecorPlugin]} />
                   </div>
+                  {hoveredLocationPoint && locationTooltipData ? (
+                    <div
+                      className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
+                      style={{
+                        left: Math.min(Math.max(hoveredLocationPoint.x - 143, 12), 1110),
+                        top: Math.max(hoveredLocationPoint.y - 150, 12)
+                      }}
+                    >
+                      <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                        <h4 className="tu-text-[12px] tu-font-semibold tu-leading-none tu-text-[#22302a]">{locationTooltipData.location}</h4>
+                        <span className="tu-rounded-full tu-bg-[#edf9f1] tu-px-2 tu-py-0.5 tu-text-[9px] tu-font-medium tu-text-[#17995a]">
+                          {selectedLocationShowBy}
+                        </span>
+                      </div>
+
+                      <div className="tu-mt-3 tu-space-y-3">
+                        <div>
+                          <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                              <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#16bf6f]" />
+                              Current Period
+                            </span>
+                          </div>
+                          <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#22302a]">
+                            {locationTooltipData.currentValue}
+                          </p>
+                          <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
+                            {locationTooltipData.supportMetricLabel}: {locationTooltipData.supportCurrent}
+                          </p>
+                        </div>
+
+                        <div className="tu-h-px tu-bg-[#e5eee8]" />
+
+                        <div>
+                          <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                              <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#bcc4ce]" />
+                              Previous Period
+                            </span>
+                          </div>
+                          <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#2e3338]">
+                            {locationTooltipData.previousValue}
+                          </p>
+                          <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
+                            {locationTooltipData.supportMetricLabel}: {locationTooltipData.supportPrevious}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
+                        <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
+                        <span
+                          className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
+                            locationTooltipData.positive ? 'tu-text-[#14a95f]' : 'tu-text-[#d94f4f]'
+                          }`}
+                        >
+                          {locationTooltipData.positive ? (
+                            <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                          ) : (
+                            <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                          )}
+                          {`${locationTooltipData.changePercent} (${locationTooltipData.changeValue})`}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </section>
@@ -6824,16 +7296,34 @@ export default function App() {
                                 key={column.key}
                                 className="tu-sticky tu-top-0 tu-z-10 tu-border-b tu-border-[#eceee8] tu-bg-[#f8faf7] tu-px-3.5 tu-py-2.5 tu-text-left"
                               >
-                                <button
-                                  type="button"
-                                  onClick={() => handleProductTableSort(column.key as ProductTableSortKey)}
-                                  className={`tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold ${
-                                    isSorted ? 'tu-text-[#2f3133]' : 'tu-text-[#6f747a]'
-                                  }`}
+                                <div
+                                  className="tu-relative tu-inline-flex"
+                                  onMouseEnter={(event) => {
+                                    const tooltipWidth = 270;
+                                    const viewportPadding = 12;
+                                    const targetRect = event.currentTarget.getBoundingClientRect();
+                                    const maxLeft = window.innerWidth - tooltipWidth - viewportPadding;
+                                    const left = Math.max(viewportPadding, Math.min(targetRect.left, maxLeft));
+
+                                    setProductHeaderTooltip({
+                                      text: productTableColumnTooltips[column.key as ProductTableSortKey],
+                                      left,
+                                      top: targetRect.top - 8
+                                    });
+                                  }}
+                                  onMouseLeave={() => setProductHeaderTooltip(null)}
                                 >
-                                  <span>{column.label}</span>
-                                  {directionIcon}
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleProductTableSort(column.key as ProductTableSortKey)}
+                                    className={`tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold ${
+                                      isSorted ? 'tu-text-[#2f3133]' : 'tu-text-[#6f747a]'
+                                    }`}
+                                  >
+                                    <span>{column.label}</span>
+                                    {directionIcon}
+                                  </button>
+                                </div>
                               </th>
                             );
                           })}
@@ -6945,8 +7435,11 @@ export default function App() {
 
               <div className="tu-mt-4 tu-space-y-4">
                 {sectionSixMetricSections
-                  .filter((metricSection) => metricSection.title !== 'Orders')
-                  .map((metricSection) => (
+                  .map((metricSection) => {
+                  const isOrdersSection = metricSection.title === 'Orders';
+                  const orderTotal = Number(metricSection.metrics[0]?.value.replace(/[^0-9.]/g, '')) || 0;
+
+                  return (
                   <article
                     key={metricSection.title}
                     className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4"
@@ -6982,11 +7475,16 @@ export default function App() {
                         return (
                           <article
                             key={hoverKey}
-                            className="tu-group tu-relative tu-z-0 tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                            className={`tu-group tu-relative tu-z-0 tu-rounded-[12px] tu-border tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 ${
+                              isOrdersSection
+                                ? 'tu-border-[#dfe8de] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf8_100%)] hover:tu-border-[#cfe5d6] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
+                                : 'tu-border-[#eceee8] tu-bg-white hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]'
+                            }`}
                           >
                             <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                               <div className="tu-min-w-0">
-                                <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                <div className="tu-flex tu-items-center tu-gap-2">
+                                  <div className="tu-group/tooltip tu-relative tu-inline-block">
                                   <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
                                     {metric.label}
                                   </button>
@@ -7001,6 +7499,12 @@ export default function App() {
                                     }
                                     alignRight={metric.label === 'Customer Retention'}
                                   />
+                                  </div>
+                                  {isOrdersSection ? (
+                                    <span className="tu-inline-flex tu-items-center tu-rounded-full tu-bg-[#edf9f1] tu-px-2 tu-py-0.5 tu-text-[10px] tu-font-semibold tu-text-[#10a85d]">
+                                      {`${(metric.orderShare ?? 0).toFixed(metric.label === 'Total Orders' ? 0 : 1)}%`}
+                                    </span>
+                                  ) : null}
                                 </div>
                                 <div className="tu-mt-1">
                                   {metricSection.title === 'Sales' ? (
@@ -7054,8 +7558,17 @@ export default function App() {
                                       ) : null}
                                     </div>
                                   ) : (
-                                    <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+                                    <p className={`${isOrdersSection ? 'tu-text-[30px]' : 'tu-text-[26px]'} tu-font-semibold tu-text-[#333538]`}>
+                                      {metric.value}
+                                    </p>
                                   )}
+                                  {isOrdersSection ? (
+                                    <p className="tu-mt-0.5 tu-text-[11px] tu-font-medium tu-text-[#7e868f]">
+                                      {metric.label === 'Total Orders'
+                                        ? `${orderTotal.toLocaleString('en-US')} orders in scope`
+                                        : `${(metric.orderShare ?? 0).toFixed(1)}% of total orders`}
+                                    </p>
+                                  ) : null}
                                   {metric.secondaryText ? (
                                     <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
                                       <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
@@ -7150,32 +7663,9 @@ export default function App() {
                         );
                       })}
                     </div>
-                    {metricSection.title === 'Sales' && salesOrderRibbonMetrics.length > 0 ? (
-                      <div className="tu-mt-3 tu-grid tu-gap-3 lg:tu-grid-cols-4">
-                        {salesOrderRibbonMetrics.map((metric) => (
-                          <div
-                            key={`sales-order-ribbon-${metric.label}`}
-                            className="tu-group tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-px-3 tu-py-2"
-                          >
-                            <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
-                              <p className="tu-font-sans tu-text-[13px] tu-font-medium tu-text-[#9a9ca2]">{metric.label}</p>
-                              <a
-                                href="/reports"
-                                className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 tu-transition-opacity group-hover:tu-opacity-100"
-                              >
-                                <span>See reports</span>
-                                <ChevronRight className="tu-h-3.5 tu-w-3.5" />
-                              </a>
-                            </div>
-                            <p className="tu-mt-1 tu-font-sans tu-text-[20px] tu-font-medium tu-leading-none tu-text-[#333538]">
-                              {metric.value}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
                   </article>
-                ))}
+                );
+                })}
               </div>
             </section>
                 </>
@@ -7183,6 +7673,18 @@ export default function App() {
           </div>
           </section>
         </main>
+        {productHeaderTooltip ? (
+          <div
+            className="tu-pointer-events-none tu-fixed tu-z-[120] tu-w-[270px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] -tu-translate-y-full"
+            style={{ left: productHeaderTooltip.left, top: productHeaderTooltip.top }}
+          >
+            {typeof productHeaderTooltip.text === 'string' ? (
+              productHeaderTooltip.text
+            ) : (
+              <TooltipRichContent text={productHeaderTooltip.text} />
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   );
