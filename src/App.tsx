@@ -2552,6 +2552,8 @@ export default function App() {
   const productTableScrollRef = useRef<HTMLDivElement | null>(null);
   const productTableKpiInnerCardRef = useRef<HTMLDivElement | null>(null);
   const [productTableKpiInnerCardHeight, setProductTableKpiInnerCardHeight] = useState<number>(520);
+  const showSalesCityChart = true;
+  const showSalesProductsChart = true;
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredInventoryKpi, setHoveredInventoryKpi] = useState<string | null>(null);
   const [hoveredInventoryMovementKpi, setHoveredInventoryMovementKpi] = useState<string | null>(null);
@@ -5993,7 +5995,8 @@ export default function App() {
               </div>
             </section>
 
-            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+            {showSalesProductsChart ? (
+              <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Store</h2>
 
@@ -6279,7 +6282,8 @@ export default function App() {
                   ) : null}
                 </div>
               </div>
-            </section>
+              </section>
+            ) : null}
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
@@ -6421,14 +6425,16 @@ export default function App() {
                 })}
               </div>
 
-              <div className="tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]">
-                <div className="tu-h-[420px]">
-                  <Bar data={locationChartData} options={locationChartOptions} />
+              {showSalesCityChart ? (
+                <div className="tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]">
+                  <div className="tu-h-[420px]">
+                    <Bar data={locationChartData} options={locationChartOptions} />
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </section>
 
-            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+            {/* <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Products</h2>
 
@@ -6599,7 +6605,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </section>
+            </section> */}
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
@@ -6607,11 +6613,15 @@ export default function App() {
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
-                    { key: 'show', value: `Show: ${selectedProductTableDisplayLimit}`, options: productTableDisplayOptions },
-                    { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productMetricOptions },
+                    {
+                      key: 'show',
+                      value: `Showing ${selectedProductTableDisplayLimit.toLowerCase()}`,
+                      options: productTableDisplayOptions
+                    },
+                    { key: 'metric', value: `Show by ${selectedProductTableMetric.toLowerCase()}`, options: productMetricOptions },
                     {
                       key: 'performance',
-                      value: `Show Products by: ${selectedProductTablePerformanceView}`,
+                      value: `Show by ${selectedProductTablePerformanceView.toLowerCase()}`,
                       options: productPerformanceViewOptions
                     },
                     { key: 'date', value: selectedProductTableDate, options: productDateOptions },
