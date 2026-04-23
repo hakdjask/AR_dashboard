@@ -49,6 +49,7 @@ type ComparisonData = {
   currentPeriodLabel?: string;
   previousPeriodLabel?: string;
 };
+type ProductTableSortKey = 'product' | 'units' | 'grossSales' | 'contribution' | 'grossProfit' | 'trend';
 
 type PeriodCard = {
   key: PeriodKey;
@@ -882,6 +883,7 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
 const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
 const salesMetricOptions = ['Gross Sales', 'Order Returns', 'Units Sold'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
+const salesGroupByOptions = ['Days', 'Weeks', 'Months', 'Quarters', 'Years'];
 const inventoryDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const inventoryStatusOptions = ['On-hand', 'Committed', 'Available', 'Inbound', 'Unfulfillable'];
 const inventoryGroupByOptions = ['Days', 'Weeks', 'Months', 'Years'];
@@ -1528,6 +1530,8 @@ const locationMetricConfig: Record<
 const productMetricOptions = ['Units Sold', 'Gross Sales'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const productPerformanceViewOptions = ['Top Performing', 'Under Performing'];
+const productTableDisplayOptions = ['20 Products', '30 Products', '50 Products', '100 Products'];
+const productTableLazyChunk = 20;
 
 const productKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Units Sold': {
@@ -1613,17 +1617,118 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
 };
 
 const productPerformanceData = [
-  { product: 'Core Tee', unitsCurrent: 70, unitsPrevious: 60, revenueCurrent: 980000, revenuePrevious: 845000 },
-  { product: 'Fleece Hoodie', unitsCurrent: 68, unitsPrevious: 50, revenueCurrent: 1240000, revenuePrevious: 910000 },
-  { product: 'Runner Pro', unitsCurrent: 60, unitsPrevious: 54, revenueCurrent: 1120000, revenuePrevious: 1015000 },
-  { product: 'Travel Pack', unitsCurrent: 55, unitsPrevious: 16, revenueCurrent: 1360000, revenuePrevious: 420000 },
-  { product: 'Canvas Tote', unitsCurrent: 50, unitsPrevious: 40, revenueCurrent: 760000, revenuePrevious: 640000 },
-  { product: 'Earbuds X', unitsCurrent: 49, unitsPrevious: 61, revenueCurrent: 1480000, revenuePrevious: 1710000 },
-  { product: 'Denim Jacket', unitsCurrent: 45, unitsPrevious: 37, revenueCurrent: 1180000, revenuePrevious: 980000 },
-  { product: 'Leather Wallet', unitsCurrent: 32, unitsPrevious: 25, revenueCurrent: 540000, revenuePrevious: 410000 },
-  { product: 'Smart Watch', unitsCurrent: 29, unitsPrevious: 35, revenueCurrent: 1320000, revenuePrevious: 1480000 },
-  { product: 'Steel Bottle', unitsCurrent: 27, unitsPrevious: 17, revenueCurrent: 470000, revenuePrevious: 290000 }
+  {
+    product: 'Core Tee',
+    sku: 'CT-1001',
+    productType: 'Apparel',
+    unitsCurrent: 70,
+    unitsPrevious: 60,
+    revenueCurrent: 980000,
+    revenuePrevious: 845000
+  },
+  {
+    product: 'Fleece Hoodie',
+    sku: 'FH-1002',
+    productType: 'Apparel',
+    unitsCurrent: 68,
+    unitsPrevious: 50,
+    revenueCurrent: 1240000,
+    revenuePrevious: 910000
+  },
+  {
+    product: 'Runner Pro',
+    sku: 'RP-2003',
+    productType: 'Footwear',
+    unitsCurrent: 60,
+    unitsPrevious: 54,
+    revenueCurrent: 1120000,
+    revenuePrevious: 1015000
+  },
+  {
+    product: 'Travel Pack',
+    sku: 'TP-3004',
+    productType: 'Accessories',
+    unitsCurrent: 55,
+    unitsPrevious: 16,
+    revenueCurrent: 1360000,
+    revenuePrevious: 420000
+  },
+  {
+    product: 'Canvas Tote',
+    sku: 'CT-3005',
+    productType: 'Accessories',
+    unitsCurrent: 50,
+    unitsPrevious: 40,
+    revenueCurrent: 760000,
+    revenuePrevious: 640000
+  },
+  {
+    product: 'Earbuds X',
+    sku: 'EX-4006',
+    productType: 'Electronics',
+    unitsCurrent: 49,
+    unitsPrevious: 61,
+    revenueCurrent: 1480000,
+    revenuePrevious: 1710000
+  },
+  {
+    product: 'Denim Jacket',
+    sku: 'DJ-1007',
+    productType: 'Apparel',
+    unitsCurrent: 45,
+    unitsPrevious: 37,
+    revenueCurrent: 1180000,
+    revenuePrevious: 980000
+  },
+  {
+    product: 'Leather Wallet',
+    sku: 'LW-3008',
+    productType: 'Accessories',
+    unitsCurrent: 32,
+    unitsPrevious: 25,
+    revenueCurrent: 540000,
+    revenuePrevious: 410000
+  },
+  {
+    product: 'Smart Watch',
+    sku: 'SW-4010',
+    productType: 'Electronics',
+    unitsCurrent: 29,
+    unitsPrevious: 35,
+    revenueCurrent: 1320000,
+    revenuePrevious: 1480000
+  },
+  {
+    product: 'Steel Bottle',
+    sku: 'SB-3011',
+    productType: 'Home & Living',
+    unitsCurrent: 27,
+    unitsPrevious: 17,
+    revenueCurrent: 470000,
+    revenuePrevious: 290000
+  }
 ];
+
+const productTableData = Array.from({ length: 120 }, (_, index) => {
+  const base = productPerformanceData[index % productPerformanceData.length];
+  const cycle = Math.floor(index / productPerformanceData.length);
+  const cycleMultiplier = 1 + cycle * 0.03;
+  const variance = 1 + ((index % 5) - 2) * 0.02;
+  const unitsCurrent = Math.max(8, Math.round(base.unitsCurrent * cycleMultiplier * variance));
+  const unitsPrevious = Math.max(6, Math.round(base.unitsPrevious * cycleMultiplier * (variance - 0.03)));
+  const revenueCurrent = Math.max(120000, Math.round(base.revenueCurrent * cycleMultiplier * variance));
+  const revenuePrevious = Math.max(100000, Math.round(base.revenuePrevious * cycleMultiplier * (variance - 0.02)));
+
+  return {
+    ...base,
+    product: cycle === 0 ? base.product : `${base.product} ${cycle + 1}`,
+    sku: `${base.sku}-${String(cycle + 1).padStart(2, '0')}`,
+    unitsCurrent,
+    unitsPrevious,
+    revenueCurrent,
+    revenuePrevious
+  };
+});
 
 const productDateScaleByRange: Record<string, number> = {
   'Last 7 Days': 7 / 30,
@@ -2413,6 +2518,36 @@ export default function App() {
   const [selectedProductRegion, setSelectedProductRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [productMenuSearch, setProductMenuSearch] = useState({ performance: '', metric: '', date: '', region: '' });
   const [productRegionProvince, setProductRegionProvince] = useState<string | null>(null);
+  const [productTableMenus, setProductTableMenus] = useState<{
+    show: boolean;
+    performance: boolean;
+    date: boolean;
+    region: boolean;
+  }>({
+    show: false,
+    performance: false,
+    date: false,
+    region: false
+  });
+  const [selectedProductTableDisplayLimit, setSelectedProductTableDisplayLimit] = useState('20 Products');
+  const [selectedProductTablePerformanceView, setSelectedProductTablePerformanceView] = useState('Top Performing');
+  const [selectedProductTableDate, setSelectedProductTableDate] = useState('Last 30 Days');
+  const [selectedProductTableRegion, setSelectedProductTableRegion] = useState<string[]>([...pakistanProvinceOptions]);
+  const [productTableMenuSearch, setProductTableMenuSearch] = useState({
+    show: '',
+    performance: '',
+    date: '',
+    region: ''
+  });
+  const [productTableRegionProvince, setProductTableRegionProvince] = useState<string | null>(null);
+  const [productTableSort, setProductTableSort] = useState<{ key: ProductTableSortKey; direction: 'asc' | 'desc' }>({
+    key: 'grossSales',
+    direction: 'desc'
+  });
+  const [productTableVisibleCount, setProductTableVisibleCount] = useState(productTableLazyChunk);
+  const productTableScrollRef = useRef<HTMLDivElement | null>(null);
+  const productTableKpiInnerCardRef = useRef<HTMLDivElement | null>(null);
+  const [productTableKpiInnerCardHeight, setProductTableKpiInnerCardHeight] = useState<number>(520);
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredInventoryKpi, setHoveredInventoryKpi] = useState<string | null>(null);
   const [hoveredInventoryMovementKpi, setHoveredInventoryMovementKpi] = useState<string | null>(null);
@@ -3572,6 +3707,7 @@ export default function App() {
       Days: 1,
       Weeks: 3,
       Months: 5,
+      Quarters: Math.ceil(sourceCurrent.length / 4),
       Years: Math.ceil(sourceCurrent.length / 2)
     };
     const groupSize = groupSizeMap[selectedSalesGroupBy] ?? 1;
@@ -3599,6 +3735,7 @@ export default function App() {
       }
       if (selectedSalesGroupBy === 'Weeks') labels.push(`Week ${bucket}`);
       if (selectedSalesGroupBy === 'Months') labels.push(`Month ${bucket}`);
+      if (selectedSalesGroupBy === 'Quarters') labels.push(`Quarter ${bucket}`);
       if (selectedSalesGroupBy === 'Years') labels.push(`Year ${bucket}`);
 
       currentDates.push(currentDateSlice[currentDateSlice.length - 1] ?? sourceCurrentDates[sourceCurrentDates.length - 1] ?? new Date());
@@ -4103,6 +4240,129 @@ export default function App() {
     }),
     [productAxisMax, selectedProductMetricConfig]
   );
+
+  const productTableDisplayLimit = useMemo(
+    () => Number.parseInt(selectedProductTableDisplayLimit, 10) || 20,
+    [selectedProductTableDisplayLimit]
+  );
+
+  const allProductTableRows = useMemo(() => {
+    const dateScale = productDateScaleByRange[selectedProductTableDate] ?? productDateScaleByRange['Last 30 Days'];
+    const selectedRegionCount = selectedProductTableRegion.length === 0 ? pakistanProvinceOptions.length : selectedProductTableRegion.length;
+    const regionScale = Math.max(0.35, Math.min(1, selectedRegionCount / pakistanProvinceOptions.length));
+    const rows = productTableData.map((item, index) => {
+      const unitsSold = Math.round(item.unitsCurrent * dateScale * regionScale);
+      const previousRevenue = Math.round(item.revenuePrevious * dateScale * regionScale);
+      const grossSales = Math.round(item.revenueCurrent * dateScale * regionScale);
+      const cogsRatio = 0.44 + ((index % 3) * 0.05 + (index % 2) * 0.02);
+      const grossProfitValue = Math.round(grossSales * (1 - cogsRatio));
+      const grossProfitPercent = grossSales === 0 ? 0 : (grossProfitValue / grossSales) * 100;
+      const trendPercent = getPercentDelta(grossSales, previousRevenue);
+      const trendDirection = grossSales >= previousRevenue ? ('up' as const) : ('down' as const);
+
+      return {
+        ...item,
+        unitsSold,
+        grossSales,
+        grossProfitValue,
+        grossProfitPercent,
+        trendPercent,
+        trendDirection
+      };
+    });
+
+    const totalRevenue = rows.reduce((sum, item) => sum + item.grossSales, 0);
+    const withContribution = rows.map((item) => ({
+      ...item,
+      contributionPercent: totalRevenue === 0 ? 0 : (item.grossSales / totalRevenue) * 100
+    }));
+
+    const performanceSorted = [...withContribution].sort((a, b) =>
+      selectedProductTablePerformanceView === 'Top Performing'
+        ? b.grossSales - a.grossSales
+        : a.grossSales - b.grossSales
+    );
+
+    const sortedRows = [...performanceSorted].sort((a, b) => {
+      const directionFactor = productTableSort.direction === 'asc' ? 1 : -1;
+      if (productTableSort.key === 'product') return a.product.localeCompare(b.product) * directionFactor;
+      if (productTableSort.key === 'units') return (a.unitsSold - b.unitsSold) * directionFactor;
+      if (productTableSort.key === 'grossSales') return (a.grossSales - b.grossSales) * directionFactor;
+      if (productTableSort.key === 'contribution') return (a.contributionPercent - b.contributionPercent) * directionFactor;
+      if (productTableSort.key === 'grossProfit') return (a.grossProfitValue - b.grossProfitValue) * directionFactor;
+      return (a.trendPercent - b.trendPercent) * directionFactor;
+    });
+
+    return sortedRows;
+  }, [
+    selectedProductTableDate,
+    selectedProductTablePerformanceView,
+    selectedProductTableRegion,
+    productTableSort.direction,
+    productTableSort.key
+  ]);
+
+  const productTableMaxRows = useMemo(
+    () => Math.min(productTableDisplayLimit, allProductTableRows.length),
+    [allProductTableRows.length, productTableDisplayLimit]
+  );
+
+  const productTableVisibleRows = useMemo(
+    () => allProductTableRows.slice(0, Math.min(productTableVisibleCount, productTableMaxRows)),
+    [allProductTableRows, productTableVisibleCount, productTableMaxRows]
+  );
+
+  const productTableHasMoreRows = productTableVisibleRows.length < productTableMaxRows;
+
+  const formatPKR = (value: number) => `PKR ${Math.round(value).toLocaleString('en-US')}`;
+
+  const handleProductTableSort = (key: ProductTableSortKey) => {
+    setProductTableSort((current) => {
+      if (current.key === key) {
+        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: key === 'product' ? 'asc' : 'desc' };
+    });
+  };
+
+  const handleProductTableScroll = (event: { currentTarget: HTMLDivElement }) => {
+    if (!productTableHasMoreRows) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
+    if (distanceToBottom <= 40) {
+      setProductTableVisibleCount((current) => Math.min(current + productTableLazyChunk, productTableMaxRows));
+    }
+  };
+
+  useEffect(() => {
+    setProductTableVisibleCount(productTableMaxRows);
+    if (productTableScrollRef.current) {
+      productTableScrollRef.current.scrollTop = 0;
+    }
+  }, [
+    selectedProductTableDisplayLimit,
+    selectedProductTablePerformanceView,
+    selectedProductTableDate,
+    selectedProductTableRegion,
+    productTableSort.key,
+    productTableSort.direction,
+    productTableMaxRows
+  ]);
+
+  useEffect(() => {
+    const cardNode = productTableKpiInnerCardRef.current;
+    if (!cardNode) return;
+
+    const updateHeight = () => {
+      setProductTableKpiInnerCardHeight(cardNode.getBoundingClientRect().height);
+    };
+
+    updateHeight();
+    const resizeObserver = new ResizeObserver(updateHeight);
+    resizeObserver.observe(cardNode);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   return (
     <div className="tu-min-h-screen tu-overflow-x-hidden tu-bg-[#f4f5f2]">
@@ -5710,7 +5970,7 @@ export default function App() {
                     </button>
                     <SearchableDropdownMenu
                       open={salesMenus.groupBy}
-                      options={inventoryGroupByOptions}
+                      options={salesGroupByOptions}
                       selected={selectedSalesGroupBy}
                       searchable={false}
                       onSelect={(item) => {
@@ -6288,6 +6548,283 @@ export default function App() {
                 <div className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]">
                   <div className="tu-h-[420px]">
                     <Bar data={productChartData} options={productChartOptions} />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+              <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Products</h2>
+
+                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                  {[
+                    { key: 'show', value: `Show: ${selectedProductTableDisplayLimit}`, options: productTableDisplayOptions },
+                    {
+                      key: 'performance',
+                      value: `Show Products by: ${selectedProductTablePerformanceView}`,
+                      options: productPerformanceViewOptions
+                    },
+                    { key: 'date', value: selectedProductTableDate, options: productDateOptions },
+                    {
+                      key: 'region',
+                      value: formatLocationFilterLabel(selectedProductTableRegion),
+                      options: []
+                    }
+                  ].map((menu) => (
+                    <div key={menu.key} className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProductTableMenus((current) => ({
+                              show: false,
+                              performance: false,
+                              date: false,
+                              region: false,
+                              [menu.key]: !current[menu.key as keyof typeof current]
+                            }));
+                            setProductTableMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            if (menu.key === 'region') setProductTableRegionProvince(null);
+                          }}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          {menu.key === 'performance' ? <ArrowUpDown className="tu-h-3.5 tu-w-3.5" /> : null}
+                          <span>{menu.value}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+
+                        {menu.key === 'region' ? (
+                          <HierarchicalLocationDropdown
+                            open={productTableMenus.region}
+                            selected={selectedProductTableRegion}
+                            onChange={setSelectedProductTableRegion}
+                            searchValue={productTableMenuSearch.region}
+                            onSearchChange={(value) =>
+                              setProductTableMenuSearch((current) => ({ ...current, region: value }))
+                            }
+                            activeProvince={productTableRegionProvince}
+                            onProvinceChange={setProductTableRegionProvince}
+                          />
+                        ) : (
+                          <SearchableDropdownMenu
+                            open={productTableMenus[menu.key as keyof typeof productTableMenus]}
+                            options={menu.options}
+                            selected={
+                              menu.key === 'show'
+                                ? selectedProductTableDisplayLimit
+                                : menu.key === 'performance'
+                                  ? selectedProductTablePerformanceView
+                                  : selectedProductTableDate
+                            }
+                            searchable={false}
+                            widthClass={menu.key === 'show' ? 'tu-w-[170px]' : 'tu-w-[190px]'}
+                            onSelect={(item) => {
+                              if (menu.key === 'show') setSelectedProductTableDisplayLimit(item);
+                              if (menu.key === 'performance') {
+                                setSelectedProductTablePerformanceView(item);
+                                setProductTableSort((current) =>
+                                  current.key === 'grossSales'
+                                    ? { key: 'grossSales', direction: item === 'Top Performing' ? 'desc' : 'asc' }
+                                    : current
+                                );
+                              }
+                              if (menu.key === 'date') setSelectedProductTableDate(item);
+                              setProductTableMenus({ show: false, performance: false, date: false, region: false });
+                            }}
+                          />
+                        )}
+                      </div>
+                      {menu.key === 'show' ? <span className="tu-text-[16px] tu-text-[#c7cdc2]">|</span> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)] xl:tu-items-stretch">
+                <article className="tu-group/card tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
+                  <div
+                    ref={productTableKpiInnerCardRef}
+                    className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4"
+                  >
+                    <a
+                      href="/reports"
+                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
+                    >
+                      <span>See reports</span>
+                      <ChevronRight className="tu-h-4 tu-w-4" />
+                    </a>
+                    {dynamicProductMetricCards.map((metric, index) => {
+                      const hasTrend = 'trend' in metric;
+                      const trendDirection = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                      const trendColor = hasTrend && metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                      const TrendIcon = trendDirection;
+                      const primaryMetric = index === 0;
+
+                      return (
+                        <div
+                          key={`${metric.label}-table`}
+                          className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
+                        >
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
+                            <button
+                              type="button"
+                              className={`${
+                                primaryMetric
+                                  ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
+                                  : 'tu-text-[13px] tu-text-[#8f9197]'
+                              }`}
+                            >
+                              {metric.label}
+                            </button>
+                            <InfoTooltip
+                              text={productKpiTooltips[metric.label]}
+                              widthClass={metric.label.includes('Avg.') ? 'tu-w-[300px]' : 'tu-w-[190px]'}
+                            />
+                          </div>
+
+                          <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
+                            <div className="tu-flex tu-items-end tu-gap-2">
+                              <p
+                                className={`tu-text-[#333538] ${
+                                  primaryMetric ? 'tu-text-[24px] tu-font-semibold tu-leading-none' : 'tu-text-[17px] tu-font-medium tu-leading-none'
+                                }`}
+                              >
+                                {metric.value}
+                              </p>
+                              {'extraItems' in metric && metric.extraItems?.length ? (
+                                <div className="tu-group tu-relative tu-inline-flex tu-items-center">
+                                  <button
+                                    type="button"
+                                    className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
+                                  >
+                                    and more
+                                  </button>
+                                  <InfoTooltip text={metric.extraItems.join(', ')} widthClass="tu-min-w-[150px]" />
+                                </div>
+                              ) : null}
+                            </div>
+                            {hasTrend ? (
+                              <div className="tu-relative">
+                                <button
+                                  type="button"
+                                  onMouseEnter={() => setHoveredProductKpi(metric.label)}
+                                  onMouseLeave={() => setHoveredProductKpi(null)}
+                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                >
+                                  {metric.trend}
+                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                </button>
+
+                                {hoveredProductKpi === metric.label ? (
+                                  <ComparisonPopover comparison={metric.comparison!} trend={metric.trend!} direction={metric.direction!} />
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+
+                <div className="tu-min-w-0">
+                  <div
+                    ref={productTableScrollRef}
+                    onScroll={handleProductTableScroll}
+                    className="tu-min-h-0 tu-flex-1 tu-overflow-y-auto tu-overflow-x-hidden tu-rounded-[10px] tu-border tu-border-[#eceee8] tu-bg-white"
+                    style={{ height: 'clamp(340px, 57.5vh, 453px)' }}
+                  >
+                    <table className="tu-w-full tu-table-fixed tu-border-separate tu-border-spacing-0">
+                      <colgroup>
+                        <col className="tu-w-[28%]" />
+                        <col className="tu-w-[14%]" />
+                        <col className="tu-w-[16%]" />
+                        <col className="tu-w-[14%]" />
+                        <col className="tu-w-[16%]" />
+                        <col className="tu-w-[12%]" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          {[
+                            { key: 'product', label: 'Products' },
+                            { key: 'units', label: 'Units Sold' },
+                            { key: 'grossSales', label: 'Gross Sales' },
+                            { key: 'contribution', label: '% of Revenue' },
+                            { key: 'grossProfit', label: 'Gross Profit' },
+                            { key: 'trend', label: 'Trend' }
+                          ].map((column) => {
+                            const isSorted = productTableSort.key === column.key;
+                            const directionIcon = isSorted ? (
+                              productTableSort.direction === 'asc' ? (
+                                <ChevronUp className="tu-h-3.5 tu-w-3.5" />
+                              ) : (
+                                <ChevronDown className="tu-h-3.5 tu-w-3.5" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="tu-h-3.5 tu-w-3.5" />
+                            );
+
+                            return (
+                              <th
+                                key={column.key}
+                                className="tu-sticky tu-top-0 tu-z-10 tu-border-b tu-border-[#eceee8] tu-bg-[#f8faf7] tu-px-3.5 tu-py-2.5 tu-text-left"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => handleProductTableSort(column.key as ProductTableSortKey)}
+                                  className={`tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold ${
+                                    isSorted ? 'tu-text-[#2f3133]' : 'tu-text-[#6f747a]'
+                                  }`}
+                                >
+                                  <span>{column.label}</span>
+                                  {directionIcon}
+                                </button>
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {productTableVisibleRows.map((row) => {
+                          const TrendIcon = row.trendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
+                          const trendColor = row.trendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                          return (
+                            <tr key={row.sku} className="hover:tu-bg-[#fbfcfa]">
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <div className="tu-flex tu-flex-col">
+                                  <span className="tu-truncate tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">{row.product}</span>
+                                  <span className="tu-mt-0.5 tu-truncate tu-text-[11px] tu-text-[#7d828a]">
+                                    SKU: {row.sku} | Type: {row.productType}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                {row.unitsSold.toLocaleString('en-US')}
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                {formatPKR(row.grossSales)}
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                {row.contributionPercent.toFixed(1)}%
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <div className="tu-flex tu-flex-col">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{formatPKR(row.grossProfitValue)}</span>
+                                  <span className="tu-text-[11px] tu-text-[#7d828a]">{row.grossProfitPercent.toFixed(1)}%</span>
+                                </div>
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${trendColor}`}>
+                                  {row.trendPercent.toFixed(1)}%
+                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
