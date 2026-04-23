@@ -866,6 +866,57 @@ const scaleComparisonByPeriod = (comparison: ComparisonData, periodKey: PeriodKe
   change: scaleMetricValueByPeriod(comparison.change, periodKey)
 });
 
+const getComparisonPeriodDayCount = (periodLabel: string) => {
+  if (periodLabel === 'Today') return 1;
+  if (periodLabel === 'Yesterday') return 1;
+  if (periodLabel === 'This Week' || periodLabel === 'Last 7 Days') return 7;
+  if (periodLabel === 'Last 30 Days') return 30;
+  if (periodLabel === 'Last 90 Days') return 90;
+  if (periodLabel === 'Last 365 Days') return 365;
+  return 30;
+};
+
+const formatComparisonDateLabel = (date: Date) =>
+  date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+const buildComparisonDateLabels = (periodLabel: string) => {
+  const reference = new Date();
+  const toDate = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
+
+  if (periodLabel === 'Today') {
+    const previousDate = new Date(toDate);
+    previousDate.setDate(previousDate.getDate() - 1);
+    return {
+      currentPeriodLabel: formatComparisonDateLabel(toDate),
+      previousPeriodLabel: formatComparisonDateLabel(previousDate)
+    };
+  }
+
+  if (periodLabel === 'Yesterday') {
+    const currentDate = new Date(toDate);
+    currentDate.setDate(currentDate.getDate() - 1);
+    const previousDate = new Date(currentDate);
+    previousDate.setDate(previousDate.getDate() - 1);
+    return {
+      currentPeriodLabel: formatComparisonDateLabel(currentDate),
+      previousPeriodLabel: formatComparisonDateLabel(previousDate)
+    };
+  }
+
+  const dayCount = getComparisonPeriodDayCount(periodLabel);
+  const currentFrom = new Date(toDate);
+  currentFrom.setDate(currentFrom.getDate() - (dayCount - 1));
+  const previousTo = new Date(currentFrom);
+  previousTo.setDate(previousTo.getDate() - 1);
+  const previousFrom = new Date(previousTo);
+  previousFrom.setDate(previousFrom.getDate() - (dayCount - 1));
+
+  return {
+    currentPeriodLabel: `${formatComparisonDateLabel(currentFrom)} - ${formatComparisonDateLabel(toDate)}`,
+    previousPeriodLabel: `${formatComparisonDateLabel(previousFrom)} - ${formatComparisonDateLabel(previousTo)}`
+  };
+};
+
 const salesKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Orders': {
     title: 'Total Orders',
@@ -2247,7 +2298,7 @@ function ComparisonPopover({
   const trendColor = direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
 
   return (
-    <div className="tu-absolute tu-right-0 tu-bottom-[calc(100%+8px)] tu-z-20 tu-w-[235px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+    <div className="tu-absolute tu-right-0 tu-bottom-[calc(100%+8px)] tu-z-20 tu-w-[300px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-0 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
       <div className="tu-border-b tu-border-[#eceee8] tu-px-4 tu-py-2.5">
         <h3 className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Current vs Previous Period</h3>
       </div>
@@ -2257,7 +2308,7 @@ function ComparisonPopover({
             <p className="tu-text-[11px] tu-text-[#44464b]">Current</p>
             <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{comparison.current}</p>
           </div>
-          <p className="tu-text-[11px] tu-text-[#44464b]">{comparison.currentPeriodLabel ?? 'Current Period'}</p>
+          <p className="tu-whitespace-nowrap tu-text-[11px] tu-text-[#44464b]">{comparison.currentPeriodLabel ?? 'Current Period'}</p>
         </div>
         <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
         <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
@@ -2265,7 +2316,7 @@ function ComparisonPopover({
             <p className="tu-text-[11px] tu-text-[#44464b]">Previous</p>
             <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{comparison.previous}</p>
           </div>
-          <p className="tu-text-[11px] tu-text-[#44464b]">{comparison.previousPeriodLabel ?? 'Previous Period'}</p>
+          <p className="tu-whitespace-nowrap tu-text-[11px] tu-text-[#44464b]">{comparison.previousPeriodLabel ?? 'Previous Period'}</p>
         </div>
         <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
         <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
@@ -2823,6 +2874,34 @@ export default function App() {
         };
       }),
     [glanceMetricSublabel, selectedGlancePeriodKey]
+  );
+  const glanceComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedGlanceDate),
+    [selectedGlanceDate]
+  );
+  const inventoryComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedInventoryDate),
+    [selectedInventoryDate]
+  );
+  const inventoryMovementComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedInventoryMovementDate),
+    [selectedInventoryMovementDate]
+  );
+  const salesComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedSalesDate),
+    [selectedSalesDate]
+  );
+  const locationComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedLocationDate),
+    [selectedLocationDate]
+  );
+  const productComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedProductDate),
+    [selectedProductDate]
+  );
+  const productTableComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedProductTableDate),
+    [selectedProductTableDate]
   );
   const dynamicSalesMetricCards = useMemo(() => {
     const currentSnapshot =
@@ -5041,7 +5120,11 @@ export default function App() {
                                             <TrendIcon className="tu-h-3.5 tu-w-3.5" />
                                           </button>
                                           {hoveredInventoryKpi === metric.label ? (
-                                            <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                            <ComparisonPopover
+                                              comparison={{ ...metric.comparison, ...inventoryComparisonLabels }}
+                                              trend={metric.trend}
+                                              direction={metric.direction}
+                                            />
                                           ) : null}
                                         </div>
                                         <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
@@ -5084,7 +5167,11 @@ export default function App() {
                                       <TrendIcon className="tu-h-3.5 tu-w-3.5" />
                                     </button>
                                     {hoveredInventoryKpi === metric.label ? (
-                                      <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                      <ComparisonPopover
+                                        comparison={{ ...metric.comparison, ...inventoryComparisonLabels }}
+                                        trend={metric.trend}
+                                        direction={metric.direction}
+                                      />
                                     ) : null}
                                   </div>
                                   <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
@@ -5461,7 +5548,11 @@ export default function App() {
                                         <TrendIcon className="tu-h-4 tu-w-4" />
                                       </button>
                                       {hoveredInventoryMovementKpi === metric.label ? (
-                                        <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                                        <ComparisonPopover
+                                          comparison={{ ...metric.comparison, ...inventoryMovementComparisonLabels }}
+                                          trend={metric.trend}
+                                          direction={metric.direction}
+                                        />
                                       ) : null}
                                     </div>
                                   ) : null}
@@ -6371,7 +6462,11 @@ export default function App() {
                             <TrendIcon className="tu-h-3.5 tu-w-3.5" />
                           </button>
                           {hoveredGlanceKpi === metric.label ? (
-                            <ComparisonPopover comparison={metric.comparison} trend={metric.trend} direction={metric.direction} />
+                            <ComparisonPopover
+                              comparison={{ ...metric.comparison, ...glanceComparisonLabels }}
+                              trend={metric.trend}
+                              direction={metric.direction}
+                            />
                           ) : null}
                         </div>
                         <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
@@ -6578,7 +6673,11 @@ export default function App() {
                                 </button>
 
                                 {hoveredSalesKpi === metric.label ? (
-                                  <ComparisonPopover comparison={metric.comparison!} trend={metric.trend} direction={metric.direction} />
+                                  <ComparisonPopover
+                                    comparison={{ ...metric.comparison!, ...salesComparisonLabels }}
+                                    trend={metric.trend}
+                                    direction={metric.direction}
+                                  />
                                 ) : null}
                               </div>
                             ) : null}
@@ -6816,7 +6915,7 @@ export default function App() {
                           </button>
                           {hoveredLocationKpi === metric.label ? (
                             <ComparisonPopover
-                              comparison={metric.comparison}
+                              comparison={{ ...metric.comparison, ...locationComparisonLabels }}
                               trend={metric.trend}
                               direction={metric.direction}
                             />
@@ -7060,7 +7159,11 @@ export default function App() {
                                 </button>
 
                                 {hoveredProductKpi === metric.label ? (
-                                  <ComparisonPopover comparison={metric.comparison!} trend={metric.trend!} direction={metric.direction!} />
+                                  <ComparisonPopover
+                                    comparison={{ ...metric.comparison!, ...productComparisonLabels }}
+                                    trend={metric.trend!}
+                                    direction={metric.direction!}
+                                  />
                                 ) : null}
                               </div>
                             ) : null}
@@ -7245,7 +7348,11 @@ export default function App() {
                                 </button>
 
                                 {hoveredProductKpi === metric.label ? (
-                                  <ComparisonPopover comparison={metric.comparison!} trend={metric.trend!} direction={metric.direction!} />
+                                  <ComparisonPopover
+                                    comparison={{ ...metric.comparison!, ...productTableComparisonLabels }}
+                                    trend={metric.trend!}
+                                    direction={metric.direction!}
+                                  />
                                 ) : null}
                               </div>
                             ) : null}
@@ -7477,7 +7584,11 @@ export default function App() {
                             key={hoverKey}
                             className={`tu-group tu-relative tu-z-0 tu-rounded-[12px] tu-border tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 ${
                               isOrdersSection
-                                ? 'tu-border-[#dfe8de] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf8_100%)] hover:tu-border-[#cfe5d6] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
+                                ? metric.label === 'Total Orders'
+                                  ? 'tu-border-[#cfe8d6] tu-bg-[linear-gradient(180deg,#f3fbf6_0%,#e9f7ef_100%)] hover:tu-border-[#b8dcc4] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
+                                  : metric.label === 'Voided'
+                                    ? 'tu-border-[#efc8c4] tu-bg-[linear-gradient(180deg,#fff6f6_0%,#ffe9e8_100%)] hover:tu-border-[#e79e97] hover:tu-shadow-[0_14px_30px_rgba(222,82,76,0.16)]'
+                                    : 'tu-border-[#dfe8de] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf8_100%)] hover:tu-border-[#cfe5d6] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
                                 : 'tu-border-[#eceee8] tu-bg-white hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]'
                             }`}
                           >
@@ -7500,11 +7611,6 @@ export default function App() {
                                     alignRight={metric.label === 'Customer Retention'}
                                   />
                                   </div>
-                                  {isOrdersSection ? (
-                                    <span className="tu-inline-flex tu-items-center tu-rounded-full tu-bg-[#edf9f1] tu-px-2 tu-py-0.5 tu-text-[10px] tu-font-semibold tu-text-[#10a85d]">
-                                      {`${(metric.orderShare ?? 0).toFixed(metric.label === 'Total Orders' ? 0 : 1)}%`}
-                                    </span>
-                                  ) : null}
                                 </div>
                                 <div className="tu-mt-1">
                                   {metricSection.title === 'Sales' ? (
@@ -7558,14 +7664,14 @@ export default function App() {
                                       ) : null}
                                     </div>
                                   ) : (
-                                    <p className={`${isOrdersSection ? 'tu-text-[30px]' : 'tu-text-[26px]'} tu-font-semibold tu-text-[#333538]`}>
+                                    <p className={`${isOrdersSection ? 'tu-text-[26px]' : 'tu-text-[26px]'} tu-font-semibold tu-text-[#333538]`}>
                                       {metric.value}
                                     </p>
                                   )}
                                   {isOrdersSection ? (
-                                    <p className="tu-mt-0.5 tu-text-[11px] tu-font-medium tu-text-[#7e868f]">
+                                    <p className="tu-mt-0.5 tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
                                       {metric.label === 'Total Orders'
-                                        ? `${orderTotal.toLocaleString('en-US')} orders in scope`
+                                        ? '100% of orders in scope'
                                         : `${(metric.orderShare ?? 0).toFixed(1)}% of total orders`}
                                     </p>
                                   ) : null}
@@ -7651,7 +7757,7 @@ export default function App() {
                                 </button>
                                 {hoveredGlanceKpi === hoverKey ? (
                                   <ComparisonPopover
-                                    comparison={metric.comparison}
+                                    comparison={{ ...metric.comparison, ...glanceComparisonLabels }}
                                     trend={metric.trend}
                                     direction={metric.direction}
                                   />
