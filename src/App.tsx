@@ -6233,7 +6233,7 @@ export default function App() {
                         return (
                           <article
                             key={hoverKey}
-                            className="tu-group tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                            className="tu-group tu-relative tu-z-0 tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                           >
                             <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                               <div className="tu-min-w-0">
@@ -6274,7 +6274,7 @@ export default function App() {
                                         {metric.value}
                                       </button>
                                       {showBreakdownPopover ? (
-                                        <div className="tu-absolute tu-right-[calc(100%+10px)] tu-top-0 tu-z-20 tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+                                        <div className="tu-absolute tu-left-0 tu-top-[calc(100%+10px)] tu-z-[140] tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
                                           <div className="tu-space-y-1.5">
                                             {breakdownRows.map((item) => (
                                               <div
