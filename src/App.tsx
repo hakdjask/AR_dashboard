@@ -277,7 +277,7 @@ const getMetricPopoverContent = (periodKey: PeriodKey, metricKey: MetricKey): Me
 
   if (metricKey === 'cogs') {
     return [
-      { label: 'Revenue', value: values.netSales },
+      { label: 'Gross Sales', value: values.netSales },
       { label: 'COGS', value: values.cogs, prefix: '-' },
       { label: 'Gross Profit', value: values.grossProfit, medium: true, dividerBefore: true },
       { label: 'Gross Profit Margin', value: values.grossProfitMargin, medium: true }
@@ -902,6 +902,7 @@ type InventoryHealthProduct = {
   id: string;
   name: string;
   sku: string;
+  productType: 'Simple' | 'Variant' | 'Deal Product';
   barcode: string;
   image: string;
   store: string;
@@ -1154,6 +1155,8 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
   const productIndex = index + 1;
   const store = salesStoreOptions[index % salesStoreOptions.length];
   const location = inventoryLocationOptions[index % inventoryLocationOptions.length];
+  const productTypeOptions: InventoryHealthProduct['productType'][] = ['Simple', 'Variant', 'Deal Product'];
+  const productType = productTypeOptions[index % productTypeOptions.length];
   const category = inventoryHealthCategoryOptions[index % inventoryHealthCategoryOptions.length];
   const brand = inventoryHealthBrandOptions[(index * 2 + 1) % inventoryHealthBrandOptions.length];
   const tags = [
@@ -1184,6 +1187,7 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
     id: `ih-${productIndex.toString().padStart(3, '0')}`,
     name: productName,
     sku: `SKU-${(43000 + productIndex).toString()}`,
+    productType,
     barcode: `${(890000000000 + productIndex * 137).toString()}`,
     image: generateInventoryHealthImage(productName, index),
     store,
@@ -1234,6 +1238,7 @@ const inventoryDateScale: Record<string, number> = {
 };
 const locationMetricOptions = ['Orders Volume', 'Gross Sales'];
 const locationDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
+const locationPerformanceViewOptions = ['Top Performing', 'Under Performing'];
 
 type InventoryStoreSnapshot = {
   store: string;
@@ -1403,6 +1408,14 @@ const locationKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'text', text: 'City generating the highest result in the selected metric and period.' },
       { type: 'spacer' },
       { type: 'formula', text: 'Top Performing City = City with MAX(Current Metric Value)' }
+    ]
+  },
+  'Under Performing City': {
+    title: 'Under Performing City',
+    blocks: [
+      { type: 'text', text: 'City with the lowest selected metric in the current period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Under Performing City = City with MIN(Current Metric Value)' }
     ]
   },
   'Most Improved City': {
@@ -2366,15 +2379,27 @@ export default function App() {
   const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '', groupBy: '' });
   const [salesRegionProvince, setSalesRegionProvince] = useState<string | null>(null);
-  const [locationMenus, setLocationMenus] = useState<{ metric: boolean; date: boolean; region: boolean }>({
+  const [locationMenus, setLocationMenus] = useState<{
+    performance: boolean;
+    metric: boolean;
+    date: boolean;
+    region: boolean;
+  }>({
+    performance: false,
     metric: false,
     date: false,
     region: false
   });
+  const [selectedLocationPerformanceView, setSelectedLocationPerformanceView] = useState('Top Performing');
   const [selectedLocationMetric, setSelectedLocationMetric] = useState('Orders Volume');
   const [selectedLocationDate, setSelectedLocationDate] = useState('Last 30 Days');
   const [selectedLocationRegion, setSelectedLocationRegion] = useState<string[]>([...pakistanProvinceOptions]);
-  const [locationMenuSearch, setLocationMenuSearch] = useState({ metric: '', date: '', region: '' });
+  const [locationMenuSearch, setLocationMenuSearch] = useState({
+    performance: '',
+    metric: '',
+    date: '',
+    region: ''
+  });
   const [locationRegionProvince, setLocationRegionProvince] = useState<string | null>(null);
   const [productMenus, setProductMenus] = useState<{ performance: boolean; metric: boolean; date: boolean; region: boolean }>({
     performance: false,
@@ -3735,44 +3760,122 @@ export default function App() {
     : null;
 
   const selectedLocationMetricConfig = locationMetricConfig[selectedLocationMetric];
-  const dynamicLocationKpiCards = useMemo(() => {
-    if (selectedLocationMetric === 'Gross Sales') {
-      return locationKpiCards.map((metric, index) =>
-        index === 3
-          ? {
-              ...metric,
-              label: 'Average Gross Sales per City',
-              value: 'PKR 2,137,000',
-              comparison: { current: 'PKR 2,137,000', previous: 'PKR 1,984,000', change: 'PKR 153,000' }
-            }
-          : metric
-      );
-    }
+  const locationRankedData = useMemo(() => {
+    const currentMetricKey = selectedLocationMetricConfig.currentKey;
+    return [...locationPerformanceData].sort((a, b) =>
+      selectedLocationPerformanceView === 'Top Performing'
+        ? b[currentMetricKey] - a[currentMetricKey]
+        : a[currentMetricKey] - b[currentMetricKey]
+    );
+  }, [selectedLocationMetricConfig, selectedLocationPerformanceView]);
 
-    return locationKpiCards;
-  }, [selectedLocationMetric]);
+  const dynamicLocationKpiCards = useMemo(() => {
+    const currentMetricKey = selectedLocationMetricConfig.currentKey;
+    const previousMetricKey = selectedLocationMetricConfig.previousKey;
+    const formatMetricValue = (value: number) =>
+      selectedLocationMetric === 'Gross Sales'
+        ? `PKR ${Math.round(value).toLocaleString('en-US')}`
+        : Math.round(value).toLocaleString('en-US');
+    const calculateSignedPercent = (current: number, previous: number) => {
+      if (previous === 0) return current === 0 ? 0 : 100;
+      return ((current - previous) / previous) * 100;
+    };
+
+    const fallbackCity = locationPerformanceData[0];
+    const topCity = locationRankedData[0] ?? fallbackCity;
+    const secondCity = locationRankedData[1] ?? topCity;
+    const citiesByGrowth = [...locationRankedData].sort(
+      (a, b) =>
+        calculateSignedPercent(b[currentMetricKey], b[previousMetricKey]) -
+        calculateSignedPercent(a[currentMetricKey], a[previousMetricKey])
+    );
+    const mostImprovedCity = citiesByGrowth[0] ?? fallbackCity;
+    const mostDeclinedCity = citiesByGrowth[citiesByGrowth.length - 1] ?? fallbackCity;
+    const topCityDelta = calculateSignedPercent(topCity[currentMetricKey], topCity[previousMetricKey]);
+    const improvedDelta = calculateSignedPercent(
+      mostImprovedCity[currentMetricKey],
+      mostImprovedCity[previousMetricKey]
+    );
+    const declinedDelta = calculateSignedPercent(
+      mostDeclinedCity[currentMetricKey],
+      mostDeclinedCity[previousMetricKey]
+    );
+    const averageCurrent =
+      locationRankedData.reduce((sum, city) => sum + city[currentMetricKey], 0) / Math.max(locationRankedData.length, 1);
+    const averagePrevious =
+      locationRankedData.reduce((sum, city) => sum + city[previousMetricKey], 0) / Math.max(locationRankedData.length, 1);
+    const averageDelta = averageCurrent - averagePrevious;
+    const averagePercent = calculateSignedPercent(averageCurrent, averagePrevious);
+
+    return [
+      {
+        label: selectedLocationPerformanceView === 'Top Performing' ? 'Top Performing City' : 'Under Performing City',
+        value: topCity.location,
+        trend: `${Math.abs(topCityDelta).toFixed(1)}%`,
+        direction: topCityDelta >= 0 ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: topCity.location,
+          previous: secondCity.location,
+          change: `${Math.abs(topCityDelta).toFixed(1)}%`
+        }
+      },
+      {
+        label: 'Most Improved City',
+        value: mostImprovedCity.location,
+        trend: `${Math.abs(improvedDelta).toFixed(1)}%`,
+        direction: improvedDelta >= 0 ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: mostImprovedCity.location,
+          previous: topCity.location,
+          change: `${Math.abs(improvedDelta).toFixed(1)}%`
+        }
+      },
+      {
+        label: 'Most Declined City',
+        value: mostDeclinedCity.location,
+        trend: `${Math.abs(declinedDelta).toFixed(1)}%`,
+        direction: declinedDelta >= 0 ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: mostDeclinedCity.location,
+          previous: topCity.location,
+          change: `${Math.abs(declinedDelta).toFixed(1)}%`
+        }
+      },
+      {
+        label: selectedLocationMetric === 'Gross Sales' ? 'Average Gross Sales per City' : 'Average Orders Per City',
+        value: formatMetricValue(averageCurrent),
+        trend: `${Math.abs(averagePercent).toFixed(1)}%`,
+        direction: averageDelta >= 0 ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: formatMetricValue(averageCurrent),
+          previous: formatMetricValue(averagePrevious),
+          change: formatMetricValue(Math.abs(averageDelta))
+        }
+      }
+    ];
+  }, [locationRankedData, selectedLocationMetric, selectedLocationMetricConfig, selectedLocationPerformanceView]);
 
   const locationChartData = useMemo(
     () => ({
-      labels: locationPerformanceData.map((item) => item.location),
+      labels: locationRankedData.map((item) => item.location),
       datasets: [
         {
           label: 'June',
-          data: locationPerformanceData.map((item) => item[selectedLocationMetricConfig.currentKey]),
+          data: locationRankedData.map((item) => item[selectedLocationMetricConfig.currentKey]),
           backgroundColor: '#10c562',
           borderRadius: 6,
           maxBarThickness: 34
         },
         {
           label: 'May',
-          data: locationPerformanceData.map((item) => item[selectedLocationMetricConfig.previousKey]),
+          data: locationRankedData.map((item) => item[selectedLocationMetricConfig.previousKey]),
           backgroundColor: '#c9c9c9',
           borderRadius: 6,
           maxBarThickness: 34
         }
       ]
     }),
-    [selectedLocationMetricConfig]
+    [locationRankedData, selectedLocationMetricConfig]
   );
 
   const locationChartOptions = useMemo(
@@ -4750,7 +4853,20 @@ export default function App() {
                 ) : null}
                 <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                    <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Health Tracking</h2>
+                    <div className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-2">
+                      <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Health Tracking</h2>
+                      <button
+                        type="button"
+                        aria-label="Inventory Health Tracking tooltip"
+                        className="tu-inline-flex tu-h-[18px] tu-w-[18px] tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#939393] tu-bg-[#939393] tu-text-[10px] tu-font-medium tu-leading-none tu-text-white"
+                      >
+                        <span className="tu-leading-none">?</span>
+                      </button>
+                      <InfoTooltip
+                        text="The table includes all product types except service products, because service products do not carry inventory."
+                        widthClass="tu-w-[340px]"
+                      />
+                    </div>
                     <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                       <div className="tu-relative">
                         <button
@@ -5055,7 +5171,11 @@ export default function App() {
                                       <img src={product.image} alt={product.name} className="tu-h-10 tu-w-10 tu-rounded-[10px] tu-border tu-border-[#e5e9e2] tu-object-cover" />
                                       <div>
                                         <p className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{product.name}</p>
-                                        <p className="tu-text-[11px] tu-text-[#8f949b]">{product.sku}</p>
+                                        <div className="tu-inline-flex tu-items-center tu-gap-1.5">
+                                          <p className="tu-text-[11px] tu-text-[#8f949b]">{product.sku}</p>
+                                          <span className="tu-inline-flex tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-[#a3a8af]" />
+                                          <span className="tu-text-[11px] tu-text-[#8f949b]">{product.productType}</span>
+                                        </div>
                                       </div>
                                     </div>
                                   ) : null}
@@ -5859,6 +5979,11 @@ export default function App() {
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
+                    {
+                      key: 'performance',
+                      value: `Show Cities by: ${selectedLocationPerformanceView}`,
+                      options: locationPerformanceViewOptions
+                    },
                     { key: 'metric', value: selectedLocationMetric, options: locationMetricOptions },
                     { key: 'date', value: selectedLocationDate, options: locationDateOptions },
                     {
@@ -5867,55 +5992,67 @@ export default function App() {
                       options: []
                     }
                   ].map((menu) => (
-                    <div key={menu.key} className="tu-relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLocationMenus((current) => ({
-                            metric: false,
-                            date: false,
-                            region: false,
-                            [menu.key]: !current[menu.key as keyof typeof current]
-                          }));
-                          setLocationMenuSearch((current) => ({ ...current, [menu.key]: '' }));
-                          if (menu.key === 'region') setLocationRegionProvince(null);
-                        }}
-                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
-                      >
-                        <span>{menu.value}</span>
-                        <ChevronDown className="tu-h-3 tu-w-3" />
-                      </button>
-
-                      {menu.key === 'region' ? (
-                        <HierarchicalLocationDropdown
-                          open={locationMenus.region}
-                          selected={selectedLocationRegion}
-                          onChange={setSelectedLocationRegion}
-                          searchValue={locationMenuSearch.region}
-                          onSearchChange={(value) => setLocationMenuSearch((current) => ({ ...current, region: value }))}
-                          activeProvince={locationRegionProvince}
-                          onProvinceChange={setLocationRegionProvince}
-                        />
-                      ) : (
-                        <SearchableDropdownMenu
-                          open={locationMenus[menu.key as keyof typeof locationMenus]}
-                          options={menu.options}
-                          selected={menu.key === 'metric' ? selectedLocationMetric : selectedLocationDate}
-                          searchable={menu.key !== 'date'}
-                          searchValue={locationMenuSearch[menu.key as keyof typeof locationMenuSearch]}
-                          onSearchChange={
-                            menu.key !== 'date'
-                              ? (value) => setLocationMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                              : undefined
-                          }
-                          widthClass="tu-w-[190px]"
-                          onSelect={(item) => {
-                            if (menu.key === 'metric') setSelectedLocationMetric(item);
-                            if (menu.key === 'date') setSelectedLocationDate(item);
-                            setLocationMenus({ metric: false, date: false, region: false });
+                    <div key={menu.key} className="tu-flex tu-items-center tu-gap-2">
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLocationMenus((current) => ({
+                              performance: false,
+                              metric: false,
+                              date: false,
+                              region: false,
+                              [menu.key]: !current[menu.key as keyof typeof current]
+                            }));
+                            setLocationMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            if (menu.key === 'region') setLocationRegionProvince(null);
                           }}
-                        />
-                      )}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          {menu.key === 'performance' ? <ArrowUpDown className="tu-h-3.5 tu-w-3.5" /> : null}
+                          <span>{menu.value}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+
+                        {menu.key === 'region' ? (
+                          <HierarchicalLocationDropdown
+                            open={locationMenus.region}
+                            selected={selectedLocationRegion}
+                            onChange={setSelectedLocationRegion}
+                            searchValue={locationMenuSearch.region}
+                            onSearchChange={(value) => setLocationMenuSearch((current) => ({ ...current, region: value }))}
+                            activeProvince={locationRegionProvince}
+                            onProvinceChange={setLocationRegionProvince}
+                          />
+                        ) : (
+                          <SearchableDropdownMenu
+                            open={locationMenus[menu.key as keyof typeof locationMenus]}
+                            options={menu.options}
+                            selected={
+                              menu.key === 'performance'
+                                ? selectedLocationPerformanceView
+                                : menu.key === 'metric'
+                                  ? selectedLocationMetric
+                                  : selectedLocationDate
+                            }
+                            searchable={menu.key === 'metric'}
+                            searchValue={locationMenuSearch[menu.key as keyof typeof locationMenuSearch]}
+                            onSearchChange={
+                              menu.key === 'metric'
+                                ? (value) => setLocationMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                                : undefined
+                            }
+                            widthClass="tu-w-[190px]"
+                            onSelect={(item) => {
+                              if (menu.key === 'performance') setSelectedLocationPerformanceView(item);
+                              if (menu.key === 'metric') setSelectedLocationMetric(item);
+                              if (menu.key === 'date') setSelectedLocationDate(item);
+                              setLocationMenus({ performance: false, metric: false, date: false, region: false });
+                            }}
+                          />
+                        )}
+                      </div>
+                      {menu.key === 'performance' ? <span className="tu-text-[13px] tu-text-[#d4d8cf]">|</span> : null}
                     </div>
                   ))}
                 </div>
