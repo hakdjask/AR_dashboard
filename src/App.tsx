@@ -723,16 +723,31 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
     title: 'Sales',
     metrics: [
       {
-        label: 'Net Sales',
-        value: 'PKR 223,456',
+        label: "Today's Sales",
+        value: 'PKR 186,420',
         sublabel: 'Since Yesterday',
-        trend: '8.7%',
+        trend: '7.1%',
         direction: 'up',
         showStoreSelect: false,
         comparison: {
-          current: 'PKR 223,456',
-          previous: 'PKR 205,600',
-          change: 'PKR 17,856',
+          current: 'PKR 186,420',
+          previous: 'PKR 174,055',
+          change: 'PKR 12,365',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Gross Sales',
+        value: 'PKR 268,944',
+        sublabel: 'Since Yesterday',
+        trend: '8.3%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 268,944',
+          previous: 'PKR 248,730',
+          change: 'PKR 20,214',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -768,46 +783,16 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'Net Profit',
-        value: 'PKR 123,456',
+        label: 'Net Sales',
+        value: 'PKR 223,456',
         sublabel: 'Since Yesterday',
-        trend: '9.4%',
+        trend: '8.7%',
         direction: 'up',
         showStoreSelect: false,
         comparison: {
-          current: 'PKR 123,456',
-          previous: 'PKR 112,880',
-          change: 'PKR 10,576',
-          currentPeriodLabel: 'Current Period',
-          previousPeriodLabel: 'Previous Period'
-        }
-      },
-      {
-        label: "Today's Sales",
-        value: 'PKR 186,420',
-        sublabel: 'Since Yesterday',
-        trend: '7.1%',
-        direction: 'up',
-        showStoreSelect: false,
-        comparison: {
-          current: 'PKR 186,420',
-          previous: 'PKR 174,055',
-          change: 'PKR 12,365',
-          currentPeriodLabel: 'Current Period',
-          previousPeriodLabel: 'Previous Period'
-        }
-      },
-      {
-        label: 'Gross Sales',
-        value: 'PKR 268,944',
-        sublabel: 'Since Yesterday',
-        trend: '8.3%',
-        direction: 'up',
-        showStoreSelect: false,
-        comparison: {
-          current: 'PKR 268,944',
-          previous: 'PKR 248,730',
-          change: 'PKR 20,214',
+          current: 'PKR 223,456',
+          previous: 'PKR 205,600',
+          change: 'PKR 17,856',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -823,6 +808,21 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           current: 'PKR 192,400',
           previous: 'PKR 179,620',
           change: 'PKR 12,780',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Net Profit',
+        value: 'PKR 123,456',
+        sublabel: 'Since Yesterday',
+        trend: '9.4%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 123,456',
+          previous: 'PKR 112,880',
+          change: 'PKR 10,576',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -7142,6 +7142,7 @@ export default function App() {
                       }}
                       className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                     >
+                      <BarChart3 className="tu-h-3.5 tu-w-3.5" />
                       <span>{`Group by: ${selectedSalesOrderGroupBy}`}</span>
                       <ChevronDown className="tu-h-3 tu-w-3" />
                     </button>
@@ -7157,6 +7158,8 @@ export default function App() {
                       }}
                     />
                   </div>
+
+                  <span className="tu-mx-0.5 tu-inline-flex tu-h-9 tu-items-center tu-text-[#c2c8c0]">|</span>
 
                   <div className="tu-relative">
                     <button
