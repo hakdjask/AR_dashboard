@@ -552,6 +552,38 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
     ]
   },
   'Net Sales': metricTooltips.netSales,
+  "Today's Sales": {
+    title: "Today's Sales",
+    blocks: [
+      { type: 'text', text: "Gross sales generated today in the selected period context." },
+      { type: 'spacer' },
+      { type: 'formula', text: "Today's Sales = Sum of Today's Gross Sales" }
+    ]
+  },
+  'Gross Sales': {
+    title: 'Gross Sales',
+    blocks: [
+      { type: 'text', text: 'Total sales before taxes, discounts, and returns in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Sales = Sum of Sales Before Deductions' }
+    ]
+  },
+  'Gross Profit': {
+    title: 'Gross Profit',
+    blocks: [
+      { type: 'text', text: 'Profit after subtracting COGS from gross sales.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Profit = Gross Sales - COGS' }
+    ]
+  },
+  'Gross Profit Margin': {
+    title: 'Gross Profit Margin',
+    blocks: [
+      { type: 'text', text: 'Gross profit as a percentage of gross sales.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Profit Margin (%) = (Gross Profit / Gross Sales) x 100' }
+    ]
+  },
   COGS: metricTooltips.cogs,
   Expenses: metricTooltips.expenses,
   'Net Profit': metricTooltips.netProfit,
@@ -749,6 +781,66 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
+      },
+      {
+        label: "Today's Sales",
+        value: 'PKR 186,420',
+        sublabel: 'Since Yesterday',
+        trend: '7.1%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 186,420',
+          previous: 'PKR 174,055',
+          change: 'PKR 12,365',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Gross Sales',
+        value: 'PKR 268,944',
+        sublabel: 'Since Yesterday',
+        trend: '8.3%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 268,944',
+          previous: 'PKR 248,730',
+          change: 'PKR 20,214',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Gross Profit',
+        value: 'PKR 192,400',
+        sublabel: 'Since Yesterday',
+        trend: '6.9%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 192,400',
+          previous: 'PKR 179,620',
+          change: 'PKR 12,780',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Gross Profit Margin',
+        value: '71.5%',
+        sublabel: 'Since Yesterday',
+        trend: '2.1%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '71.5%',
+          previous: '69.9%',
+          change: '1.6%',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
       }
     ]
   },
@@ -917,6 +1009,15 @@ const buildComparisonDateLabels = (periodLabel: string) => {
   };
 };
 
+const getPeriodKeyFromDateLabel = (dateLabel: string): PeriodKey => {
+  if (dateLabel === 'Last 365 Days') return 'last365';
+  if (dateLabel === 'Last 90 Days') return 'last90';
+  if (dateLabel === 'Last 30 Days') return 'last30';
+  if (dateLabel === 'This Week' || dateLabel === 'Last 7 Days') return 'last7';
+  if (dateLabel === 'Yesterday') return 'yesterday';
+  return 'today';
+};
+
 const salesKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Orders': {
     title: 'Total Orders',
@@ -1028,6 +1129,7 @@ const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Sh
 const salesMetricOptions = ['Gross Sales', 'Order Returns', 'Units Sold'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const salesGroupByOptions = ['Days', 'Weeks', 'Months', 'Quarters', 'Years'];
+const salesOrderShowByOptions = ['Orders Volume', 'Gross Sales'];
 const inventoryDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const inventoryStatusOptions = ['On-hand', 'Committed', 'Available', 'Inbound', 'Unfulfillable'];
 const inventoryGroupByOptions = ['Days', 'Weeks', 'Months', 'Years'];
@@ -2680,6 +2782,28 @@ export default function App() {
   const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '', groupBy: '' });
   const [salesRegionProvince, setSalesRegionProvince] = useState<string | null>(null);
+  const [salesOrderMenus, setSalesOrderMenus] = useState<{
+    date: boolean;
+    showBy: boolean;
+    groupBy: boolean;
+    location: boolean;
+  }>({
+    date: false,
+    showBy: false,
+    groupBy: false,
+    location: false
+  });
+  const [selectedSalesOrderDate, setSelectedSalesOrderDate] = useState('Last 30 Days');
+  const [selectedSalesOrderShowBy, setSelectedSalesOrderShowBy] = useState('Orders Volume');
+  const [selectedSalesOrderGroupBy, setSelectedSalesOrderGroupBy] = useState('Days');
+  const [selectedSalesOrderRegion, setSelectedSalesOrderRegion] = useState<string[]>([...pakistanProvinceOptions]);
+  const [salesOrderMenuSearch, setSalesOrderMenuSearch] = useState({
+    date: '',
+    showBy: '',
+    groupBy: '',
+    location: ''
+  });
+  const [salesOrderRegionProvince, setSalesOrderRegionProvince] = useState<string | null>(null);
   const [locationMenus, setLocationMenus] = useState<{
     showBy: boolean;
     performance: boolean;
@@ -2760,6 +2884,9 @@ export default function App() {
     top: number;
   } | null>(null);
   const [hoveredSalesPoint, setHoveredSalesPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
+  const [hoveredSalesOrderPoint, setHoveredSalesOrderPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
+  const [hoveredSalesOrderKpi, setHoveredSalesOrderKpi] = useState<string | null>(null);
+  const [selectedSalesOrderStatus, setSelectedSalesOrderStatus] = useState('Total Orders');
   const [hoveredInventoryKpi, setHoveredInventoryKpi] = useState<string | null>(null);
   const [hoveredInventoryMovementKpi, setHoveredInventoryMovementKpi] = useState<string | null>(null);
   const [hoveredInventoryMovementPoint, setHoveredInventoryMovementPoint] = useState<{
@@ -2833,20 +2960,11 @@ export default function App() {
   const selectedSalesStoreRegion = salesStoreRegionMap[selectedSalesStoreName] ?? '';
   const isSelectedSalesStoreInRegion = selectedSalesRegion.includes(selectedSalesStoreRegion);
   const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
-  const selectedGlancePeriodKey: PeriodKey =
-    selectedGlanceDate === 'Last 365 Days'
-      ? 'last365'
-      : selectedGlanceDate === 'Last 90 Days'
-        ? 'last90'
-        : selectedGlanceDate === 'Last 30 Days'
-      ? 'last30'
-      : selectedGlanceDate === 'This Week' || selectedGlanceDate === 'Last 7 Days'
-        ? 'last7'
-        : selectedGlanceDate === 'Yesterday'
-          ? 'yesterday'
-          : 'today';
+  const selectedGlancePeriodKey = getPeriodKeyFromDateLabel(selectedGlanceDate);
   const glanceMetricSublabel =
     selectedGlanceDate === 'Custom' ? 'vs custom range' : `vs ${selectedGlanceDate.toLowerCase()}`;
+  const salesOrderMetricSublabel =
+    selectedSalesOrderDate === 'Custom' ? 'vs custom range' : `vs ${selectedSalesOrderDate.toLowerCase()}`;
   const sectionSixMetricSections = useMemo(
     () =>
       sectionSixMetricSectionsBase.map((metricSection) => {
@@ -2879,6 +2997,165 @@ export default function App() {
     () => buildComparisonDateLabels(selectedGlanceDate),
     [selectedGlanceDate]
   );
+  const salesOrderComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedSalesOrderDate),
+    [selectedSalesOrderDate]
+  );
+  const salesOrderStatusShareMap = useMemo(() => {
+    const ordersSection = sectionSixMetricSectionsBase.find((section) => section.title === 'Orders');
+    if (!ordersSection) return {} as Record<string, number>;
+
+    const total = Number(ordersSection.metrics[0]?.value.replace(/[^0-9.]/g, '')) || 1;
+    const shares = ordersSection.metrics.slice(1).map((metric) => {
+      const rawValue = Number(metric.value.replace(/[^0-9.]/g, '')) || 0;
+      return { label: metric.label, share: Math.max(0.01, rawValue / total) };
+    });
+    const shareTotal = shares.reduce((sum, item) => sum + item.share, 0) || 1;
+    return shares.reduce<Record<string, number>>((acc, item) => {
+      acc[item.label] = item.share / shareTotal;
+      return acc;
+    }, {});
+  }, []);
+  const salesOrderKpiCards = useMemo(() => {
+    const ordersSection = sectionSixMetricSectionsBase.find((section) => section.title === 'Orders');
+    if (!ordersSection) return [];
+    const scopedRegions = selectedSalesOrderRegion.length === 0 ? pakistanProvinceOptions : selectedSalesOrderRegion;
+    const activeStores = salesStoreOptions.filter((storeName) => scopedRegions.includes(salesStoreRegionMap[storeName] ?? ''));
+    const currentSnapshot = dayBreakdown[dayBreakdown.length - 1];
+    const previousSnapshot = dayBreakdown[dayBreakdown.length - 2];
+    const currentTotalOrdersRaw =
+      currentSnapshot?.stores.reduce(
+        (sum, store) => (activeStores.includes(store.name) ? sum + store.totalOrders : sum),
+        0
+      ) ?? 0;
+    const previousTotalOrdersRaw =
+      previousSnapshot?.stores.reduce(
+        (sum, store) => (activeStores.includes(store.name) ? sum + store.totalOrders : sum),
+        0
+      ) ?? 0;
+    const currentTotalGrossRaw =
+      currentSnapshot?.stores.reduce(
+        (sum, store) => (activeStores.includes(store.name) ? sum + store.grossRevenue : sum),
+        0
+      ) ?? 0;
+    const previousTotalGrossRaw =
+      previousSnapshot?.stores.reduce(
+        (sum, store) => (activeStores.includes(store.name) ? sum + store.grossRevenue : sum),
+        0
+      ) ?? 0;
+    const dateScale = salesDateMultipliers[selectedSalesOrderDate] ?? salesDateMultipliers['Last 30 Days'];
+    const isGrossSalesMode = selectedSalesOrderShowBy === 'Gross Sales';
+    const showByTotalsProfile =
+      isGrossSalesMode
+        ? { currentMultiplier: 2.4, previousMultiplier: 2.05, weightBoost: 1.15 }
+        : { currentMultiplier: 3.2, previousMultiplier: 2.75, weightBoost: 1.08 };
+    const currentTotalOrders = Math.max(
+      0,
+      Math.round(currentTotalOrdersRaw * dateScale.current * showByTotalsProfile.currentMultiplier)
+    );
+    const previousTotalOrders = Math.max(
+      0,
+      Math.round(previousTotalOrdersRaw * dateScale.previous * showByTotalsProfile.previousMultiplier)
+    );
+    const currentTotalGrossSales = Math.max(
+      0,
+      Math.round(currentTotalGrossRaw * dateScale.current * showByTotalsProfile.currentMultiplier)
+    );
+    const previousTotalGrossSales = Math.max(
+      0,
+      Math.round(previousTotalGrossRaw * dateScale.previous * showByTotalsProfile.previousMultiplier)
+    );
+
+    const statusLabels = ordersSection.metrics.slice(1).map((metric) => metric.label);
+    const groupByFactorMap: Record<string, number> = {
+      Days: 1,
+      Weeks: 0.98,
+      Months: 1.02,
+      Quarters: 1.05,
+      Years: 1.08
+    };
+    const groupByFactor = groupByFactorMap[selectedSalesOrderGroupBy] ?? 1;
+
+    const currentWeights = statusLabels.map((label, index) => {
+      const baseShare = salesOrderStatusShareMap[label] ?? 1 / statusLabels.length;
+      const wave =
+        1 +
+        0.18 * Math.sin((index + 1) * 0.9 + selectedSalesOrderDate.length * 0.1) +
+        0.08 * Math.cos((index + 2) * 1.3 + selectedSalesOrderRegion.length * 0.15) +
+        (deterministicNoise((index + 5) * (selectedSalesOrderRegion.length + 7) * 13) - 0.5) * 0.16;
+      return Math.max(0.05, baseShare * wave * showByTotalsProfile.weightBoost * groupByFactor);
+    });
+    const previousWeights = statusLabels.map((label, index) => {
+      const baseShare = salesOrderStatusShareMap[label] ?? 1 / statusLabels.length;
+      const wave =
+        1 +
+        0.16 * Math.sin((index + 1) * 0.8 + selectedSalesOrderDate.length * 0.16) +
+        0.06 * Math.cos((index + 2) * 1.1 + selectedSalesOrderRegion.length * 0.2) +
+        (deterministicNoise((index + 11) * (selectedSalesOrderRegion.length + 9) * 17) - 0.5) * 0.14;
+      return Math.max(0.05, baseShare * wave);
+    });
+    const currentWeightTotal = currentWeights.reduce((sum, value) => sum + value, 0) || 1;
+    const previousWeightTotal = previousWeights.reduce((sum, value) => sum + value, 0) || 1;
+    const normalizedCurrentWeights = currentWeights.map((value) => value / currentWeightTotal);
+    const normalizedPreviousWeights = previousWeights.map((value) => value / previousWeightTotal);
+
+    return ordersSection.metrics.map((metric, index) => {
+      if (metric.label === 'Total Orders') {
+        const totalCurrent = isGrossSalesMode ? currentTotalGrossSales : currentTotalOrders;
+        const totalPrevious = isGrossSalesMode ? previousTotalGrossSales : previousTotalOrders;
+        const trend = `${getPercentDelta(totalCurrent, totalPrevious).toFixed(1)}%`;
+        return {
+          ...metric,
+          sublabel: salesOrderMetricSublabel,
+          trend,
+          direction: totalCurrent >= totalPrevious ? ('up' as const) : ('down' as const),
+          value: isGrossSalesMode ? `PKR ${totalCurrent.toLocaleString('en-US')}` : totalCurrent.toLocaleString('en-US'),
+          comparison: {
+            ...metric.comparison,
+            current: isGrossSalesMode ? `PKR ${totalCurrent.toLocaleString('en-US')}` : totalCurrent.toLocaleString('en-US'),
+            previous: isGrossSalesMode ? `PKR ${totalPrevious.toLocaleString('en-US')}` : totalPrevious.toLocaleString('en-US'),
+            change: isGrossSalesMode
+              ? `PKR ${Math.abs(totalCurrent - totalPrevious).toLocaleString('en-US')}`
+              : Math.abs(totalCurrent - totalPrevious).toLocaleString('en-US')
+          },
+          orderShare: 100
+        };
+      }
+
+      const statusIndex = index - 1;
+      const currentStatusOrders = Math.max(0, Math.round(currentTotalOrders * normalizedCurrentWeights[statusIndex]));
+      const previousStatusOrders = Math.max(0, Math.round(previousTotalOrders * normalizedPreviousWeights[statusIndex]));
+      const currentStatusGross = Math.max(0, Math.round(currentTotalGrossSales * normalizedCurrentWeights[statusIndex]));
+      const previousStatusGross = Math.max(0, Math.round(previousTotalGrossSales * normalizedPreviousWeights[statusIndex]));
+      const currentValue = isGrossSalesMode ? currentStatusGross : currentStatusOrders;
+      const previousValue = isGrossSalesMode ? previousStatusGross : previousStatusOrders;
+      const denominator = isGrossSalesMode ? currentTotalGrossSales : currentTotalOrders;
+      const trend = `${getPercentDelta(currentValue, previousValue).toFixed(1)}%`;
+      return {
+        ...metric,
+        sublabel: salesOrderMetricSublabel,
+        trend,
+        direction: currentValue >= previousValue ? ('up' as const) : ('down' as const),
+        value: isGrossSalesMode ? `PKR ${currentValue.toLocaleString('en-US')}` : currentValue.toLocaleString('en-US'),
+        comparison: {
+          ...metric.comparison,
+          current: isGrossSalesMode ? `PKR ${currentValue.toLocaleString('en-US')}` : currentValue.toLocaleString('en-US'),
+          previous: isGrossSalesMode ? `PKR ${previousValue.toLocaleString('en-US')}` : previousValue.toLocaleString('en-US'),
+          change: isGrossSalesMode
+            ? `PKR ${Math.abs(currentValue - previousValue).toLocaleString('en-US')}`
+            : Math.abs(currentValue - previousValue).toLocaleString('en-US')
+        },
+        orderShare: denominator === 0 ? 0 : (currentValue / denominator) * 100
+      };
+    });
+  }, [
+    salesOrderMetricSublabel,
+    salesOrderStatusShareMap,
+    selectedSalesOrderDate,
+    selectedSalesOrderGroupBy,
+    selectedSalesOrderRegion,
+    selectedSalesOrderShowBy
+  ]);
   const inventoryComparisonLabels = useMemo(
     () => buildComparisonDateLabels(selectedInventoryDate),
     [selectedInventoryDate]
@@ -4131,6 +4408,375 @@ export default function App() {
           changePercent: `${getPercentDelta(current, previous).toFixed(1)}%`,
           metric: selectedStoreMetricConfig,
           store: selectedSalesStoreName
+        };
+      })()
+    : null;
+
+  const salesOrderStatusPalette: Record<string, string> = {
+    'Total Orders': '#10c562',
+    'Pending Orders': '#f59e0b',
+    'Ready to Ship': '#0ea5e9',
+    'Shipped to Couriers': '#06b6d4',
+    Delivered: '#14b8a6',
+    'Delivery Failed': '#f97316',
+    Returned: '#ef4444',
+    Voided: '#dc2626'
+  };
+  const selectedSalesOrderAccent = salesOrderStatusPalette[selectedSalesOrderStatus] ?? '#10c562';
+  const salesOrderMetricConfig = useMemo(
+    () =>
+      selectedSalesOrderShowBy === 'Gross Sales'
+        ? {
+            label: 'Gross Sales',
+            formatValue: (value: number) => `PKR ${Math.round(value).toLocaleString('en-US')}`,
+            axisMax: 25000000,
+            tickFormatter: (value: number) => {
+              if (value >= 1000000) return `PKR ${(value / 1000000).toFixed(1)}M`;
+              return `PKR ${(value / 1000).toFixed(0)}K`;
+            },
+            supportLabel: 'Orders',
+            formatSupportValue: (value: number) => Math.round(value).toLocaleString('en-US')
+          }
+        : {
+            label: 'Orders Volume',
+            formatValue: (value: number) => Math.round(value).toLocaleString('en-US'),
+            axisMax: 2500,
+            tickFormatter: (value: number) => Math.round(value).toLocaleString('en-US'),
+            supportLabel: 'Sales',
+            formatSupportValue: (value: number) => `PKR ${Math.round(value).toLocaleString('en-US')}`
+          },
+    [selectedSalesOrderShowBy]
+  );
+
+  const salesOrderDateAdjusted = useMemo(() => {
+    const scopedRegions = selectedSalesOrderRegion.length === 0 ? pakistanProvinceOptions : selectedSalesOrderRegion;
+    const activeStoreSet = new Set(
+      salesStoreOptions.filter((storeName) => scopedRegions.includes(salesStoreRegionMap[storeName] ?? ''))
+    );
+    const statusLabels = Object.keys(salesOrderStatusShareMap);
+    const selectedStatusIndex = statusLabels.findIndex((label) => label === selectedSalesOrderStatus);
+
+    const sourceGrossSalesSeries = salesChartLabels.map((_, index) => {
+      const snapshot = dayBreakdown[index % dayBreakdown.length];
+      const base =
+        snapshot?.stores.reduce((sum, store) => (activeStoreSet.has(store.name) ? sum + store.grossRevenue : sum), 0) ?? 0;
+      const wave =
+        1 +
+        0.22 * Math.sin((index + 1) * 0.85) +
+        0.14 * Math.cos((index + 2) * 0.41) +
+        (deterministicNoise((index + 5) * 31) - 0.5) * 0.26;
+      return Math.max(0, Math.round(base * wave));
+    });
+    const sourceOrdersSeries = salesChartLabels.map((_, index) => {
+      const snapshot = dayBreakdown[index % dayBreakdown.length];
+      const base =
+        snapshot?.stores.reduce((sum, store) => (activeStoreSet.has(store.name) ? sum + store.totalOrders : sum), 0) ?? 0;
+      const wave =
+        1 +
+        0.25 * Math.sin((index + 1) * 0.78) +
+        0.12 * Math.cos((index + 3) * 0.47) +
+        (deterministicNoise((index + 9) * 37) - 0.5) * 0.22;
+      return Math.max(0, Math.round(base * wave));
+    });
+    const sourceRevenueSeries = sourceGrossSalesSeries.map((value, index) =>
+      Math.max(0, Math.round(value * (0.82 + deterministicNoise((index + 3) * 19) * 0.1)))
+    );
+
+    let sourceStatusOrdersSeries = sourceOrdersSeries;
+    let sourceStatusRevenueSeries = sourceRevenueSeries;
+
+    if (selectedSalesOrderStatus !== 'Total Orders' && selectedStatusIndex >= 0 && statusLabels.length > 0) {
+      sourceStatusOrdersSeries = sourceOrdersSeries.map((totalOrders, index) => {
+        const weights = statusLabels.map((label, statusIndex) => {
+          const baseShare = salesOrderStatusShareMap[label] ?? 1 / statusLabels.length;
+          const wave =
+            1 +
+            0.28 * Math.sin((index + 1) * (0.62 + statusIndex * 0.08) + statusIndex * 0.9) +
+            0.16 * Math.cos((index + 2) * (0.41 + statusIndex * 0.06)) +
+            (deterministicNoise((index + 3) * (statusIndex + 7) * 23) - 0.5) * 0.22;
+          return Math.max(0.02, baseShare * wave);
+        });
+        const weightTotal = weights.reduce((sum, value) => sum + value, 0) || 1;
+        const selectedShare = weights[selectedStatusIndex] / weightTotal;
+        return Math.max(0, Math.round(totalOrders * selectedShare));
+      });
+      sourceStatusRevenueSeries = sourceRevenueSeries.map((totalRevenue, index) => {
+        const weights = statusLabels.map((label, statusIndex) => {
+          const baseShare = salesOrderStatusShareMap[label] ?? 1 / statusLabels.length;
+          const wave =
+            1 +
+            0.26 * Math.sin((index + 1) * (0.59 + statusIndex * 0.07) + statusIndex * 0.7) +
+            0.12 * Math.cos((index + 2) * (0.38 + statusIndex * 0.05)) +
+            (deterministicNoise((index + 11) * (statusIndex + 5) * 17) - 0.5) * 0.18;
+          return Math.max(0.02, baseShare * wave);
+        });
+        const weightTotal = weights.reduce((sum, value) => sum + value, 0) || 1;
+        const selectedShare = weights[selectedStatusIndex] / weightTotal;
+        const revenueLift = 1.06 + (deterministicNoise((index + 13) * (selectedStatusIndex + 9) * 11) - 0.5) * 0.12;
+        return Math.max(0, Math.round(totalRevenue * selectedShare * revenueLift));
+      });
+    }
+
+    const sourcePrimarySeries = selectedSalesOrderShowBy === 'Gross Sales' ? sourceStatusRevenueSeries : sourceStatusOrdersSeries;
+    const sourceSupportSeries = selectedSalesOrderShowBy === 'Gross Sales' ? sourceStatusOrdersSeries : sourceStatusRevenueSeries;
+
+    const totalPoints = salesDatePointCount[selectedSalesOrderDate] ?? salesDatePointCount['Last 30 Days'];
+    const startIndex = Math.max(0, salesChartLabels.length - totalPoints);
+    const visiblePrimarySeries = sourcePrimarySeries.slice(startIndex);
+    const visibleSupportSeries = sourceSupportSeries.slice(startIndex);
+    const dateScale = salesDateMultipliers[selectedSalesOrderDate] ?? salesDateMultipliers['Last 30 Days'];
+
+    const current = visiblePrimarySeries.map((value, index) => {
+      const volatility = 1 + 0.15 * Math.sin((index + 1) * 1.1) + 0.08 * Math.cos((index + 2) * 0.67);
+      return Math.max(0, Math.round(value * dateScale.current * volatility));
+    });
+    const previous = visiblePrimarySeries.map((value, index) => {
+      const drift =
+        0.82 +
+        0.26 * Math.sin((index + 2) * 0.92) +
+        0.14 * Math.cos((index + 5) * 0.51) +
+        deterministicNoise((index + 7) * 13) * 0.18;
+      return Math.max(0, Math.round(value * dateScale.previous * drift));
+    });
+    const currentSupport = visibleSupportSeries.map((value, index) => {
+      const volatility = 1 + 0.13 * Math.sin((index + 3) * 0.98) + 0.06 * Math.cos((index + 1) * 0.56);
+      return Math.max(0, Math.round(value * dateScale.current * volatility));
+    });
+    const previousSupport = visibleSupportSeries.map((value, index) => {
+      const drift =
+        0.84 +
+        0.22 * Math.sin((index + 5) * 0.89) +
+        0.11 * Math.cos((index + 4) * 0.44) +
+        deterministicNoise((index + 17) * 23) * 0.16;
+      return Math.max(0, Math.round(value * dateScale.previous * drift));
+    });
+
+    const dayStepMap: Record<string, number> = {
+      'Last 7 Days': 1,
+      'Last 30 Days': 2,
+      'Last 90 Days': 6,
+      'Last 365 Days': 24,
+      Custom: 2
+    };
+    const dayStep = dayStepMap[selectedSalesOrderDate] ?? dayStepMap['Last 30 Days'];
+    const endDate = new Date();
+    endDate.setHours(0, 0, 0, 0);
+    const currentDates = Array.from({ length: visiblePrimarySeries.length }, (_, index) => {
+      const date = new Date(endDate);
+      date.setDate(endDate.getDate() - (visiblePrimarySeries.length - 1 - index) * dayStep);
+      return date;
+    });
+    const previousDates = currentDates.map((date) => {
+      const previousDate = new Date(date);
+      previousDate.setDate(date.getDate() - visiblePrimarySeries.length * dayStep);
+      return previousDate;
+    });
+
+    return { currentDates, previousDates, current, previous, currentSupport, previousSupport };
+  }, [
+    salesOrderStatusShareMap,
+    selectedSalesOrderDate,
+    selectedSalesOrderRegion,
+    selectedSalesOrderShowBy,
+    selectedSalesOrderStatus
+  ]);
+
+  const groupedSalesOrderChartData = useMemo(() => {
+    const sourceCurrentDates = salesOrderDateAdjusted.currentDates;
+    const sourcePreviousDates = salesOrderDateAdjusted.previousDates;
+    const sourceCurrent = salesOrderDateAdjusted.current;
+    const sourcePrevious = salesOrderDateAdjusted.previous;
+    const sourceCurrentSupport = salesOrderDateAdjusted.currentSupport;
+    const sourcePreviousSupport = salesOrderDateAdjusted.previousSupport;
+
+    const groupSizeMap: Record<string, number> = {
+      Days: 1,
+      Weeks: 3,
+      Months: 5,
+      Quarters: Math.ceil(sourceCurrent.length / 4),
+      Years: Math.ceil(sourceCurrent.length / 2)
+    };
+    const groupSize = groupSizeMap[selectedSalesOrderGroupBy] ?? 1;
+
+    const labels: string[] = [];
+    const currentDates: Date[] = [];
+    const previousDates: Date[] = [];
+    const current: number[] = [];
+    const previous: number[] = [];
+    const currentSupport: number[] = [];
+    const previousSupport: number[] = [];
+
+    for (let index = 0; index < sourceCurrent.length; index += groupSize) {
+      const bucket = Math.floor(index / groupSize) + 1;
+      const currentSlice = sourceCurrent.slice(index, index + groupSize);
+      const previousSlice = sourcePrevious.slice(index, index + groupSize);
+      const currentSupportSlice = sourceCurrentSupport.slice(index, index + groupSize);
+      const previousSupportSlice = sourcePreviousSupport.slice(index, index + groupSize);
+      const currentDateSlice = sourceCurrentDates.slice(index, index + groupSize);
+      const previousDateSlice = sourcePreviousDates.slice(index, index + groupSize);
+
+      if (selectedSalesOrderGroupBy === 'Days') {
+        const labelDate = currentDateSlice[currentDateSlice.length - 1] ?? sourceCurrentDates[sourceCurrentDates.length - 1] ?? new Date();
+        labels.push(labelDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
+      }
+      if (selectedSalesOrderGroupBy === 'Weeks') labels.push(`Week ${bucket}`);
+      if (selectedSalesOrderGroupBy === 'Months') labels.push(`Month ${bucket}`);
+      if (selectedSalesOrderGroupBy === 'Quarters') labels.push(`Quarter ${bucket}`);
+      if (selectedSalesOrderGroupBy === 'Years') labels.push(`Year ${bucket}`);
+
+      currentDates.push(currentDateSlice[currentDateSlice.length - 1] ?? sourceCurrentDates[sourceCurrentDates.length - 1] ?? new Date());
+      previousDates.push(
+        previousDateSlice[previousDateSlice.length - 1] ?? sourcePreviousDates[sourcePreviousDates.length - 1] ?? new Date()
+      );
+      current.push(currentSlice.reduce((sum, value) => sum + value, 0));
+      previous.push(previousSlice.reduce((sum, value) => sum + value, 0));
+      currentSupport.push(currentSupportSlice.reduce((sum, value) => sum + value, 0));
+      previousSupport.push(previousSupportSlice.reduce((sum, value) => sum + value, 0));
+    }
+
+    return { labels, currentDates, previousDates, current, previous, currentSupport, previousSupport };
+  }, [salesOrderDateAdjusted, selectedSalesOrderGroupBy]);
+
+  const salesOrderChartData = useMemo(
+    () => ({
+      labels: groupedSalesOrderChartData.labels,
+      datasets: [
+        {
+          label: 'Current Period',
+          data: groupedSalesOrderChartData.current,
+          borderColor: '#10c562',
+          backgroundColor: '#10c562',
+          pointBackgroundColor: '#10c562',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.7,
+          pointRadius: 3.1,
+          pointHoverRadius: 5.4,
+          borderWidth: 2.5,
+          tension: 0.46
+        },
+        {
+          label: 'Previous Period',
+          data: groupedSalesOrderChartData.previous,
+          borderColor: 'rgba(156,163,175,0.75)',
+          backgroundColor: 'rgba(156,163,175,0.75)',
+          pointBackgroundColor: 'rgba(156,163,175,0.75)',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 1.5,
+          pointRadius: 3,
+          pointHoverRadius: 4.8,
+          borderWidth: 2.2,
+          tension: 0.44,
+          borderDash: [7, 6]
+        }
+      ]
+    }),
+    [groupedSalesOrderChartData]
+  );
+
+  const salesOrderChartOptions = useMemo(() => {
+    const allSeriesValues = [...groupedSalesOrderChartData.current, ...groupedSalesOrderChartData.previous];
+    const currentMax = allSeriesValues.length > 0 ? Math.max(...allSeriesValues) : 0;
+    const fallbackMax = salesOrderMetricConfig.axisMax;
+    const paddedMax = currentMax > 0 ? currentMax * 1.15 : fallbackMax;
+    const roundingBase = paddedMax >= 1000 ? Math.pow(10, Math.floor(Math.log10(paddedMax)) - 1) : paddedMax >= 100 ? 10 : 1;
+    const dynamicAxisMax = Math.ceil(paddedMax / roundingBase) * roundingBase;
+    const dynamicStepSize = Math.max(1, Math.ceil(dynamicAxisMax / 6 / roundingBase) * roundingBase);
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index' as const,
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          position: 'top' as const,
+          align: 'center' as const,
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle' as const,
+            boxWidth: 8,
+            boxHeight: 8,
+            color: '#3A3D42',
+            font: {
+              family: 'Poppins',
+              size: 12
+            },
+            padding: 18
+          }
+        },
+        tooltip: {
+          enabled: false
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#5F6368',
+            font: {
+              family: 'Poppins',
+              size: 11
+            },
+            callback: (value: string | number, index: number) =>
+              selectedSalesOrderGroupBy === 'Days' && index % 2 === 1 ? '' : groupedSalesOrderChartData.labels[index] ?? value
+          },
+          border: {
+            display: false
+          }
+        },
+        y: {
+          min: 0,
+          max: dynamicAxisMax,
+          ticks: {
+            stepSize: dynamicStepSize,
+            color: '#7D828A',
+            font: {
+              family: 'Poppins',
+              size: 10
+            },
+            callback: (value: string | number) => salesOrderMetricConfig.tickFormatter(Number(value))
+          },
+          grid: {
+            color: '#EEF0EB'
+          },
+          border: {
+            display: false
+          }
+        }
+      },
+      onHover: (_event: unknown, elements: { index: number; element: { x: number; y: number } }[]) => {
+        if (elements.length > 0) {
+          const active = elements[0];
+          setHoveredSalesOrderPoint({
+            x: active.element.x,
+            y: active.element.y,
+            dataIndex: active.index
+          });
+        } else {
+          setHoveredSalesOrderPoint(null);
+        }
+      }
+    };
+  }, [groupedSalesOrderChartData, salesOrderMetricConfig, selectedSalesOrderGroupBy]);
+
+  const salesOrderTooltipData = hoveredSalesOrderPoint
+    ? (() => {
+        const current = groupedSalesOrderChartData.current[hoveredSalesOrderPoint.dataIndex] ?? 0;
+        const previous = groupedSalesOrderChartData.previous[hoveredSalesOrderPoint.dataIndex] ?? 0;
+        return {
+          label: groupedSalesOrderChartData.labels[hoveredSalesOrderPoint.dataIndex] ?? '-',
+          currentDate: groupedSalesOrderChartData.currentDates[hoveredSalesOrderPoint.dataIndex] ?? new Date(),
+          previousDate: groupedSalesOrderChartData.previousDates[hoveredSalesOrderPoint.dataIndex] ?? new Date(),
+          current,
+          previous,
+          currentSupport: groupedSalesOrderChartData.currentSupport[hoveredSalesOrderPoint.dataIndex] ?? 0,
+          previousSupport: groupedSalesOrderChartData.previousSupport[hoveredSalesOrderPoint.dataIndex] ?? 0,
+          change: current - previous,
+          changePercent: `${getPercentDelta(current, previous).toFixed(1)}%`
         };
       })()
     : null;
@@ -6477,6 +7123,324 @@ export default function App() {
               </div>
             </section>
 
+            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+              <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Order Overview and Insights</h2>
+
+                <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSalesOrderMenus((current) => ({
+                          date: false,
+                          showBy: false,
+                          groupBy: !current.groupBy,
+                          location: false
+                        }));
+                        setSalesOrderMenuSearch((current) => ({ ...current, groupBy: '' }));
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{`Group by: ${selectedSalesOrderGroupBy}`}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+                    <SearchableDropdownMenu
+                      open={salesOrderMenus.groupBy}
+                      options={salesGroupByOptions}
+                      selected={selectedSalesOrderGroupBy}
+                      searchable={false}
+                      widthClass="tu-w-[190px]"
+                      onSelect={(item) => {
+                        setSelectedSalesOrderGroupBy(item);
+                        setSalesOrderMenus({ date: false, showBy: false, groupBy: false, location: false });
+                      }}
+                    />
+                  </div>
+
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSalesOrderMenus((current) => ({
+                          date: false,
+                          showBy: !current.showBy,
+                          groupBy: false,
+                          location: false
+                        }));
+                        setSalesOrderMenuSearch((current) => ({ ...current, showBy: '' }));
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{`Show by: ${selectedSalesOrderShowBy}`}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+                    <SearchableDropdownMenu
+                      open={salesOrderMenus.showBy}
+                      options={salesOrderShowByOptions}
+                      selected={selectedSalesOrderShowBy}
+                      searchable={false}
+                      widthClass="tu-w-[190px]"
+                      onSelect={(item) => {
+                        setSelectedSalesOrderShowBy(item);
+                        setSalesOrderMenus({ date: false, showBy: false, groupBy: false, location: false });
+                      }}
+                    />
+                  </div>
+
+                  <span className="tu-mx-0.5 tu-inline-flex tu-h-9 tu-items-center tu-text-[#c2c8c0]">|</span>
+
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSalesOrderMenus((current) => ({
+                          date: !current.date,
+                          showBy: false,
+                          groupBy: false,
+                          location: false
+                        }));
+                        setSalesOrderMenuSearch((current) => ({ ...current, date: '' }));
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{selectedSalesOrderDate}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+                    <SearchableDropdownMenu
+                      open={salesOrderMenus.date}
+                      options={salesDateOptions}
+                      selected={selectedSalesOrderDate}
+                      searchable={false}
+                      widthClass="tu-w-[190px]"
+                      showChevronForCustom
+                      onSelect={(item) => {
+                        setSelectedSalesOrderDate(item);
+                        setSalesOrderMenus({ date: false, showBy: false, groupBy: false, location: false });
+                      }}
+                    />
+                  </div>
+
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSalesOrderMenus((current) => ({
+                          date: false,
+                          showBy: false,
+                          groupBy: false,
+                          location: !current.location
+                        }));
+                        setSalesOrderRegionProvince(null);
+                        setSalesOrderMenuSearch((current) => ({ ...current, location: '' }));
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>
+                        {formatLocationFilterLabel(selectedSalesOrderRegion) === 'All Locations'
+                          ? 'All Location'
+                          : formatLocationFilterLabel(selectedSalesOrderRegion)}
+                      </span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+                    <HierarchicalLocationDropdown
+                      open={salesOrderMenus.location}
+                      selected={selectedSalesOrderRegion}
+                      onChange={setSelectedSalesOrderRegion}
+                      searchValue={salesOrderMenuSearch.location}
+                      onSearchChange={(value) => setSalesOrderMenuSearch((current) => ({ ...current, location: value }))}
+                      activeProvince={salesOrderRegionProvince}
+                      onProvinceChange={setSalesOrderRegionProvince}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="tu-mt-4 tu-grid tu-gap-3 lg:tu-grid-cols-4">
+                {salesOrderKpiCards.map((metric) => {
+                  const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                  const isSelectedStatus = selectedSalesOrderStatus === metric.label;
+                  const trendPillClass =
+                    metric.direction === 'up'
+                      ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                      : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
+                  const hoverKey = `sales-order-${metric.label}`;
+
+                  return (
+                    <article
+                      key={hoverKey}
+                      onClick={() => setSelectedSalesOrderStatus(metric.label)}
+                      className={`tu-group tu-relative tu-z-0 tu-rounded-[12px] tu-border tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 ${
+                        metric.label === 'Total Orders'
+                          ? 'tu-border-[#cfe8d6] tu-bg-[linear-gradient(180deg,#f3fbf6_0%,#e9f7ef_100%)] hover:tu-border-[#b8dcc4] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
+                          : metric.label === 'Voided'
+                            ? 'tu-border-[#efc8c4] tu-bg-[linear-gradient(180deg,#fff6f6_0%,#ffe9e8_100%)] hover:tu-border-[#e79e97] hover:tu-shadow-[0_14px_30px_rgba(222,82,76,0.16)]'
+                            : 'tu-border-[#dfe8de] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf8_100%)] hover:tu-border-[#cfe5d6] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
+                      } ${isSelectedStatus ? 'tu-ring-2 tu-ring-offset-0 tu-ring-[#6ecf93] tu-shadow-[0_14px_30px_rgba(16,197,98,0.18)]' : ''} tu-cursor-pointer`}
+                    >
+                      <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
+                        <div className="tu-min-w-0">
+                          <div className="tu-flex tu-items-center tu-gap-2">
+                            <div className="tu-group/tooltip tu-relative tu-inline-block">
+                              <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
+                                {metric.label}
+                              </button>
+                              <InfoTooltip text={sectionSixKpiTooltips[metric.label]} widthClass="tu-w-[280px]" />
+                            </div>
+                            {isSelectedStatus ? (
+                              <span className="tu-inline-flex tu-items-center tu-rounded-full tu-bg-[#e8f8ef] tu-px-2 tu-py-0.5 tu-text-[10px] tu-font-semibold tu-text-[#0ea857]">
+                                Selected
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="tu-mt-1">
+                            <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+                            <p className="tu-mt-0.5 tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
+                              {metric.label === 'Total Orders'
+                                ? selectedSalesOrderShowBy === 'Gross Sales'
+                                  ? '100% of gross sales in scope'
+                                  : '100% of orders in scope'
+                                : `${(metric.orderShare ?? 0).toFixed(1)}% of total ${
+                                    selectedSalesOrderShowBy === 'Gross Sales' ? 'gross sales' : 'orders'
+                                  }`}
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href="/reports"
+                          onClick={(event) => event.stopPropagation()}
+                          className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 tu-transition-opacity group-hover:tu-opacity-100"
+                        >
+                          <span>See reports</span>
+                          <ChevronRight className="tu-h-4 tu-w-4" />
+                        </a>
+                      </div>
+
+                      <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                        <div className="tu-relative">
+                          <button
+                            type="button"
+                            onMouseEnter={() => setHoveredSalesOrderKpi(hoverKey)}
+                            onMouseLeave={() => setHoveredSalesOrderKpi(null)}
+                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                          >
+                            {metric.trend}
+                            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                          </button>
+                          {hoveredSalesOrderKpi === hoverKey ? (
+                            <ComparisonPopover
+                              comparison={{ ...metric.comparison, ...salesOrderComparisonLabels }}
+                              trend={metric.trend}
+                              direction={metric.direction}
+                            />
+                          ) : null}
+                        </div>
+                        <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div
+                className="tu-relative tu-mt-5 tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] sm:tu-p-4"
+                onMouseLeave={() => setHoveredSalesOrderPoint(null)}
+              >
+                <div className="tu-mb-4 tu-flex tu-items-start tu-justify-between tu-gap-3">
+                  <h3 className="tu-text-[16px] tu-font-semibold tu-text-[#2a2c2f]">
+                    {`Sales Order Trend: By ${selectedSalesOrderShowBy === 'Gross Sales' ? 'Sales' : 'Volume'} (${selectedSalesOrderStatus})`}
+                  </h3>
+                  <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-bg-[#f1f5f2] tu-px-2.5 tu-py-1">
+                    <span
+                      className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full"
+                      style={{ backgroundColor: selectedSalesOrderAccent }}
+                    />
+                    <span className="tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">{`Tracking: ${selectedSalesOrderStatus}`}</span>
+                  </div>
+                </div>
+
+                <div className="tu-h-[360px]">
+                  <Line data={salesOrderChartData} options={salesOrderChartOptions} />
+                </div>
+
+                {hoveredSalesOrderPoint && salesOrderTooltipData ? (
+                  <div
+                    className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
+                    style={{
+                      left: Math.min(Math.max(hoveredSalesOrderPoint.x - 143, 12), 640),
+                      top: Math.max(hoveredSalesOrderPoint.y - 150, 12)
+                    }}
+                  >
+                    <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                      <h4 className="tu-text-[12px] tu-font-semibold tu-leading-none tu-text-[#22302a]">
+                        {salesOrderTooltipData.label}
+                      </h4>
+                      <span className="tu-rounded-full tu-bg-[#edf9f1] tu-px-2 tu-py-0.5 tu-text-[9px] tu-font-medium tu-text-[#17995a]">
+                        {selectedSalesOrderStatus}
+                      </span>
+                    </div>
+
+                    <div className="tu-mt-3 tu-space-y-3">
+                      <div>
+                        <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                          <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                            <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#10c562]" />
+                            Current Period
+                          </span>
+                          <span className="tu-text-[10px] tu-text-[#6a7270]">
+                            {formatTooltipPeriodDate(salesOrderTooltipData.currentDate)}
+                          </span>
+                        </div>
+                        <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#22302a]">
+                          {salesOrderMetricConfig.formatValue(salesOrderTooltipData.current)}
+                        </p>
+                        <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
+                          {`${salesOrderMetricConfig.supportLabel}: ${salesOrderMetricConfig.formatSupportValue(salesOrderTooltipData.currentSupport)}`}
+                        </p>
+                      </div>
+
+                      <div className="tu-h-px tu-bg-[#e5eee8]" />
+
+                      <div>
+                        <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                          <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
+                            <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#9ca3af]" />
+                            Previous Period
+                          </span>
+                          <span className="tu-text-[10px] tu-text-[#6a7270]">
+                            {formatTooltipPeriodDate(salesOrderTooltipData.previousDate)}
+                          </span>
+                        </div>
+                        <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#2e3338]">
+                          {salesOrderMetricConfig.formatValue(salesOrderTooltipData.previous)}
+                        </p>
+                        <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
+                          {`${salesOrderMetricConfig.supportLabel}: ${salesOrderMetricConfig.formatSupportValue(salesOrderTooltipData.previousSupport)}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
+                      <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
+                      <span
+                        className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
+                          salesOrderTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
+                        }`}
+                      >
+                        {salesOrderTooltipData.change >= 0 ? (
+                          <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                        ) : (
+                          <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                        )}
+                        {`${salesOrderTooltipData.changePercent} (${salesOrderMetricConfig.formatValue(Math.abs(salesOrderTooltipData.change))})`}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+
             {showSalesProductsChart ? (
               <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
@@ -7542,9 +8506,9 @@ export default function App() {
 
               <div className="tu-mt-4 tu-space-y-4">
                 {sectionSixMetricSections
+                  .filter((metricSection) => metricSection.title !== 'Orders')
                   .map((metricSection) => {
                   const isOrdersSection = metricSection.title === 'Orders';
-                  const orderTotal = Number(metricSection.metrics[0]?.value.replace(/[^0-9.]/g, '')) || 0;
 
                   return (
                   <article
@@ -7589,6 +8553,8 @@ export default function App() {
                                   : metric.label === 'Voided'
                                     ? 'tu-border-[#efc8c4] tu-bg-[linear-gradient(180deg,#fff6f6_0%,#ffe9e8_100%)] hover:tu-border-[#e79e97] hover:tu-shadow-[0_14px_30px_rgba(222,82,76,0.16)]'
                                     : 'tu-border-[#dfe8de] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf8_100%)] hover:tu-border-[#cfe5d6] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
+                                : metricSection.title === 'Sales' && metric.label === "Today's Sales"
+                                  ? 'tu-border-[#cfe8d6] tu-bg-[linear-gradient(180deg,#f3fbf6_0%,#e9f7ef_100%)] hover:tu-border-[#b8dcc4] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
                                 : 'tu-border-[#eceee8] tu-bg-white hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]'
                             }`}
                           >
@@ -7620,12 +8586,12 @@ export default function App() {
                                         onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
                                         onMouseLeave={() => setHoveredSectionSixValue(null)}
                                         className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold tu-text-[#10c562] tu-transition-all hover:tu-scale-[1.01] hover:tu-text-[#0ea857] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
-                                          metric.label === 'Expenses'
+                                          breakdownRows.length === 0
                                             ? ''
                                             : 'tu-decoration-dotted tu-underline tu-underline-offset-4'
                                         }`}
                                         style={
-                                          metric.label === 'Expenses'
+                                          breakdownRows.length === 0
                                             ? undefined
                                             : { textDecorationThickness: '1px', textDecorationColor: '#10c562' }
                                         }
