@@ -41,7 +41,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'last90' | 'last365';
 type TabKey = 'courier' | 'sales' | 'inventory';
 type MetricKey = 'netSales' | 'cogs' | 'expenses' | 'netProfit';
-type StoreChartMetricKey = 'grossRevenue' | 'orderReturns' | 'unitsSold';
+type StoreChartMetricKey = 'grossRevenue' | 'orderReturns' | 'unitsSold' | 'totalOrders';
 type ComparisonData = {
   current: string;
   previous: string;
@@ -1097,6 +1097,38 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Peak Day = Day with MAX(Daily Gross Sales)' }
     ]
   },
+  'Total Order Volume': {
+    title: 'Total Order Volume',
+    blocks: [
+      { type: 'text', text: 'Total orders across all selected stores in the active period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Order Volume = Sum of Orders Across Selected Stores' }
+    ]
+  },
+  'Top Store by Order Volume': {
+    title: 'Top Store by Order Volume',
+    blocks: [
+      { type: 'text', text: 'Store contributing the highest order volume in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Top Store = Store with MAX(Order Volume)' }
+    ]
+  },
+  'Average Order Volume per Store': {
+    title: 'Average Order Volume per Store',
+    blocks: [
+      { type: 'text', text: 'Average order volume contribution across selected stores.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Average Order Volume per Store = Total Order Volume / Active Stores' }
+    ]
+  },
+  'Peak Order Volume Day': {
+    title: 'Peak Order Volume Day',
+    blocks: [
+      { type: 'text', text: 'Day with the highest order volume in the selected range.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Peak Day = Day with MAX(Daily Order Volume)' }
+    ]
+  },
   'Total Units Sold': {
     title: 'Total Units Sold',
     blocks: [
@@ -1164,7 +1196,7 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
 };
 
 const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
-const salesMetricOptions = ['Gross Sales', 'Order Returns', 'Units Sold'];
+const salesMetricOptions = ['Gross Sales', 'Order Volume', 'Units Sold', 'Order Returns'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const salesGroupByOptions = ['Days', 'Weeks', 'Months', 'Quarters', 'Years'];
 const salesOrderShowByOptions = ['Orders Volume', 'Gross Sales'];
@@ -2123,35 +2155,40 @@ const storeSeries = [
     color: '#22B8C5',
     grossRevenue: [71000, 94000, 72000, 83000, 78000, 79000, 66000, 22000, 58000, 29000, 64000, 55000, 73000, 63000, 67000],
     orderReturns: [420, 860, 510, 740, 620, 790, 670, 230, 540, 310, 690, 570, 760, 640, 810],
-    unitsSold: [140, 820, 210, 360, 435, 690, 720, 560, 670, 610, 745, 702, 888, 952, 434]
+    unitsSold: [140, 820, 210, 360, 435, 690, 720, 560, 670, 610, 745, 702, 888, 952, 434],
+    totalOrders: [98, 84, 76, 91, 88, 95, 82, 63, 79, 71, 86, 83, 97, 89, 92]
   },
   {
     name: 'Shopify-01',
     color: '#F97316',
     grossRevenue: [34000, 95000, 21000, 79000, 41000, 100000, 81000, 70000, 37000, 72000, 27000, 69000, 23000, 53000, 34000],
     orderReturns: [280, 910, 190, 760, 340, 980, 820, 690, 260, 720, 210, 660, 180, 470, 290],
-    unitsSold: [520, 890, 430, 810, 560, 940, 860, 780, 510, 805, 440, 730, 460, 610, 525]
+    unitsSold: [520, 890, 430, 810, 560, 940, 860, 780, 510, 805, 440, 730, 460, 610, 525],
+    totalOrders: [47, 42, 51, 56, 49, 58, 53, 45, 48, 54, 46, 52, 44, 50, 47]
   },
   {
     name: 'WOO-01',
     color: '#9D7AE5',
     grossRevenue: [91000, 43000, 49000, 40000, 68000, 34000, 71000, 26000, 23000, 21000, 66000, 24000, 74000, 93000, 91000],
     orderReturns: [760, 330, 420, 390, 610, 280, 670, 240, 210, 190, 640, 220, 710, 880, 790],
-    unitsSold: [860, 610, 640, 590, 760, 540, 790, 470, 430, 410, 772, 450, 804, 895, 870]
+    unitsSold: [860, 610, 640, 590, 760, 540, 790, 470, 430, 410, 772, 450, 804, 895, 870],
+    totalOrders: [47, 50, 45, 52, 49, 54, 51, 43, 44, 42, 53, 41, 55, 57, 56]
   },
   {
     name: 'Shopify-02',
     color: '#4FE3D5',
     grossRevenue: [80000, 22000, 57000, 52000, 78000, 81000, 74000, 40000, 79000, 79000, 54000, 21000, 82000, 81000, 98000],
     orderReturns: [690, 170, 520, 460, 710, 760, 690, 360, 730, 720, 490, 180, 790, 770, 930],
-    unitsSold: [780, 360, 640, 615, 805, 820, 790, 520, 812, 818, 626, 355, 840, 826, 968]
+    unitsSold: [780, 360, 640, 615, 805, 820, 790, 520, 812, 818, 626, 355, 840, 826, 968],
+    totalOrders: [71, 68, 74, 77, 72, 80, 76, 64, 73, 75, 70, 62, 81, 78, 84]
   },
   {
     name: 'Shopify-03',
     color: '#D946EF',
     grossRevenue: [40000, 41000, 21000, 95000, 61000, 81000, 83000, 92000, 33000, 90000, 97000, 25000, 37000, 33000, 81000],
     orderReturns: [310, 340, 180, 900, 560, 760, 790, 870, 250, 850, 920, 210, 300, 260, 780],
-    unitsSold: [540, 560, 390, 910, 700, 815, 836, 902, 500, 888, 940, 410, 520, 485, 820]
+    unitsSold: [540, 560, 390, 910, 700, 815, 836, 902, 500, 888, 940, 410, 520, 485, 820],
+    totalOrders: [100, 92, 105, 108, 99, 112, 107, 94, 98, 110, 114, 90, 96, 93, 109]
   }
 ];
 
@@ -2221,6 +2258,14 @@ const storeChartMetricConfig: Record<
     formatValue: (value) => value.toLocaleString('en-US'),
     axisMax: 1000,
     stepSize: 200,
+    tickFormatter: (value) => value.toFixed(0)
+  },
+  'Order Volume': {
+    key: 'totalOrders',
+    label: 'Order Volume',
+    formatValue: (value) => value.toLocaleString('en-US'),
+    axisMax: 150,
+    stepSize: 25,
     tickFormatter: (value) => value.toFixed(0)
   }
 };
@@ -3351,6 +3396,12 @@ export default function App() {
         average: 'Average Gross Sales per Store',
         peak: 'Peak Gross Sales Day'
       },
+      totalOrders: {
+        total: 'Total Order Volume',
+        top: 'Top Store by Order Volume',
+        average: 'Average Order Volume per Store',
+        peak: 'Peak Order Volume Day'
+      },
       orderReturns: {
         total: 'Total Order Returns',
         top: 'Highest Store Returns',
@@ -3379,6 +3430,8 @@ export default function App() {
     const selectedStoreMetricLabel =
       selectedSalesMetric === 'Gross Sales'
         ? `Gross Sales of ${selectedSalesStoreName}`
+        : selectedSalesMetric === 'Order Volume'
+          ? `Order Volume by ${selectedSalesStoreName}`
         : selectedSalesMetric === 'Units Sold'
           ? `Units Sold by ${selectedSalesStoreName}`
           : `Order Returns by ${selectedSalesStoreName}`;
