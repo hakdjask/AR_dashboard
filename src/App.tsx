@@ -290,13 +290,7 @@ const getMetricPopoverContent = (periodKey: PeriodKey, metricKey: MetricKey): Me
   }
 
   return [
-    { label: 'Gross Sales', value: values.grossSales },
-    { label: 'Total Taxes', value: values.totalTaxes, prefix: '-' },
-    { label: 'Discounts', value: values.discounts, prefix: '-' },
-    { label: 'Returns', value: values.returns, prefix: '-' },
-    { label: 'Net Sales', value: values.netSales, medium: true, dividerBefore: true },
-    { label: 'COGS', value: values.cogs, prefix: '-', dividerBefore: true },
-    { label: 'Gross Profit', value: values.grossProfit, medium: true, dividerBefore: true },
+    { label: 'Gross Profit', value: values.grossProfit, medium: true },
     { label: 'Gross Profit Margin', value: values.grossProfitMargin, medium: true },
     { label: 'Expenses', value: values.expenses, prefix: '-', dividerBefore: true },
     { label: 'Net Profit', value: values.netProfit, medium: true, dividerBefore: true }
@@ -481,6 +475,14 @@ type GlanceMetricCard = {
   direction: 'up' | 'down';
   showStoreSelect: boolean;
   comparison: ComparisonData;
+  subCards?: {
+    label: string;
+    value: string;
+    trend: string;
+    direction: 'up' | 'down';
+    comparison: ComparisonData;
+    sublabel?: string;
+  }[];
   secondaryText?: string;
   secondaryTooltip?: string;
   orderShare?: number;
@@ -753,16 +755,16 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'COGS',
-        value: 'PKR 76,544',
+        label: 'Net Sales',
+        value: 'PKR 223,456',
         sublabel: 'Since Yesterday',
-        trend: '5.8%',
-        direction: 'down',
+        trend: '8.7%',
+        direction: 'up',
         showStoreSelect: false,
         comparison: {
-          current: 'PKR 76,544',
-          previous: 'PKR 81,240',
-          change: 'PKR 4,696',
+          current: 'PKR 223,456',
+          previous: 'PKR 205,600',
+          change: 'PKR 17,856',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -783,16 +785,16 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'Net Sales',
-        value: 'PKR 223,456',
+        label: 'COGS',
+        value: 'PKR 76,544',
         sublabel: 'Since Yesterday',
-        trend: '8.7%',
-        direction: 'up',
+        trend: '5.8%',
+        direction: 'down',
         showStoreSelect: false,
         comparison: {
-          current: 'PKR 223,456',
-          previous: 'PKR 205,600',
-          change: 'PKR 17,856',
+          current: 'PKR 76,544',
+          previous: 'PKR 81,240',
+          change: 'PKR 4,696',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -813,21 +815,6 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'Net Profit',
-        value: 'PKR 123,456',
-        sublabel: 'Since Yesterday',
-        trend: '9.4%',
-        direction: 'up',
-        showStoreSelect: false,
-        comparison: {
-          current: 'PKR 123,456',
-          previous: 'PKR 112,880',
-          change: 'PKR 10,576',
-          currentPeriodLabel: 'Current Period',
-          previousPeriodLabel: 'Previous Period'
-        }
-      },
-      {
         label: 'Gross Profit Margin',
         value: '71.5%',
         sublabel: 'Since Yesterday',
@@ -838,6 +825,21 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           current: '71.5%',
           previous: '69.9%',
           change: '1.6%',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Net Profit',
+        value: 'PKR 123,456',
+        sublabel: 'Since Yesterday',
+        trend: '9.4%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 123,456',
+          previous: 'PKR 112,880',
+          change: 'PKR 10,576',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -860,7 +862,35 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           change: '27',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
-        }
+        },
+        subCards: [
+          {
+            label: 'Total Customers',
+            value: '2,939',
+            trend: '4.2%',
+            direction: 'up',
+            comparison: {
+              current: '2,939',
+              previous: '2,821',
+              change: '118',
+              currentPeriodLabel: 'Current Period',
+              previousPeriodLabel: 'Previous Period'
+            }
+          },
+          {
+            label: 'New Customers',
+            value: '426',
+            trend: '6.8%',
+            direction: 'up',
+            comparison: {
+              current: '426',
+              previous: '399',
+              change: '27',
+              currentPeriodLabel: 'Current Period',
+              previousPeriodLabel: 'Previous Period'
+            }
+          }
+        ]
       },
       {
         label: 'Average Order Value',
@@ -2972,7 +3002,13 @@ export default function App() {
           ...metric,
           sublabel: glanceMetricSublabel,
           value: scaleMetricValueByPeriod(metric.value, selectedGlancePeriodKey),
-          comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey)
+          comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey),
+          subCards: metric.subCards?.map((subCard) => ({
+            ...subCard,
+            value: scaleMetricValueByPeriod(subCard.value, selectedGlancePeriodKey),
+            comparison: scaleComparisonByPeriod(subCard.comparison, selectedGlancePeriodKey),
+            sublabel: glanceMetricSublabel
+          }))
         }));
 
         if (metricSection.title !== 'Orders') {
@@ -8160,12 +8196,12 @@ export default function App() {
                       value: `Showing ${selectedProductTableDisplayLimit.toLowerCase()}`,
                       options: productTableDisplayOptions
                     },
-                    { key: 'metric', value: `Show by ${selectedProductTableMetric.toLowerCase()}`, options: productMetricOptions },
                     {
                       key: 'performance',
                       value: `Show by ${selectedProductTablePerformanceView.toLowerCase()}`,
                       options: productPerformanceViewOptions
                     },
+                    { key: 'metric', value: `Show by ${selectedProductTableMetric.toLowerCase()}`, options: productMetricOptions },
                     { key: 'date', value: selectedProductTableDate, options: productDateOptions },
                     {
                       key: 'region',
@@ -8191,6 +8227,7 @@ export default function App() {
                           }}
                           className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                         >
+                          {menu.key === 'show' ? <LayoutGrid className="tu-h-3.5 tu-w-3.5" /> : null}
                           {menu.key === 'performance' ? <ArrowUpDown className="tu-h-3.5 tu-w-3.5" /> : null}
                           <span>{menu.value}</span>
                           <ChevronDown className="tu-h-3 tu-w-3" />
@@ -8233,7 +8270,7 @@ export default function App() {
                           />
                         )}
                       </div>
-                      {menu.key === 'metric' ? <span className="tu-text-[16px] tu-text-[#c7cdc2]">|</span> : null}
+                      {menu.key === 'performance' ? <span className="tu-text-[16px] tu-text-[#c7cdc2]">|</span> : null}
                     </div>
                   ))}
                 </div>
@@ -8532,11 +8569,14 @@ export default function App() {
                         const hoverKey = `${metricSection.title}-${metric.label}`;
                         const sectionSixMetricKeyMap: Record<string, MetricKey> = {
                           'Net Sales': 'netSales',
-                          COGS: 'cogs',
+                          'Gross Profit': 'cogs',
+                          'Gross Profit Margin': 'cogs',
                           Expenses: 'expenses',
                           'Net Profit': 'netProfit'
                         };
                         const mappedMetricKey = sectionSixMetricKeyMap[metric.label];
+                        const isCustomerSplitCard =
+                          metricSection.title === 'Customers' && Boolean(metric.subCards && metric.subCards.length > 0);
                         const breakdownRows =
                           metricSection.title === 'Sales' &&
                           mappedMetricKey &&
@@ -8632,6 +8672,37 @@ export default function App() {
                                         </div>
                                       ) : null}
                                     </div>
+                                  ) : isCustomerSplitCard ? (
+                                    <div className="tu-mt-1.5 tu-grid tu-grid-cols-2 tu-gap-2.5">
+                                      {metric.subCards!.map((subCard) => {
+                                        const SubTrendIcon = subCard.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                                        const subTrendPillClass =
+                                          subCard.direction === 'up'
+                                            ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                                            : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
+
+                                        return (
+                                          <div
+                                            key={`${hoverKey}-${subCard.label}`}
+                                            className="tu-rounded-[10px] tu-border tu-border-[#e7ece7] tu-bg-[#fbfdfb] tu-p-2.5"
+                                          >
+                                            <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{subCard.label}</p>
+                                            <p className="tu-mt-0.5 tu-text-[22px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                                              {subCard.value}
+                                            </p>
+                                            <div className="tu-mt-2 tu-flex tu-items-center tu-gap-1.5">
+                                              <span
+                                                className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-0.5 tu-text-[11px] tu-font-semibold ${subTrendPillClass}`}
+                                              >
+                                                {subCard.trend}
+                                                <SubTrendIcon className="tu-h-3 tu-w-3" />
+                                              </span>
+                                              <span className="tu-text-[11px] tu-text-[#9a9ca2]">{subCard.sublabel ?? metric.sublabel}</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   ) : (
                                     <p className={`${isOrdersSection ? 'tu-text-[26px]' : 'tu-text-[26px]'} tu-font-semibold tu-text-[#333538]`}>
                                       {metric.value}
@@ -8713,27 +8784,29 @@ export default function App() {
                                 </a>
                               )}
                             </div>
-                            <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                              <div className="tu-relative">
-                                <button
-                                  type="button"
-                                  onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
-                                  onMouseLeave={() => setHoveredGlanceKpi(null)}
-                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
-                                >
-                                  {metric.trend}
-                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                </button>
-                                {hoveredGlanceKpi === hoverKey ? (
-                                  <ComparisonPopover
-                                    comparison={{ ...metric.comparison, ...glanceComparisonLabels }}
-                                    trend={metric.trend}
-                                    direction={metric.direction}
-                                  />
-                                ) : null}
+                            {!isCustomerSplitCard ? (
+                              <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                                <div className="tu-relative">
+                                  <button
+                                    type="button"
+                                    onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
+                                    onMouseLeave={() => setHoveredGlanceKpi(null)}
+                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                                  >
+                                    {metric.trend}
+                                    <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  </button>
+                                  {hoveredGlanceKpi === hoverKey ? (
+                                    <ComparisonPopover
+                                      comparison={{ ...metric.comparison, ...glanceComparisonLabels }}
+                                      trend={metric.trend}
+                                      direction={metric.direction}
+                                    />
+                                  ) : null}
+                                </div>
+                                <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                               </div>
-                              <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
-                            </div>
+                            ) : null}
                           </article>
                         );
                       })}
@@ -8763,5 +8836,4 @@ export default function App() {
       </div>
     </div>
   );
-}
-
+} 
