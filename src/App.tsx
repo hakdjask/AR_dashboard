@@ -2726,11 +2726,14 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [openGlanceDateMenu, setOpenGlanceDateMenu] = useState(false);
   const [openStoreMenu, setOpenStoreMenu] = useState(false);
+  const [openGlanceLocationMenu, setOpenGlanceLocationMenu] = useState(false);
   const [hoveredGlanceKpi, setHoveredGlanceKpi] = useState<string | null>(null);
   const [hoveredSectionSixValue, setHoveredSectionSixValue] = useState<string | null>(null);
   const [selectedGlanceDate, setSelectedGlanceDate] = useState('This Week');
-  const [selectedStore, setSelectedStore] = useState<string[]>([]);
-  const [glanceMenuSearch, setGlanceMenuSearch] = useState({ date: '', store: '' });
+  const [selectedStore, setSelectedStore] = useState<string[]>([...storeOptions]);
+  const [selectedGlanceRegion, setSelectedGlanceRegion] = useState<string[]>([...pakistanProvinceOptions]);
+  const [glanceMenuSearch, setGlanceMenuSearch] = useState({ date: '', store: '', location: '' });
+  const [glanceRegionProvince, setGlanceRegionProvince] = useState<string | null>(null);
   const [salesMenus, setSalesMenus] = useState<{
     store: boolean;
     metric: boolean;
@@ -3035,6 +3038,12 @@ export default function App() {
   const isSelectedSalesStoreInRegion = selectedSalesRegion.includes(selectedSalesStoreRegion);
   const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
   const selectedGlancePeriodKey = getPeriodKeyFromDateLabel(selectedGlanceDate);
+  const glanceStoreSummaryLabel =
+    selectedStore.length === 0 ||
+    (selectedStore.length === storeOptions.length && storeOptions.every((store) => selectedStore.includes(store)))
+      ? 'All Stores'
+      : formatMultiSelectLabel(selectedStore, 'All Stores', 'store', 'stores');
+  const glanceLocationSummaryLabel = formatLocationFilterLabel(selectedGlanceRegion);
   const selectedCustomerOverviewPeriodKey = getPeriodKeyFromDateLabel(selectedCustomerOverviewDate);
   const glanceMetricSublabel =
     selectedGlanceDate === 'Custom' ? 'vs custom range' : `vs ${selectedGlanceDate.toLowerCase()}`;
@@ -6608,7 +6617,7 @@ export default function App() {
                         <span>Export</span>
                       </button>
                     </div>
-                  </div>
+                  </div>  
                   <div className="tu-mt-4 tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row sm:tu-items-center">
                     <div className="tu-relative tu-flex-1">
                       <Search className="tu-pointer-events-none tu-absolute tu-left-3 tu-top-1/2 tu-h-3.5 tu-w-3.5 -tu-translate-y-1/2 tu-text-[#9a9ca2]" />
@@ -7171,11 +7180,67 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
+                        setOpenStoreMenu((current) => !current);
+                        setOpenGlanceDateMenu(false);
+                        setOpenGlanceLocationMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, store: '' }));
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[9px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{glanceStoreSummaryLabel}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+
+                    <SearchableDropdownMenu
+                      open={openStoreMenu}
+                      options={storeOptions}
+                      selected={selectedStore}
+                      multiSelect
+                      onToggleAll={(values) => setSelectedStore((current) => setMultiSelectGroup(current, values))}
+                      searchValue={glanceMenuSearch.store}
+                      onSearchChange={(value) => setGlanceMenuSearch((current) => ({ ...current, store: value }))}
+                      widthClass="tu-w-[220px]"
+                      onSelect={(item) => setSelectedStore((current) => toggleMultiSelectValue(current, item))}
+                    />
+                  </div>
+
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenGlanceLocationMenu((current) => !current);
+                        setOpenStoreMenu(false);
+                        setOpenGlanceDateMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, location: '' }));
+                        setGlanceRegionProvince(null);
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{glanceLocationSummaryLabel}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+
+                    <HierarchicalLocationDropdown
+                      open={openGlanceLocationMenu}
+                      selected={selectedGlanceRegion}
+                      onChange={setSelectedGlanceRegion}
+                      searchValue={glanceMenuSearch.location}
+                      onSearchChange={(value) => setGlanceMenuSearch((current) => ({ ...current, location: value }))}
+                      activeProvince={glanceRegionProvince}
+                      onProvinceChange={setGlanceRegionProvince}
+                    />
+                  </div>
+
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
                         setOpenGlanceDateMenu((current) => !current);
                         setOpenStoreMenu(false);
+                        setOpenGlanceLocationMenu(false);
                         setGlanceMenuSearch((current) => ({ ...current, date: '' }));
                       }}
-                      className="tu-inline-flex tu-h-10 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                     >
                       <span>{selectedGlanceDate}</span>
                       <ChevronDown className="tu-h-3 tu-w-3" />
@@ -8652,11 +8717,67 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
+                        setOpenStoreMenu((current) => !current);
+                        setOpenGlanceDateMenu(false);
+                        setOpenGlanceLocationMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, store: '' }));
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{glanceStoreSummaryLabel}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+
+                    <SearchableDropdownMenu
+                      open={openStoreMenu}
+                      options={storeOptions}
+                      selected={selectedStore}
+                      multiSelect
+                      onToggleAll={(values) => setSelectedStore((current) => setMultiSelectGroup(current, values))}
+                      searchValue={glanceMenuSearch.store}
+                      onSearchChange={(value) => setGlanceMenuSearch((current) => ({ ...current, store: value }))}
+                      widthClass="tu-w-[220px]"
+                      onSelect={(item) => setSelectedStore((current) => toggleMultiSelectValue(current, item))}
+                    />
+                  </div>
+
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenGlanceLocationMenu((current) => !current);
+                        setOpenStoreMenu(false);
+                        setOpenGlanceDateMenu(false);
+                        setGlanceMenuSearch((current) => ({ ...current, location: '' }));
+                        setGlanceRegionProvince(null);
+                      }}
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                    >
+                      <span>{glanceLocationSummaryLabel}</span>
+                      <ChevronDown className="tu-h-3 tu-w-3" />
+                    </button>
+
+                    <HierarchicalLocationDropdown
+                      open={openGlanceLocationMenu}
+                      selected={selectedGlanceRegion}
+                      onChange={setSelectedGlanceRegion}
+                      searchValue={glanceMenuSearch.location}
+                      onSearchChange={(value) => setGlanceMenuSearch((current) => ({ ...current, location: value }))}
+                      activeProvince={glanceRegionProvince}
+                      onProvinceChange={setGlanceRegionProvince}
+                    />
+                  </div>
+
+                  <div className="tu-relative">
+                    <button
+                      type="button"
+                      onClick={() => {
                         setOpenGlanceDateMenu((current) => !current);
                         setOpenStoreMenu(false);
+                        setOpenGlanceLocationMenu(false);
                         setGlanceMenuSearch((current) => ({ ...current, date: '' }));
                       }}
-                      className="tu-inline-flex tu-h-10 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-4 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                     >
                       <span>{selectedGlanceDate}</span>
                       <ChevronDown className="tu-h-3 tu-w-3" />
