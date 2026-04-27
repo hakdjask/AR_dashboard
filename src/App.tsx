@@ -2980,6 +2980,7 @@ export default function App() {
   const [hoveredLocationKpi, setHoveredLocationKpi] = useState<string | null>(null);
   const [hoveredLocationPoint, setHoveredLocationPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredProductKpi, setHoveredProductKpi] = useState<string | null>(null);
+  const [dashboardLastUpdatedAt] = useState(() => new Date());
   const [cardDates, setCardDates] = useState<
     Record<PeriodKey, { title: string; dateLabel: string; from: string; to: string }>
   >({
@@ -3054,12 +3055,21 @@ export default function App() {
   const sectionSixMetricSections = useMemo(
     () =>
       sectionSixMetricSectionsBase.map((metricSection) => {
-        const scaledMetrics = metricSection.metrics.map((metric) => ({
-          ...metric,
-          sublabel: glanceMetricSublabel,
-          value: scaleMetricValueByPeriod(metric.value, selectedGlancePeriodKey),
-          comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey)
-        }));
+        const scaledMetrics = metricSection.metrics.map((metric) => {
+          if (metricSection.title === 'Sales' && metric.label === "Today's Sales") {
+            return {
+              ...metric,
+              sublabel: 'vs last day'
+            };
+          }
+
+          return {
+            ...metric,
+            sublabel: glanceMetricSublabel,
+            value: scaleMetricValueByPeriod(metric.value, selectedGlancePeriodKey),
+            comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey)
+          };
+        });
 
         if (metricSection.title !== 'Orders') {
           return { ...metricSection, metrics: scaledMetrics };
@@ -3083,6 +3093,7 @@ export default function App() {
     () => buildComparisonDateLabels(selectedGlanceDate),
     [selectedGlanceDate]
   );
+  const todaySalesComparisonLabels = useMemo(() => buildComparisonDateLabels('Today'), []);
   const customerOverviewComparisonLabels = useMemo(
     () => buildComparisonDateLabels(selectedCustomerOverviewDate),
     [selectedCustomerOverviewDate]
@@ -5610,6 +5621,17 @@ export default function App() {
   const productTableHasMoreRows = productTableVisibleRows.length < productTableMaxRows;
 
   const formatPKR = (value: number) => `PKR ${Math.round(value).toLocaleString('en-US')}`;
+  const dashboardLastUpdatedLabel = useMemo(
+    () =>
+      dashboardLastUpdatedAt.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      }),
+    [dashboardLastUpdatedAt]
+  );
 
   const handleProductTableSort = (key: ProductTableSortKey) => {
     setProductTableSort((current) => {
@@ -5770,24 +5792,29 @@ export default function App() {
         <main className="tu-min-w-0 tu-flex-1 tu-px-4 tu-py-5 sm:tu-px-6 lg:tu-px-8">
           <section className="tu-space-y-5">
             <div className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-2.5 tu-shadow-[0_6px_24px_rgba(31,41,55,0.08)] sm:tu-p-3">
-              <div className="tu-flex tu-items-center tu-gap-1.5">
-                {tabs.map((tab) => {
-                  const active = tab.key === activeTab;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      className={`tu-rounded-[10px] tu-px-4 tu-py-2 tu-text-[14px] tu-font-medium tu-transition-colors ${
-                        active
-                          ? 'tu-bg-[#e8f7ee] tu-text-[#10c562]'
-                          : 'tu-text-[#5f6368] hover:tu-bg-[#f5f6f3] hover:tu-text-[#2d3034]'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  );
-                })}
+              <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                <div className="tu-flex tu-items-center tu-gap-1.5">
+                  {tabs.map((tab) => {
+                    const active = tab.key === activeTab;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`tu-rounded-[10px] tu-px-4 tu-py-2 tu-text-[14px] tu-font-medium tu-transition-colors ${
+                          active
+                            ? 'tu-bg-[#e8f7ee] tu-text-[#10c562]'
+                            : 'tu-text-[#5f6368] hover:tu-bg-[#f5f6f3] hover:tu-text-[#2d3034]'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
+                  Last updated: {dashboardLastUpdatedLabel}
+                </p>
               </div>
             </div>
 
@@ -7680,6 +7707,173 @@ export default function App() {
               </div>
             </section>
 
+
+
+
+
+            <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+              <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Customers Overview and Insights</h2>
+
+                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                  {[
+                    {
+                      key: 'store',
+                      value: customerOverviewStoreSummaryLabel,
+                      options: storeOptions
+                    },
+                    { key: 'date', value: selectedCustomerOverviewDate, options: glanceDateOptions },
+                    {
+                      key: 'location',
+                      value: formatLocationFilterLabel(selectedCustomerOverviewRegion),
+                      options: []
+                    }
+                  ].map((menu) => (
+                    <div key={menu.key} className="tu-relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerOverviewMenus((current) => ({
+                            date: false,
+                            location: false,
+                            store: false,
+                            [menu.key]: !current[menu.key as keyof typeof current]
+                          }));
+                          setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                          if (menu.key === 'location') setCustomerOverviewRegionProvince(null);
+                        }}
+                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                      >
+                        <span>{menu.value}</span>
+                        <ChevronDown className="tu-h-3 tu-w-3" />
+                      </button>
+
+                      {menu.key === 'location' ? (
+                        <HierarchicalLocationDropdown
+                          open={customerOverviewMenus.location}
+                          selected={selectedCustomerOverviewRegion}
+                          onChange={setSelectedCustomerOverviewRegion}
+                          searchValue={customerOverviewMenuSearch.location}
+                          onSearchChange={(value) =>
+                            setCustomerOverviewMenuSearch((current) => ({ ...current, location: value }))
+                          }
+                          activeProvince={customerOverviewRegionProvince}
+                          onProvinceChange={setCustomerOverviewRegionProvince}
+                        />
+                      ) : (
+                        <SearchableDropdownMenu
+                          open={customerOverviewMenus[menu.key as keyof typeof customerOverviewMenus]}
+                          options={menu.options}
+                          selected={menu.key === 'store' ? selectedCustomerOverviewStores : selectedCustomerOverviewDate}
+                          multiSelect={menu.key === 'store'}
+                          onToggleAll={
+                            menu.key === 'store'
+                              ? (values) => setSelectedCustomerOverviewStores((current) => setMultiSelectGroup(current, values))
+                              : undefined
+                          }
+                          searchable={menu.key !== 'date'}
+                          searchValue={customerOverviewMenuSearch[menu.key as keyof typeof customerOverviewMenuSearch]}
+                          onSearchChange={
+                            menu.key !== 'date'
+                              ? (value) => setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                              : undefined
+                          }
+                          widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                          showChevronForCustom={menu.key === 'date'}
+                          onSelect={(item) => {
+                            if (menu.key === 'date') {
+                              setSelectedCustomerOverviewDate(item);
+                              setCustomerOverviewMenus({ date: false, location: false, store: false });
+                              return;
+                            }
+                            if (menu.key === 'store') {
+                              setSelectedCustomerOverviewStores((current) => toggleMultiSelectValue(current, item));
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="tu-mt-4 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4">
+                <div className="tu-grid tu-gap-3 lg:tu-grid-cols-5">
+                  {customerOverviewMetrics.map((metric, index) => {
+                    const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                    const trendPillClass =
+                      metric.direction === 'up'
+                        ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                        : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
+                    const hoverKey = `customers-overview-${metric.label}`;
+
+                    return (
+                      <article
+                        key={hoverKey}
+                        className={`tu-group tu-relative tu-min-w-0 tu-px-2 tu-py-1 lg:tu-pr-4 ${
+                          index > 0 ? 'lg:tu-border-l lg:tu-border-[#e8ece6] lg:tu-pl-6' : ''
+                        }`}
+                      >
+                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
+                            {metric.label}
+                          </button>
+                          <InfoTooltip
+                            text={sectionSixKpiTooltips[metric.label]}
+                            widthClass={
+                              metric.label === 'Customer Lifetime Value'
+                                ? 'tu-w-[420px]'
+                                : metric.label === 'Customer Retention'
+                                  ? 'tu-w-[400px]'
+                                  : 'tu-w-[280px]'
+                            }
+                            alignRight={metric.label === 'Customer Retention'}
+                          />
+                        </div>
+                        <div className="tu-mt-1">
+                          <p
+                            className={`tu-text-[26px] tu-font-semibold ${
+                              index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
+                            }`}
+                          >
+                            {metric.value}
+                          </p>
+                          {metric.secondaryText ? (
+                            <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
+                              <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
+                              <InfoTooltip text={metric.secondaryTooltip ?? ''} widthClass="tu-w-[320px]" />
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                          <div className="tu-relative">
+                            <button
+                              type="button"
+                              onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
+                              onMouseLeave={() => setHoveredGlanceKpi(null)}
+                              className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                            >
+                              {metric.trend}
+                              <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                            </button>
+                            {hoveredGlanceKpi === hoverKey ? (
+                              <ComparisonPopover
+                                comparison={{ ...metric.comparison, ...customerOverviewComparisonLabels }}
+                                trend={metric.trend}
+                                direction={metric.direction}
+                              />
+                            ) : null}
+                          </div>
+                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+
             {showSalesProductsChart ? (
               <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
@@ -8978,7 +9172,12 @@ export default function App() {
                                 </button>
                                 {hoveredGlanceKpi === hoverKey ? (
                                   <ComparisonPopover
-                                    comparison={{ ...metric.comparison, ...glanceComparisonLabels }}
+                                    comparison={{
+                                      ...metric.comparison,
+                                      ...(metricSection.title === 'Sales' && metric.label === "Today's Sales"
+                                        ? todaySalesComparisonLabels
+                                        : glanceComparisonLabels)
+                                    }}
                                     trend={metric.trend}
                                     direction={metric.direction}
                                   />
@@ -8994,170 +9193,7 @@ export default function App() {
                 );
                 })}
               </div>
-            </section>
-
-            <section className="tu-order-1 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
-              <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Customers Overview and Insights</h2>
-
-                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
-                  {[
-                    {
-                      key: 'store',
-                      value: customerOverviewStoreSummaryLabel,
-                      options: storeOptions
-                    },
-                    { key: 'date', value: selectedCustomerOverviewDate, options: glanceDateOptions },
-                    {
-                      key: 'location',
-                      value: formatLocationFilterLabel(selectedCustomerOverviewRegion),
-                      options: []
-                    }
-                  ].map((menu) => (
-                    <div key={menu.key} className="tu-relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerOverviewMenus((current) => ({
-                            date: false,
-                            location: false,
-                            store: false,
-                            [menu.key]: !current[menu.key as keyof typeof current]
-                          }));
-                          setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: '' }));
-                          if (menu.key === 'location') setCustomerOverviewRegionProvince(null);
-                        }}
-                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
-                      >
-                        <span>{menu.value}</span>
-                        <ChevronDown className="tu-h-3 tu-w-3" />
-                      </button>
-
-                      {menu.key === 'location' ? (
-                        <HierarchicalLocationDropdown
-                          open={customerOverviewMenus.location}
-                          selected={selectedCustomerOverviewRegion}
-                          onChange={setSelectedCustomerOverviewRegion}
-                          searchValue={customerOverviewMenuSearch.location}
-                          onSearchChange={(value) =>
-                            setCustomerOverviewMenuSearch((current) => ({ ...current, location: value }))
-                          }
-                          activeProvince={customerOverviewRegionProvince}
-                          onProvinceChange={setCustomerOverviewRegionProvince}
-                        />
-                      ) : (
-                        <SearchableDropdownMenu
-                          open={customerOverviewMenus[menu.key as keyof typeof customerOverviewMenus]}
-                          options={menu.options}
-                          selected={menu.key === 'store' ? selectedCustomerOverviewStores : selectedCustomerOverviewDate}
-                          multiSelect={menu.key === 'store'}
-                          onToggleAll={
-                            menu.key === 'store'
-                              ? (values) => setSelectedCustomerOverviewStores((current) => setMultiSelectGroup(current, values))
-                              : undefined
-                          }
-                          searchable={menu.key !== 'date'}
-                          searchValue={customerOverviewMenuSearch[menu.key as keyof typeof customerOverviewMenuSearch]}
-                          onSearchChange={
-                            menu.key !== 'date'
-                              ? (value) => setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                              : undefined
-                          }
-                          widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
-                          showChevronForCustom={menu.key === 'date'}
-                          onSelect={(item) => {
-                            if (menu.key === 'date') {
-                              setSelectedCustomerOverviewDate(item);
-                              setCustomerOverviewMenus({ date: false, location: false, store: false });
-                              return;
-                            }
-                            if (menu.key === 'store') {
-                              setSelectedCustomerOverviewStores((current) => toggleMultiSelectValue(current, item));
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="tu-mt-4 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4">
-                <div className="tu-grid tu-gap-3 lg:tu-grid-cols-5">
-                  {customerOverviewMetrics.map((metric, index) => {
-                    const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                    const trendPillClass =
-                      metric.direction === 'up'
-                        ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
-                        : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
-                    const hoverKey = `customers-overview-${metric.label}`;
-
-                    return (
-                      <article
-                        key={hoverKey}
-                        className={`tu-group tu-relative tu-min-w-0 tu-px-2 tu-py-1 lg:tu-pr-4 ${
-                          index > 0 ? 'lg:tu-border-l lg:tu-border-[#e8ece6] lg:tu-pl-6' : ''
-                        }`}
-                      >
-                        <div className="tu-group/tooltip tu-relative tu-inline-block">
-                          <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
-                            {metric.label}
-                          </button>
-                          <InfoTooltip
-                            text={sectionSixKpiTooltips[metric.label]}
-                            widthClass={
-                              metric.label === 'Customer Lifetime Value'
-                                ? 'tu-w-[420px]'
-                                : metric.label === 'Customer Retention'
-                                  ? 'tu-w-[400px]'
-                                  : 'tu-w-[280px]'
-                            }
-                            alignRight={metric.label === 'Customer Retention'}
-                          />
-                        </div>
-                        <div className="tu-mt-1">
-                          <p
-                            className={`tu-text-[26px] tu-font-semibold ${
-                              index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
-                            }`}
-                          >
-                            {metric.value}
-                          </p>
-                          {metric.secondaryText ? (
-                            <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
-                              <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
-                              <InfoTooltip text={metric.secondaryTooltip ?? ''} widthClass="tu-w-[320px]" />
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                          <div className="tu-relative">
-                            <button
-                              type="button"
-                              onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
-                              onMouseLeave={() => setHoveredGlanceKpi(null)}
-                              className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
-                            >
-                              {metric.trend}
-                              <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                            </button>
-                            {hoveredGlanceKpi === hoverKey ? (
-                              <ComparisonPopover
-                                comparison={{ ...metric.comparison, ...customerOverviewComparisonLabels }}
-                                trend={metric.trend}
-                                direction={metric.direction}
-                              />
-                            ) : null}
-                          </div>
-                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
+            </section>
                 </>
               ) : null}
           </div>
@@ -9179,3 +9215,5 @@ export default function App() {
     </div>
   );
 } 
+
+
