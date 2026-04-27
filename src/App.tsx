@@ -475,14 +475,6 @@ type GlanceMetricCard = {
   direction: 'up' | 'down';
   showStoreSelect: boolean;
   comparison: ComparisonData;
-  subCards?: {
-    label: string;
-    value: string;
-    trend: string;
-    direction: 'up' | 'down';
-    comparison: ComparisonData;
-    sublabel?: string;
-  }[];
   secondaryText?: string;
   secondaryTooltip?: string;
   orderShare?: number;
@@ -589,6 +581,14 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   COGS: metricTooltips.cogs,
   Expenses: metricTooltips.expenses,
   'Net Profit': metricTooltips.netProfit,
+  'Total Customers': {
+    title: 'Total Customers',
+    blocks: [
+      { type: 'text', text: 'Total unique customers active in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Total Customers = Count of Unique Customers in Period' }
+    ]
+  },
   'New Customers': glanceKpiTooltips['New Customers'],
   'Average Order Value': glanceKpiTooltips['Average Order Value'],
   'Customer Lifetime Value': glanceKpiTooltips['Customer Lifetime Value'],
@@ -850,6 +850,21 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
     title: 'Customers',
     metrics: [
       {
+        label: 'Total Customers',
+        value: '2,939',
+        sublabel: 'Since Yesterday',
+        trend: '4.2%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '2,939',
+          previous: '2,821',
+          change: '118',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
         label: 'New Customers',
         value: '426',
         sublabel: 'Since Yesterday',
@@ -862,35 +877,7 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           change: '27',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
-        },
-        subCards: [
-          {
-            label: 'Total Customers',
-            value: '2,939',
-            trend: '4.2%',
-            direction: 'up',
-            comparison: {
-              current: '2,939',
-              previous: '2,821',
-              change: '118',
-              currentPeriodLabel: 'Current Period',
-              previousPeriodLabel: 'Previous Period'
-            }
-          },
-          {
-            label: 'New Customers',
-            value: '426',
-            trend: '6.8%',
-            direction: 'up',
-            comparison: {
-              current: '426',
-              previous: '399',
-              change: '27',
-              currentPeriodLabel: 'Current Period',
-              previousPeriodLabel: 'Previous Period'
-            }
-          }
-        ]
+        }
       },
       {
         label: 'Average Order Value',
@@ -987,6 +974,27 @@ const scaleComparisonByPeriod = (comparison: ComparisonData, periodKey: PeriodKe
   previous: scaleMetricValueByPeriod(comparison.previous, periodKey),
   change: scaleMetricValueByPeriod(comparison.change, periodKey)
 });
+
+const scaleMetricValueByFactor = (value: string, factor: number) => {
+  const numeric = Number(value.replace(/[^0-9.]/g, ''));
+  if (Number.isNaN(numeric)) return value;
+  const scaled = numeric * factor;
+
+  if (value.includes('PKR')) {
+    return `PKR ${Math.max(0, Math.round(scaled)).toLocaleString('en-US')}`;
+  }
+  if (value.includes('%')) {
+    const bounded = Math.max(0, Math.min(100, scaled));
+    return `${bounded.toFixed(1)}%`;
+  }
+  return Math.max(0, Math.round(scaled)).toLocaleString('en-US');
+};
+
+const scaleTrendPercentByFactor = (trend: string, factor: number) => {
+  const numeric = Number(trend.replace(/[^0-9.]/g, ''));
+  if (Number.isNaN(numeric)) return trend;
+  return `${Math.max(0.1, numeric * factor).toFixed(1)}%`;
+};
 
 const getComparisonPeriodDayCount = (periodLabel: string) => {
   if (periodLabel === 'Today') return 1;
@@ -2311,7 +2319,7 @@ const formatMultiSelectLabel = (selected: string[], placeholder: string, singula
 const toggleMultiSelectValue = (current: string[], value: string) =>
   current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
 
-const setMultiSelectGroup = (current: string[], values: string[]) => {
+const setMultiSelectGroup = <T extends string>(current: T[], values: T[]): T[] => {
   const allSelected = values.every((value) => current.includes(value));
   if (allSelected) {
     return current.filter((item) => !values.includes(item));
@@ -2471,6 +2479,7 @@ function SearchableDropdownMenu({
   options,
   selected,
   onSelect,
+  onToggleAll,
   searchValue,
   onSearchChange,
   multiSelect = false,
@@ -2482,6 +2491,7 @@ function SearchableDropdownMenu({
   options: string[];
   selected: string | string[];
   onSelect: (value: string) => void;
+  onToggleAll?: (values: string[]) => void;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   multiSelect?: boolean;
@@ -2493,6 +2503,8 @@ function SearchableDropdownMenu({
 
   const filteredOptions = searchable ? getFilteredOptions(options, searchValue ?? '') : options;
   const selectedValues = Array.isArray(selected) ? selected : [selected];
+  const canToggleAll = multiSelect && Boolean(onToggleAll) && filteredOptions.length > 0;
+  const allFilteredSelected = canToggleAll && filteredOptions.every((item) => selectedValues.includes(item));
 
   return (
     <div
@@ -2510,7 +2522,24 @@ function SearchableDropdownMenu({
         </div>
       ) : null}
 
-      <div className={`${searchable ? 'tu-mt-2' : ''} tu-max-h-[220px] tu-space-y-1 tu-overflow-y-auto`}>
+      {canToggleAll ? (
+        <button
+          type="button"
+          onClick={() => onToggleAll?.(filteredOptions)}
+          className={`tu-mt-2 tu-flex tu-w-full tu-items-center tu-gap-2.5 tu-rounded-[10px] tu-bg-[#f5f6f3] tu-px-3 tu-py-2 tu-text-left tu-text-[12px] tu-font-medium tu-text-[#2f3133]`}
+        >
+          <span
+            className={`tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-[4px] tu-border ${
+              allFilteredSelected ? 'tu-border-[#10c562] tu-bg-[#10c562]' : 'tu-border-[#cfd7cd] tu-bg-white'
+            }`}
+          >
+            {allFilteredSelected ? <span className="tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-white" /> : null}
+          </span>
+          <span>All</span>
+        </button>
+      ) : null}
+
+      <div className={`${searchable || canToggleAll ? 'tu-mt-2' : ''} tu-max-h-[220px] tu-space-y-1 tu-overflow-y-auto`}>
         {filteredOptions.length > 0 ? (
           filteredOptions.map((item) => {
             const isSelected = selectedValues.includes(item);
@@ -2629,7 +2658,7 @@ function HierarchicalLocationDropdown({
           >
             {allCurrentSelected ? <span className="tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-white" /> : null}
           </span>
-          <span>{provinceRecord ? `Select All Cities` : 'Select All Locations'}</span>
+          <span>All</span>
         </button>
       </div>
 
@@ -2699,9 +2728,6 @@ export default function App() {
   const [openStoreMenu, setOpenStoreMenu] = useState(false);
   const [hoveredGlanceKpi, setHoveredGlanceKpi] = useState<string | null>(null);
   const [hoveredSectionSixValue, setHoveredSectionSixValue] = useState<string | null>(null);
-  const [openSectionSixCustomerStoreMenu, setOpenSectionSixCustomerStoreMenu] = useState(false);
-  const [selectedSectionSixCustomerStores, setSelectedSectionSixCustomerStores] = useState<string[]>([...storeOptions]);
-  const [sectionSixCustomerStoreSearch, setSectionSixCustomerStoreSearch] = useState('');
   const [selectedGlanceDate, setSelectedGlanceDate] = useState('This Week');
   const [selectedStore, setSelectedStore] = useState<string[]>([]);
   const [glanceMenuSearch, setGlanceMenuSearch] = useState({ date: '', store: '' });
@@ -2834,6 +2860,24 @@ export default function App() {
     location: ''
   });
   const [salesOrderRegionProvince, setSalesOrderRegionProvince] = useState<string | null>(null);
+  const [customerOverviewMenus, setCustomerOverviewMenus] = useState<{
+    date: boolean;
+    location: boolean;
+    store: boolean;
+  }>({
+    date: false,
+    location: false,
+    store: false
+  });
+  const [selectedCustomerOverviewDate, setSelectedCustomerOverviewDate] = useState('This Week');
+  const [selectedCustomerOverviewRegion, setSelectedCustomerOverviewRegion] = useState<string[]>([...pakistanProvinceOptions]);
+  const [selectedCustomerOverviewStores, setSelectedCustomerOverviewStores] = useState<string[]>([...storeOptions]);
+  const [customerOverviewMenuSearch, setCustomerOverviewMenuSearch] = useState({
+    date: '',
+    location: '',
+    store: ''
+  });
+  const [customerOverviewRegionProvince, setCustomerOverviewRegionProvince] = useState<string | null>(null);
   const [locationMenus, setLocationMenus] = useState<{
     showBy: boolean;
     performance: boolean;
@@ -2991,8 +3035,11 @@ export default function App() {
   const isSelectedSalesStoreInRegion = selectedSalesRegion.includes(selectedSalesStoreRegion);
   const selectedStoreMetricConfig = storeChartMetricConfig[selectedSalesMetric];
   const selectedGlancePeriodKey = getPeriodKeyFromDateLabel(selectedGlanceDate);
+  const selectedCustomerOverviewPeriodKey = getPeriodKeyFromDateLabel(selectedCustomerOverviewDate);
   const glanceMetricSublabel =
     selectedGlanceDate === 'Custom' ? 'vs custom range' : `vs ${selectedGlanceDate.toLowerCase()}`;
+  const customerOverviewMetricSublabel =
+    selectedCustomerOverviewDate === 'Custom' ? 'vs custom range' : `vs ${selectedCustomerOverviewDate.toLowerCase()}`;
   const salesOrderMetricSublabel =
     selectedSalesOrderDate === 'Custom' ? 'vs custom range' : `vs ${selectedSalesOrderDate.toLowerCase()}`;
   const sectionSixMetricSections = useMemo(
@@ -3002,13 +3049,7 @@ export default function App() {
           ...metric,
           sublabel: glanceMetricSublabel,
           value: scaleMetricValueByPeriod(metric.value, selectedGlancePeriodKey),
-          comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey),
-          subCards: metric.subCards?.map((subCard) => ({
-            ...subCard,
-            value: scaleMetricValueByPeriod(subCard.value, selectedGlancePeriodKey),
-            comparison: scaleComparisonByPeriod(subCard.comparison, selectedGlancePeriodKey),
-            sublabel: glanceMetricSublabel
-          }))
+          comparison: scaleComparisonByPeriod(metric.comparison, selectedGlancePeriodKey)
         }));
 
         if (metricSection.title !== 'Orders') {
@@ -3033,6 +3074,62 @@ export default function App() {
     () => buildComparisonDateLabels(selectedGlanceDate),
     [selectedGlanceDate]
   );
+  const customerOverviewComparisonLabels = useMemo(
+    () => buildComparisonDateLabels(selectedCustomerOverviewDate),
+    [selectedCustomerOverviewDate]
+  );
+  const customerOverviewMetrics = useMemo(() => {
+    const customersSection = sectionSixMetricSectionsBase.find((section) => section.title === 'Customers');
+    if (!customersSection) return [];
+    const selectedRegionCount =
+      selectedCustomerOverviewRegion.length === 0 ? pakistanProvinceOptions.length : selectedCustomerOverviewRegion.length;
+    const selectedStoreCount = selectedCustomerOverviewStores.length === 0 ? storeOptions.length : selectedCustomerOverviewStores.length;
+    const regionCoverage = Math.max(0.2, Math.min(1, selectedRegionCount / pakistanProvinceOptions.length));
+    const storeCoverage = Math.max(0.2, Math.min(1, selectedStoreCount / storeOptions.length));
+    const filterValueFactor = 0.45 + regionCoverage * storeCoverage * 0.55;
+    const filterTrendFactor = 0.85 + regionCoverage * storeCoverage * 0.25;
+    const metricOrder: Record<string, number> = {
+      'Total Customers': 0,
+      'New Customers': 1,
+      'Customer Retention': 2,
+      'Average Order Value': 3,
+      'Customer Lifetime Value': 4
+    };
+    return customersSection.metrics.map((metric) => ({
+      ...metric,
+      trend: scaleTrendPercentByFactor(metric.trend, filterTrendFactor),
+      sublabel: customerOverviewMetricSublabel,
+      value: scaleMetricValueByFactor(scaleMetricValueByPeriod(metric.value, selectedCustomerOverviewPeriodKey), filterValueFactor),
+      comparison: {
+        ...scaleComparisonByPeriod(metric.comparison, selectedCustomerOverviewPeriodKey),
+        current: scaleMetricValueByFactor(
+          scaleMetricValueByPeriod(metric.comparison.current, selectedCustomerOverviewPeriodKey),
+          filterValueFactor
+        ),
+        previous: scaleMetricValueByFactor(
+          scaleMetricValueByPeriod(metric.comparison.previous, selectedCustomerOverviewPeriodKey),
+          filterValueFactor
+        ),
+        change: scaleMetricValueByFactor(
+          scaleMetricValueByPeriod(metric.comparison.change, selectedCustomerOverviewPeriodKey),
+          filterValueFactor
+        )
+      },
+      showStoreSelect: false
+    }))
+      .sort((a, b) => (metricOrder[a.label] ?? Number.MAX_SAFE_INTEGER) - (metricOrder[b.label] ?? Number.MAX_SAFE_INTEGER));
+  }, [
+    customerOverviewMetricSublabel,
+    selectedCustomerOverviewPeriodKey,
+    selectedCustomerOverviewRegion,
+    selectedCustomerOverviewStores
+  ]);
+  const customerOverviewStoreSummaryLabel =
+    selectedCustomerOverviewStores.length === 0 ||
+    (selectedCustomerOverviewStores.length === storeOptions.length &&
+      storeOptions.every((store) => selectedCustomerOverviewStores.includes(store)))
+      ? 'All Stores'
+      : formatMultiSelectLabel(selectedCustomerOverviewStores, 'All Stores', 'store', 'stores');
   const salesOrderComparisonLabels = useMemo(
     () => buildComparisonDateLabels(selectedSalesOrderDate),
     [selectedSalesOrderDate]
@@ -5723,6 +5820,11 @@ export default function App() {
                             options={menu.options}
                             selected={menu.key === 'region' ? selectedInventoryRegion : selectedInventoryDate}
                             multiSelect={menu.key === 'region'}
+                            onToggleAll={
+                              menu.key === 'region'
+                                ? (values) => setSelectedInventoryRegion((current) => setMultiSelectGroup(current, values))
+                                : undefined
+                            }
                             searchable={menu.key !== 'date'}
                             searchValue={inventoryMenuSearch[menu.key as keyof typeof inventoryMenuSearch]}
                             onSearchChange={
@@ -5973,6 +6075,9 @@ export default function App() {
                           options={inventoryLocationOptions}
                           selected={selectedInventorySnapshotLocation}
                           multiSelect
+                          onToggleAll={(values) =>
+                            setSelectedInventorySnapshotLocation((current) => setMultiSelectGroup(current, values))
+                          }
                           searchable
                           searchValue={inventorySnapshotMenuSearch.location}
                           onSearchChange={(value) => setInventorySnapshotMenuSearch({ location: value })}
@@ -6137,6 +6242,11 @@ export default function App() {
                                     : selectedInventoryStatus
                             }
                             multiSelect={menu.key === 'region'}
+                            onToggleAll={
+                              menu.key === 'region'
+                                ? (values) => setSelectedInventoryMovementRegion((current) => setMultiSelectGroup(current, values))
+                                : undefined
+                            }
                             searchable={menu.key !== 'date'}
                             searchValue={inventoryMovementMenuSearch[menu.key as keyof typeof inventoryMovementMenuSearch]}
                             onSearchChange={
@@ -6361,6 +6471,12 @@ export default function App() {
                           options={inventoryHealthFilterTypeOptions}
                           selected={activeInventoryHealthFilters.map((key) => inventoryHealthFilterLabelMap[key])}
                           multiSelect
+                          onToggleAll={(values) => {
+                            const next = values
+                              .map((item) => inventoryHealthFilterFromLabel[item])
+                              .filter((key): key is InventoryHealthFilterKey => Boolean(key));
+                            setActiveInventoryHealthFilters((current) => setMultiSelectGroup(current, next));
+                          }}
                           searchable={false}
                           widthClass="tu-w-[200px]"
                           onSelect={(item) => {
@@ -6405,6 +6521,12 @@ export default function App() {
                             options={inventoryHealthFilterOptionsByKey[filterKey]}
                             selected={selectedInventoryHealthFilters[filterKey]}
                             multiSelect
+                            onToggleAll={(values) =>
+                              setSelectedInventoryHealthFilters((current) => ({
+                                ...current,
+                                [filterKey]: setMultiSelectGroup(current[filterKey], values)
+                              }))
+                            }
                             searchable
                             widthClass="tu-w-[220px]"
                             searchValue={inventoryHealthMenuSearch[filterKey]}
@@ -6452,6 +6574,12 @@ export default function App() {
                                   : selectedInventoryHealthDate
                             }
                             multiSelect={menu.key === 'location'}
+                            onToggleAll={
+                              menu.key === 'location'
+                                ? (values) =>
+                                    setSelectedInventoryHealthLocation((current) => setMultiSelectGroup(current, values))
+                                : undefined
+                            }
                             searchable={menu.key !== 'date'}
                             searchValue={inventoryHealthMenuSearch[menu.key as keyof typeof inventoryHealthMenuSearch]}
                             onSearchChange={
@@ -7124,6 +7252,7 @@ export default function App() {
                               options={storeOptions}
                               selected={selectedStore}
                               multiSelect
+                              onToggleAll={(values) => setSelectedStore((current) => setMultiSelectGroup(current, values))}
                               searchValue={glanceMenuSearch.store}
                               onSearchChange={(value) => setGlanceMenuSearch((current) => ({ ...current, store: value }))}
                               widthClass="tu-w-[220px]"
@@ -7161,7 +7290,7 @@ export default function App() {
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Order Overview and Insights</h2>
+                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Orders Overview and Insights</h2>
 
                 <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
                   <div className="tu-relative">
@@ -7334,7 +7463,13 @@ export default function App() {
                           </div>
 
                           <div className="tu-mt-1">
-                            <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
+                            <p
+                              className={`tu-text-[26px] tu-font-semibold ${
+                                metric.label === 'Total Orders' ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
+                              }`}
+                            >
+                              {metric.value}
+                            </p>
                             <p className="tu-mt-0.5 tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
                               {metric.label === 'Total Orders'
                                 ? selectedSalesOrderShowBy === 'Gross Sales'
@@ -8509,7 +8644,7 @@ export default function App() {
             <section className="tu-order-1 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
               <div className="tu-flex tu-flex-col tu-gap-3 tu-pb-2 lg:tu-flex-row lg:tu-items-center lg:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">
-                  Key Performing Metrics Overview
+                  Sales Overview and Insights
                 </h2>
 
                 <div className="tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row">
@@ -8544,23 +8679,16 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="tu-mt-4 tu-space-y-4">
+              <div className="tu-mt-4">
                 {sectionSixMetricSections
-                  .filter((metricSection) => metricSection.title !== 'Orders')
+                  .filter((metricSection) => metricSection.title === 'Sales')
                   .map((metricSection) => {
                   const isOrdersSection = metricSection.title === 'Orders';
 
                   return (
-                  <article
-                    key={metricSection.title}
-                    className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4"
-                  >
-                    <div className="tu-flex tu-items-center tu-justify-between">
-                      <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#2a2c2f]">{metricSection.title}</h3>
-                    </div>
-
-                    <div className="tu-mt-3 tu-grid tu-gap-3 lg:tu-grid-cols-4">
-                      {metricSection.metrics.map((metric) => {
+                  <div key={metricSection.title}>
+                    <div className="tu-grid tu-gap-3 lg:tu-grid-cols-4">
+                      {metricSection.metrics.map((metric, metricIndex) => {
                         const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                         const trendPillClass =
                           metric.direction === 'up'
@@ -8575,8 +8703,6 @@ export default function App() {
                           'Net Profit': 'netProfit'
                         };
                         const mappedMetricKey = sectionSixMetricKeyMap[metric.label];
-                        const isCustomerSplitCard =
-                          metricSection.title === 'Customers' && Boolean(metric.subCards && metric.subCards.length > 0);
                         const breakdownRows =
                           metricSection.title === 'Sales' &&
                           mappedMetricKey &&
@@ -8628,7 +8754,9 @@ export default function App() {
                                         type="button"
                                         onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
                                         onMouseLeave={() => setHoveredSectionSixValue(null)}
-                                        className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold tu-text-[#10c562] tu-transition-all hover:tu-scale-[1.01] hover:tu-text-[#0ea857] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
+                                        className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold ${
+                                          metricIndex === 0 ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]' : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'
+                                        } tu-transition-all hover:tu-scale-[1.01] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
                                           breakdownRows.length === 0
                                             ? ''
                                             : 'tu-decoration-dotted tu-underline tu-underline-offset-4'
@@ -8672,37 +8800,6 @@ export default function App() {
                                         </div>
                                       ) : null}
                                     </div>
-                                  ) : isCustomerSplitCard ? (
-                                    <div className="tu-mt-1.5 tu-grid tu-grid-cols-2 tu-gap-2.5">
-                                      {metric.subCards!.map((subCard) => {
-                                        const SubTrendIcon = subCard.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                                        const subTrendPillClass =
-                                          subCard.direction === 'up'
-                                            ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
-                                            : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
-
-                                        return (
-                                          <div
-                                            key={`${hoverKey}-${subCard.label}`}
-                                            className="tu-rounded-[10px] tu-border tu-border-[#e7ece7] tu-bg-[#fbfdfb] tu-p-2.5"
-                                          >
-                                            <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{subCard.label}</p>
-                                            <p className="tu-mt-0.5 tu-text-[22px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                              {subCard.value}
-                                            </p>
-                                            <div className="tu-mt-2 tu-flex tu-items-center tu-gap-1.5">
-                                              <span
-                                                className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-0.5 tu-text-[11px] tu-font-semibold ${subTrendPillClass}`}
-                                              >
-                                                {subCard.trend}
-                                                <SubTrendIcon className="tu-h-3 tu-w-3" />
-                                              </span>
-                                              <span className="tu-text-[11px] tu-text-[#9a9ca2]">{subCard.sublabel ?? metric.sublabel}</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
                                   ) : (
                                     <p className={`${isOrdersSection ? 'tu-text-[26px]' : 'tu-text-[26px]'} tu-font-semibold tu-text-[#333538]`}>
                                       {metric.value}
@@ -8737,43 +8834,6 @@ export default function App() {
                                     widthClass="tu-w-[280px]"
                                   />
                                 </div>
-                              ) : metric.showStoreSelect ? (
-                                <div className="tu-relative">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenSectionSixCustomerStoreMenu((current) => !current);
-                                      setOpenGlanceDateMenu(false);
-                                      setSectionSixCustomerStoreSearch('');
-                                    }}
-                                    className="tu-inline-flex tu-items-center tu-gap-1 tu-rounded-[8px] tu-px-1.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c] transition-colors hover:tu-bg-[#f3f5f1] hover:tu-text-[#2a2c2f]"
-                                  >
-                                    <span>
-                                      {formatMultiSelectLabel(
-                                        selectedSectionSixCustomerStores,
-                                        'Select Store',
-                                        'store',
-                                        'stores'
-                                      )}
-                                    </span>
-                                    <ChevronDown className="tu-h-3 tu-w-3" />
-                                  </button>
-                                  <SearchableDropdownMenu
-                                    open={openSectionSixCustomerStoreMenu}
-                                    options={storeOptions}
-                                    selected={selectedSectionSixCustomerStores}
-                                    multiSelect
-                                    searchable
-                                    searchValue={sectionSixCustomerStoreSearch}
-                                    onSearchChange={setSectionSixCustomerStoreSearch}
-                                    widthClass="tu-w-[220px]"
-                                    onSelect={(item) => {
-                                      setSelectedSectionSixCustomerStores((current) =>
-                                        toggleMultiSelectValue(current, item)
-                                      );
-                                    }}
-                                  />
-                                </div>
                               ) : (
                                 <a
                                   href="/reports"
@@ -8784,36 +8844,197 @@ export default function App() {
                                 </a>
                               )}
                             </div>
-                            {!isCustomerSplitCard ? (
-                              <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                                <div className="tu-relative">
-                                  <button
-                                    type="button"
-                                    onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
-                                    onMouseLeave={() => setHoveredGlanceKpi(null)}
-                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
-                                  >
-                                    {metric.trend}
-                                    <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                  </button>
-                                  {hoveredGlanceKpi === hoverKey ? (
-                                    <ComparisonPopover
-                                      comparison={{ ...metric.comparison, ...glanceComparisonLabels }}
-                                      trend={metric.trend}
-                                      direction={metric.direction}
-                                    />
-                                  ) : null}
-                                </div>
-                                <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                            <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                              <div className="tu-relative">
+                                <button
+                                  type="button"
+                                  onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
+                                  onMouseLeave={() => setHoveredGlanceKpi(null)}
+                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                                >
+                                  {metric.trend}
+                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                </button>
+                                {hoveredGlanceKpi === hoverKey ? (
+                                  <ComparisonPopover
+                                    comparison={{ ...metric.comparison, ...glanceComparisonLabels }}
+                                    trend={metric.trend}
+                                    direction={metric.direction}
+                                  />
+                                ) : null}
                               </div>
-                            ) : null}
+                              <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                            </div>
                           </article>
                         );
                       })}
                     </div>
-                  </article>
+                  </div>
                 );
                 })}
+              </div>
+            </section>
+
+            <section className="tu-order-1 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+              <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Customers Overview and Insights</h2>
+
+                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                  {[
+                    {
+                      key: 'store',
+                      value: customerOverviewStoreSummaryLabel,
+                      options: storeOptions
+                    },
+                    { key: 'date', value: selectedCustomerOverviewDate, options: glanceDateOptions },
+                    {
+                      key: 'location',
+                      value: formatLocationFilterLabel(selectedCustomerOverviewRegion),
+                      options: []
+                    }
+                  ].map((menu) => (
+                    <div key={menu.key} className="tu-relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerOverviewMenus((current) => ({
+                            date: false,
+                            location: false,
+                            store: false,
+                            [menu.key]: !current[menu.key as keyof typeof current]
+                          }));
+                          setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                          if (menu.key === 'location') setCustomerOverviewRegionProvince(null);
+                        }}
+                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                      >
+                        <span>{menu.value}</span>
+                        <ChevronDown className="tu-h-3 tu-w-3" />
+                      </button>
+
+                      {menu.key === 'location' ? (
+                        <HierarchicalLocationDropdown
+                          open={customerOverviewMenus.location}
+                          selected={selectedCustomerOverviewRegion}
+                          onChange={setSelectedCustomerOverviewRegion}
+                          searchValue={customerOverviewMenuSearch.location}
+                          onSearchChange={(value) =>
+                            setCustomerOverviewMenuSearch((current) => ({ ...current, location: value }))
+                          }
+                          activeProvince={customerOverviewRegionProvince}
+                          onProvinceChange={setCustomerOverviewRegionProvince}
+                        />
+                      ) : (
+                        <SearchableDropdownMenu
+                          open={customerOverviewMenus[menu.key as keyof typeof customerOverviewMenus]}
+                          options={menu.options}
+                          selected={menu.key === 'store' ? selectedCustomerOverviewStores : selectedCustomerOverviewDate}
+                          multiSelect={menu.key === 'store'}
+                          onToggleAll={
+                            menu.key === 'store'
+                              ? (values) => setSelectedCustomerOverviewStores((current) => setMultiSelectGroup(current, values))
+                              : undefined
+                          }
+                          searchable={menu.key !== 'date'}
+                          searchValue={customerOverviewMenuSearch[menu.key as keyof typeof customerOverviewMenuSearch]}
+                          onSearchChange={
+                            menu.key !== 'date'
+                              ? (value) => setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                              : undefined
+                          }
+                          widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                          showChevronForCustom={menu.key === 'date'}
+                          onSelect={(item) => {
+                            if (menu.key === 'date') {
+                              setSelectedCustomerOverviewDate(item);
+                              setCustomerOverviewMenus({ date: false, location: false, store: false });
+                              return;
+                            }
+                            if (menu.key === 'store') {
+                              setSelectedCustomerOverviewStores((current) => toggleMultiSelectValue(current, item));
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="tu-mt-4 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4">
+                <div className="tu-grid tu-gap-3 lg:tu-grid-cols-5">
+                  {customerOverviewMetrics.map((metric, index) => {
+                    const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                    const trendPillClass =
+                      metric.direction === 'up'
+                        ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                        : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
+                    const hoverKey = `customers-overview-${metric.label}`;
+
+                    return (
+                      <article
+                        key={hoverKey}
+                        className={`tu-group tu-relative tu-min-w-0 tu-px-2 tu-py-1 lg:tu-pr-4 ${
+                          index > 0 ? 'lg:tu-border-l lg:tu-border-[#e8ece6] lg:tu-pl-6' : ''
+                        }`}
+                      >
+                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
+                            {metric.label}
+                          </button>
+                          <InfoTooltip
+                            text={sectionSixKpiTooltips[metric.label]}
+                            widthClass={
+                              metric.label === 'Customer Lifetime Value'
+                                ? 'tu-w-[420px]'
+                                : metric.label === 'Customer Retention'
+                                  ? 'tu-w-[400px]'
+                                  : 'tu-w-[280px]'
+                            }
+                            alignRight={metric.label === 'Customer Retention'}
+                          />
+                        </div>
+                        <div className="tu-mt-1">
+                          <p
+                            className={`tu-text-[26px] tu-font-semibold ${
+                              index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
+                            }`}
+                          >
+                            {metric.value}
+                          </p>
+                          {metric.secondaryText ? (
+                            <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
+                              <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
+                              <InfoTooltip text={metric.secondaryTooltip ?? ''} widthClass="tu-w-[320px]" />
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                          <div className="tu-relative">
+                            <button
+                              type="button"
+                              onMouseEnter={() => setHoveredGlanceKpi(hoverKey)}
+                              onMouseLeave={() => setHoveredGlanceKpi(null)}
+                              className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                            >
+                              {metric.trend}
+                              <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                            </button>
+                            {hoveredGlanceKpi === hoverKey ? (
+                              <ComparisonPopover
+                                comparison={{ ...metric.comparison, ...customerOverviewComparisonLabels }}
+                                trend={metric.trend}
+                                direction={metric.direction}
+                              />
+                            ) : null}
+                          </div>
+                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               </div>
             </section>
                 </>
