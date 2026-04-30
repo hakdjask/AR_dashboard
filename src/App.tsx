@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarElement,
   CategoryScale,
@@ -1961,12 +1961,12 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Gross Sales per Product = Gross Sales / Total Products' }
     ]
   },
-  'Units Sold per Product': {
-    title: 'Units Sold per Product',
+  'Units Sold per Order': {
+    title: 'Units Sold per Order',
     blocks: [
       { type: 'text', text: 'Average units sold for each product in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Units Sold per Product = Total Units Sold / Total Products' }
+      { type: 'formula', text: 'Units Sold per Order = Total Units Sold / Total Orders' }
     ]
   }
 };
@@ -2133,6 +2133,8 @@ const productDateScaleByRange: Record<string, number> = {
   'Last 30 Days': 1,
   'Last 90 Days': 3
 };
+const dummyProductImage =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23f2f6f2'/><stop offset='100%' stop-color='%23dfe8de'/></linearGradient></defs><rect x='1' y='1' width='46' height='46' rx='10' fill='url(%23g)' stroke='%23d4ddd3'/><rect x='12' y='14' width='24' height='20' rx='4' fill='%23ffffff' stroke='%23c8d3c6'/><circle cx='24' cy='24' r='5' fill='%23cfd9ce'/></svg>";
 
 const productMetricConfig: Record<
   string,
@@ -3011,6 +3013,11 @@ export default function App() {
   const [selectedProductTableMetric, setSelectedProductTableMetric] = useState('Gross Sales');
   const [selectedProductTableDate, setSelectedProductTableDate] = useState('Last 30 Days');
   const [selectedProductTableRegion, setSelectedProductTableRegion] = useState<string[]>([...pakistanProvinceOptions]);
+  const [openProductTableColumnMenu, setOpenProductTableColumnMenu] = useState(false);
+  const [productTableVisibleColumns, setProductTableVisibleColumns] = useState({
+    contribution: true,
+    grossProfit: true
+  });
   const [productTableMenuSearch, setProductTableMenuSearch] = useState({
     show: '',
     metric: '',
@@ -5476,11 +5483,11 @@ export default function App() {
           comparison: { current: 'PKR 26,500', previous: 'PKR 24,400', change: 'PKR 2,100' }
         },
         {
-          label: 'Units Sold per Product',
-          value: '101',
+          label: 'Units Sold per Order',
+          value: '19',
           trend: '4.3%',
           direction: 'up' as const,
-          comparison: { current: '101', previous: '97', change: '4' }
+          comparison: { current: '19', previous: '18', change: '1' }
         }
       ];
     }
@@ -5608,6 +5615,12 @@ export default function App() {
     () => Number.parseInt(selectedProductTableDisplayLimit, 10) || 20,
     [selectedProductTableDisplayLimit]
   );
+  const productTableOptionalVisibleCount =
+    (productTableVisibleColumns.contribution ? 1 : 0) + (productTableVisibleColumns.grossProfit ? 1 : 0);
+  const productTableProductColWidthClass =
+    productTableOptionalVisibleCount === 2 ? 'tu-w-[29%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[31%]' : 'tu-w-[33%]';
+  const productTableCurrentPeriodColWidthClass =
+    productTableOptionalVisibleCount === 2 ? 'tu-w-[21%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[23%]' : 'tu-w-[25%]';
 
   const allProductTableRows = useMemo(() => {
     const dateScale = productDateScaleByRange[selectedProductTableDate] ?? productDateScaleByRange['Last 30 Days'];
@@ -5720,6 +5733,16 @@ export default function App() {
       direction: 'desc'
     });
   }, [selectedProductTableMetric]);
+
+  useEffect(() => {
+    if (productTableSort.key === 'contribution' && !productTableVisibleColumns.contribution) {
+      setProductTableSort({ key: 'currentPeriod', direction: 'desc' });
+      return;
+    }
+    if (productTableSort.key === 'grossProfit' && !productTableVisibleColumns.grossProfit) {
+      setProductTableSort({ key: 'currentPeriod', direction: 'desc' });
+    }
+  }, [productTableSort.key, productTableVisibleColumns.contribution, productTableVisibleColumns.grossProfit]);
 
   const handleProductTableScroll = (event: { currentTarget: HTMLDivElement }) => {
     setProductHeaderTooltip(null);
@@ -8655,10 +8678,70 @@ export default function App() {
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Products</h2>
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                  <div className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                    <div className="tu-relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenProductTableColumnMenu((current) => !current);
+                          setProductTableMenus({ show: false, metric: false, date: false, region: false });
+                        }}
+                        className="tu-inline-flex tu-h-9 tu-w-9 tu-items-center tu-justify-center tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        aria-label="Show or hide columns"
+                      >
+                        <SlidersHorizontal className="tu-h-3.5 tu-w-3.5" />
+                      </button>
+
+                      {openProductTableColumnMenu ? (
+                        <div className="tu-absolute tu-right-0 tu-z-20 tu-mt-2 tu-w-[230px] tu-rounded-[12px] tu-border tu-border-[#dde4db] tu-bg-white tu-p-2 tu-shadow-[0_18px_35px_rgba(31,41,55,0.15)]">
+                          {[
+                            { key: 'product', label: 'Product', checked: true, disabled: true },
+                            { key: 'priorPeriod', label: 'Prior Period Sales', checked: true, disabled: true },
+                            { key: 'currentPeriod', label: 'Current Period Sales', checked: true, disabled: true },
+                            {
+                              key: 'contribution',
+                              label: '% of Sales',
+                              checked: productTableVisibleColumns.contribution,
+                              disabled: false
+                            },
+                            {
+                              key: 'grossProfit',
+                              label: 'Gross Profit',
+                              checked: productTableVisibleColumns.grossProfit,
+                              disabled: false
+                            }
+                          ].map((column) => (
+                            <label
+                              key={column.key}
+                              className={`tu-flex tu-cursor-pointer tu-items-center tu-justify-between tu-rounded-[8px] tu-px-2.5 tu-py-2 ${
+                                column.disabled ? 'tu-cursor-not-allowed tu-bg-[#f7f9f6]' : 'hover:tu-bg-[#f6f8f4]'
+                              }`}
+                            >
+                              <span className={`tu-text-[12px] ${column.disabled ? 'tu-text-[#a1a8af]' : 'tu-text-[#41464d]'}`}>
+                                {column.label}
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={column.checked}
+                                disabled={column.disabled}
+                                onChange={(event) => {
+                                  if (column.key !== 'contribution' && column.key !== 'grossProfit') return;
+                                  const checked = event.target.checked;
+                                  setProductTableVisibleColumns((current) => ({ ...current, [column.key]: checked }));
+                                }}
+                                className="tu-h-3.5 tu-w-3.5 tu-cursor-pointer disabled:tu-cursor-not-allowed"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <span className="tu-text-[16px] tu-text-[#c7cdc2]">|</span>
+                  </div>
                   {[
                     {
                       key: 'show',
-                      value: `Showing ${selectedProductTableDisplayLimit.toLowerCase()}`,
+                      value: `Show: ${selectedProductTableDisplayLimit.split(' ')[0]}`,
                       options: productTableDisplayOptions
                     },
                     { key: 'metric', value: `Show by ${selectedProductTableMetric.toLowerCase()}`, options: productMetricOptions },
@@ -8674,6 +8757,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => {
+                            setOpenProductTableColumnMenu(false);
                             setProductTableMenus((current) => ({
                               show: false,
                               metric: false,
@@ -8826,15 +8910,17 @@ export default function App() {
                     ref={productTableScrollRef}
                     onScroll={handleProductTableScroll}
                     className="tu-min-h-0 tu-flex-1 tu-overflow-y-auto tu-overflow-x-hidden tu-rounded-[10px] tu-border tu-border-[#eceee8] tu-bg-white"
-                    style={{ height: 'clamp(340px, 57.5vh, 453px)' }}
+                    style={{ height: 'clamp(340px, 60vh, 453px)' }}
                   >
                     <table className="tu-w-full tu-table-fixed tu-border-separate tu-border-spacing-0">
                       <colgroup>
-                        <col className="tu-w-[32%]" />
+                        <col className={productTableProductColWidthClass} />
                         <col className="tu-w-[18%]" />
-                        <col className="tu-w-[18%]" />
-                        <col className="tu-w-[14%]" />
-                        <col className="tu-w-[18%]" />
+                        <col className={productTableCurrentPeriodColWidthClass} />
+                        {productTableVisibleColumns.contribution ? <col className="tu-w-[14%]" /> : null}
+                        {productTableVisibleColumns.grossProfit ? (
+                          <col className={productTableVisibleColumns.contribution ? 'tu-w-[18%]' : 'tu-w-[20%]'} />
+                        ) : null}
                       </colgroup>
                       <thead>
                         <tr>
@@ -8848,11 +8934,8 @@ export default function App() {
                               key: 'currentPeriod',
                               label: selectedProductTableMetric === 'Gross Sales' ? 'Current Period Sales' : 'Current Period Units'
                             },
-                            {
-                              key: 'contribution',
-                              label: '% of Sales'
-                            },
-                            { key: 'grossProfit', label: 'Gross Profit' }
+                            ...(productTableVisibleColumns.contribution ? [{ key: 'contribution', label: '% of Sales' }] : []),
+                            ...(productTableVisibleColumns.grossProfit ? [{ key: 'grossProfit', label: 'Gross Profit' }] : [])
                           ].map((column) => {
                             const isSorted = productTableSort.key === column.key;
                             const directionIcon = isSorted ? (
@@ -8924,11 +9007,18 @@ export default function App() {
                           return (
                             <tr key={row.sku} className="hover:tu-bg-[#fbfcfa]">
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                <div className="tu-flex tu-flex-col">
-                                  <span className="tu-truncate tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">{row.product}</span>
-                                  <span className="tu-mt-0.5 tu-truncate tu-text-[11px] tu-text-[#7d828a]">
-                                    SKU: {row.sku} • {row.tableProductType}
-                                  </span>
+                                <div className="tu-flex tu-items-center tu-gap-2.5">
+                                  <img
+                                    src={dummyProductImage}
+                                    alt={`${row.product} thumbnail`}
+                                    className="tu-h-9 tu-w-9 tu-shrink-0 tu-rounded-[8px] tu-border tu-border-[#e1e7df] tu-bg-[#f7faf7] tu-object-cover"
+                                  />
+                                  <div className="tu-flex tu-min-w-0 tu-flex-col">
+                                    <span className="tu-truncate tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">{row.product}</span>
+                                    <span className="tu-mt-0.5 tu-truncate tu-text-[11px] tu-text-[#7d828a]">
+                                      SKU: {row.sku} • {row.tableProductType}
+                                    </span>
+                                  </div>
                                 </div>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
@@ -8963,12 +9053,18 @@ export default function App() {
                                   ) : null}
                                 </div>
                               </td>
-                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                {row.contributionPercent.toFixed(1)}%
-                              </td>
-                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{formatPKR(row.grossProfitValue)}</span>
-                              </td>
+                              {productTableVisibleColumns.contribution ? (
+                                <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                  {row.contributionPercent.toFixed(1)}%
+                                </td>
+                              ) : null}
+                              {productTableVisibleColumns.grossProfit ? (
+                                <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                    {formatPKR(row.grossProfitValue)}
+                                  </span>
+                                </td>
+                              ) : null}
                             </tr>
                           );
                         })}
@@ -9295,5 +9391,6 @@ export default function App() {
     </div>
   );
 } 
+
 
 
