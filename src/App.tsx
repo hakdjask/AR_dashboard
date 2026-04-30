@@ -8713,13 +8713,10 @@ export default function App() {
                           ].map((column) => (
                             <label
                               key={column.key}
-                              className={`tu-flex tu-cursor-pointer tu-items-center tu-justify-between tu-rounded-[8px] tu-px-2.5 tu-py-2 ${
+                              className={`tu-flex tu-cursor-pointer tu-items-center tu-gap-2.5 tu-rounded-[8px] tu-px-2.5 tu-py-2 ${
                                 column.disabled ? 'tu-cursor-not-allowed tu-bg-[#f7f9f6]' : 'hover:tu-bg-[#f6f8f4]'
                               }`}
                             >
-                              <span className={`tu-text-[12px] ${column.disabled ? 'tu-text-[#a1a8af]' : 'tu-text-[#41464d]'}`}>
-                                {column.label}
-                              </span>
                               <input
                                 type="checkbox"
                                 checked={column.checked}
@@ -8731,6 +8728,9 @@ export default function App() {
                                 }}
                                 className="tu-h-3.5 tu-w-3.5 tu-cursor-pointer disabled:tu-cursor-not-allowed"
                               />
+                              <span className={`tu-text-[12px] ${column.disabled ? 'tu-text-[#a1a8af]' : 'tu-text-[#41464d]'}`}>
+                                {column.label}
+                              </span>
                             </label>
                           ))}
                         </div>
