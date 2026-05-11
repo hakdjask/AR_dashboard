@@ -1081,20 +1081,19 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Highest Store = Store with MAX(Gross Sales)' }
     ]
   },
-  'Average Gross Sales per Store': {
-    title: 'Average Gross Sales per Store',
+  'Gross Sales per Store': {
+    title: 'Gross Sales per Store',
     blocks: [
       { type: 'text', text: 'Average gross sales contribution across active stores in the selected view.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Average Gross Sales per Store = Gross Sales / Active Stores' }
+      { type: 'formula', text: 'Gross Sales per Store = Gross Sales / Active Stores' }
     ]
   },
-  'Peak Gross Sales Day': {
-    title: 'Peak Gross Sales Day',
+  'Peak Sales Day': {
+    title: 'Peak Sales Day',
     blocks: [
       { type: 'text', text: 'Day with the highest gross sales in the selected range.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Peak Day = Day with MAX(Daily Gross Sales)' }
     ]
   },
   'Total Order Volume': {
@@ -3427,10 +3426,10 @@ export default function App() {
     const metricKey = selectedStoreMetricConfig.key;
     const metricLabelMap = {
       grossRevenue: {
+        peak: 'Peak Sales Day',
         total: 'Gross Sales',
         top: 'Highest Store Gross Sales',
-        average: 'Average Gross Sales per Store',
-        peak: 'Peak Gross Sales Day'
+        average: 'Gross Sales per Store'
       },
       totalOrders: {
         total: 'Total Order Volume',
@@ -3497,7 +3496,7 @@ export default function App() {
     const topPeakDay = rankedPeakDays[0] ?? { value: 0, label: '-' };
     const previousPeakDay = rankedPeakDays[1] ?? topPeakDay;
 
-    return [
+    const metrics = [
       {
         label: metricLabels.total,
         value: formatStoreMetricValue(selectedSalesMetric, currentMetricTotal),
@@ -3557,6 +3556,8 @@ export default function App() {
         hideTrend: true
       }
     ];
+
+    return metrics.filter((metric) => metric.label !== 'Gross Sales');
   }, [selectedSalesMetric, selectedSalesRegion, selectedSalesStoreName, selectedStoreMetricConfig]);
 
   const salesStoreSummaryLabel = selectedSalesStoreName;
@@ -5454,13 +5455,6 @@ export default function App() {
   const getDynamicProductMetricCards = (metric: string) => {
     if (metric === 'Gross Sales') {
       return [
-        {
-          label: 'Gross Sales',
-          value: 'PKR 11,500,000',
-          trend: '12.4%',
-          direction: 'up' as const,
-          comparison: { current: 'PKR 11,500,000', previous: 'PKR 10,230,000', change: 'PKR 1,270,000' }
-        },
         {
           label: 'Units Sold',
           value: '44,000',
@@ -8088,96 +8082,79 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
-                <article className="tu-group/card tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
-                  <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
-                    <a
-                      href="/reports"
-                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                    >
-                      <span>See reports</span>
-                      <ChevronRight className="tu-h-4 tu-w-4" />
-                    </a>
-                    {dynamicSalesMetricCards.map((metric, index) => {
-                      const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                      const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
-                      const primaryMetric = index === 0;
+                <div className="tu-grid tu-gap-3">
+                  {dynamicSalesMetricCards.map((metric, index) => {
+                    const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                    const trendPillClass =
+                      metric.direction === 'up'
+                        ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                        : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
 
-                      return (
-                        <div
-                          key={metric.label}
-                          className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
+                    return (
+                      <article
+                        key={metric.label}
+                        className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                      >
+                        <a
+                          href="/reports"
+                          className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
                         >
-                          <div className="tu-group/tooltip tu-relative tu-inline-block">
-                            <button
-                              type="button"
-                              className={`${
-                                primaryMetric
-                                  ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
-                                  : 'tu-text-[13px] tu-text-[#8f9197]'
-                              }`}
-                            >
-                              {metric.label}
-                            </button>
-                            <InfoTooltip
-                              text={metric.tooltipText ?? salesKpiTooltips[metric.label]}
-                              widthClass={
-                                metric.label.includes('Average') ? 'tu-w-[280px]' : 'tu-w-[190px]'
-                              }
-                            />
-                          </div>
+                          <span>See reports</span>
+                          <ChevronRight className="tu-h-4 tu-w-4" />
+                        </a>
+                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
+                            {metric.label}
+                          </button>
+                          <InfoTooltip
+                            text={metric.tooltipText ?? salesKpiTooltips[metric.label]}
+                            widthClass={metric.label.includes('Average') ? 'tu-w-[280px]' : 'tu-w-[190px]'}
+                          />
+                        </div>
 
-                          <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
-                            <div className="tu-flex tu-items-end tu-gap-2">
-                              <p
-                                className={`tu-text-[#333538] ${
-                                  primaryMetric
-                                    ? 'tu-text-[24px] tu-font-semibold tu-leading-none'
-                                    : 'tu-text-[17px] tu-font-medium tu-leading-none'
-                                }`}
-                              >
-                                {metric.value}
-                              </p>
-                              {metric.extraStores?.length ? (
-                                <div className="tu-group tu-relative tu-inline-flex tu-items-center">
-                                  <button
-                                    type="button"
-                                    className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
-                                  >
-                                    and more
-                                  </button>
-                                  <div className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 tu-min-w-[150px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover:tu-opacity-100">
-                                    {metric.extraStores.join(', ')}
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                            {!metric.hideTrend ? (
-                              <div className="tu-relative">
+                        <div className="tu-mt-1.5 tu-flex tu-items-end tu-gap-2.5">
+                          <div className="tu-flex tu-items-end tu-gap-2">
+                            <p className={`tu-text-[20px] tu-font-semibold tu-leading-none ${index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'}`}>{metric.value}</p>
+                            {metric.extraStores?.length ? (
+                              <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                 <button
                                   type="button"
-                                  onMouseEnter={() => setHoveredSalesKpi(metric.label)}
-                                  onMouseLeave={() => setHoveredSalesKpi(null)}
-                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                  className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
                                 >
-                                  {metric.trend}
-                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  and more
                                 </button>
-
-                                {hoveredSalesKpi === metric.label ? (
-                                  <ComparisonPopover
-                                    comparison={{ ...metric.comparison!, ...salesComparisonLabels }}
-                                    trend={metric.trend}
-                                    direction={metric.direction}
-                                  />
-                                ) : null}
+                                <div className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-30 tu-min-w-[150px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover:tu-opacity-100">
+                                  {metric.extraStores.join(', ')}
+                                </div>
                               </div>
                             ) : null}
                           </div>
+                          {!metric.hideTrend ? (
+                            <div className="tu-relative">
+                              <button
+                                type="button"
+                                onMouseEnter={() => setHoveredSalesKpi(metric.label)}
+                                onMouseLeave={() => setHoveredSalesKpi(null)}
+                                className={`tu-inline-flex tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-px-1.5 tu-py-0.5 tu-text-[11px] tu-font-semibold ${trendPillClass}`}
+                              >
+                                {metric.trend}
+                                <TrendIcon className="tu-h-3 tu-w-3" />
+                              </button>
+
+                              {hoveredSalesKpi === metric.label ? (
+                                <ComparisonPopover
+                                  comparison={{ ...metric.comparison!, ...salesComparisonLabels }}
+                                  trend={metric.trend}
+                                  direction={metric.direction}
+                                />
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
-                      );
-                    })}
-                  </div>
-                </article>
+                      </article>
+                    );
+                  })}
+                </div>
 
                 <div
                   className="tu-relative tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]"
@@ -8399,10 +8376,10 @@ export default function App() {
                             type="button"
                             onMouseEnter={() => setHoveredLocationKpi(metric.label)}
                             onMouseLeave={() => setHoveredLocationKpi(null)}
-                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                            className={`tu-inline-flex tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-px-1.5 tu-py-0.5 tu-text-[11px] tu-font-semibold ${trendPillClass}`}
                           >
                             {metric.trend}
-                            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                            <TrendIcon className="tu-h-3 tu-w-3" />
                           </button>
                           {hoveredLocationKpi === metric.label ? (
                             <ComparisonPopover
@@ -8578,92 +8555,78 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)]">
-                <article className="tu-group/card tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
-                  <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
-                    <a
-                      href="/reports"
-                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                    >
-                      <span>See reports</span>
-                      <ChevronRight className="tu-h-4 tu-w-4" />
-                    </a>
-                    {dynamicProductMetricCards.map((metric, index) => {
-                      const hasTrend = 'trend' in metric;
-                      const trendDirection = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                      const trendColor = hasTrend && metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
-                      const TrendIcon = trendDirection;
-                      const primaryMetric = index === 0;
+                <div className="tu-grid tu-gap-3">
+                  {dynamicProductMetricCards.map((metric, index) => {
+                    const hasTrend = 'trend' in metric;
+                    const TrendIcon = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                    const trendPillClass =
+                      hasTrend && metric.direction === 'up'
+                        ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                        : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
 
-                      return (
-                        <div
-                          key={metric.label}
-                          className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
+                    return (
+                      <article
+                        key={metric.label}
+                        className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                      >
+                        <a
+                          href="/reports"
+                          className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
                         >
-                          <div className="tu-group/tooltip tu-relative tu-inline-block">
-                            <button
-                              type="button"
-                              className={`${
-                                primaryMetric
-                                  ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
-                                  : 'tu-text-[13px] tu-text-[#8f9197]'
-                              }`}
-                            >
-                              {metric.label}
-                            </button>
-                            <InfoTooltip
-                              text={productKpiTooltips[metric.label]}
-                              widthClass={metric.label.includes('Avg.') ? 'tu-w-[300px]' : 'tu-w-[190px]'}
-                            />
-                          </div>
+                          <span>See reports</span>
+                          <ChevronRight className="tu-h-4 tu-w-4" />
+                        </a>
+                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
+                            {metric.label}
+                          </button>
+                          <InfoTooltip
+                            text={productKpiTooltips[metric.label]}
+                            widthClass={metric.label.includes('Avg.') ? 'tu-w-[300px]' : 'tu-w-[190px]'}
+                          />
+                        </div>
 
-                          <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
-                            <div className="tu-flex tu-items-end tu-gap-2">
-                              <p
-                                className={`tu-text-[#333538] ${
-                                  primaryMetric ? 'tu-text-[24px] tu-font-semibold tu-leading-none' : 'tu-text-[17px] tu-font-medium tu-leading-none'
-                                }`}
-                              >
-                                {metric.value}
-                              </p>
-                              {'extraItems' in metric && metric.extraItems?.length ? (
-                                <div className="tu-group tu-relative tu-inline-flex tu-items-center">
-                                  <button
-                                    type="button"
-                                    className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
-                                  >
-                                    and more
-                                  </button>
-                                  <InfoTooltip text={metric.extraItems.join(', ')} widthClass="tu-min-w-[150px]" />
-                                </div>
-                              ) : null}
-                            </div>
-                            {hasTrend ? (
-                              <div className="tu-relative">
+                        <div className="tu-mt-1.5 tu-flex tu-items-end tu-gap-2.5">
+                          <div className="tu-flex tu-items-end tu-gap-2">
+                            <p className={`tu-text-[22px] tu-font-semibold tu-leading-none ${index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'}`}>{metric.value}</p>
+                            {'extraItems' in metric && metric.extraItems?.length ? (
+                              <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                 <button
                                   type="button"
-                                  onMouseEnter={() => setHoveredProductKpi(metric.label)}
-                                  onMouseLeave={() => setHoveredProductKpi(null)}
-                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                  className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
                                 >
-                                  {metric.trend}
-                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  and more
                                 </button>
-
-                                {hoveredProductKpi === metric.label ? (
-                                  <ComparisonPopover
-                                    comparison={{ ...metric.comparison!, ...productComparisonLabels }}
-                                    trend={metric.trend!}
-                                    direction={metric.direction!}
-                                  />
-                                ) : null}
+                                <InfoTooltip text={metric.extraItems.join(', ')} widthClass="tu-min-w-[150px]" />
                               </div>
                             ) : null}
                           </div>
+                          {hasTrend ? (
+                            <div className="tu-relative">
+                              <button
+                                type="button"
+                                onMouseEnter={() => setHoveredProductKpi(metric.label)}
+                                onMouseLeave={() => setHoveredProductKpi(null)}
+                                className={`tu-inline-flex tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-px-1.5 tu-py-0.5 tu-text-[11px] tu-font-semibold ${trendPillClass}`}
+                              >
+                                {metric.trend}
+                                <TrendIcon className="tu-h-3 tu-w-3" />
+                              </button>
+
+                              {hoveredProductKpi === metric.label ? (
+                                <ComparisonPopover
+                                  comparison={{ ...metric.comparison!, ...productComparisonLabels }}
+                                  trend={metric.trend!}
+                                  direction={metric.direction!}
+                                />
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
-                      );
-                    })}
-                  </div>
-                </article>
+                      </article>
+                    );
+                  })}
+                </div>
 
                 <div className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]">
                   <div className="tu-h-[420px]">
@@ -8815,95 +8778,78 @@ export default function App() {
               </div>
 
               <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)] xl:tu-items-stretch">
-                <article className="tu-group/card tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
-                  <div
-                    ref={productTableKpiInnerCardRef}
-                    className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4"
-                  >
-                    <a
-                      href="/reports"
-                      className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                    >
-                      <span>See reports</span>
-                      <ChevronRight className="tu-h-4 tu-w-4" />
-                    </a>
-                    {dynamicProductTableMetricCards.map((metric, index) => {
-                      const hasTrend = 'trend' in metric;
-                      const trendDirection = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                      const trendColor = hasTrend && metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
-                      const TrendIcon = trendDirection;
-                      const primaryMetric = index === 0;
+                <div ref={productTableKpiInnerCardRef} className="tu-grid tu-gap-3">
+                  {dynamicProductTableMetricCards.map((metric) => {
+                    const hasTrend = 'trend' in metric;
+                    const TrendIcon = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
+                    const trendPillClass =
+                      hasTrend && metric.direction === 'up'
+                        ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+                        : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
 
-                      return (
-                        <div
-                          key={`${metric.label}-table`}
-                          className={`${index > 0 ? 'tu-mt-3 tu-border-t tu-border-dashed tu-border-[#e7ebe4] tu-pt-3' : ''}`}
+                    return (
+                      <article
+                        key={`${metric.label}-table`}
+                        className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                      >
+                        <a
+                          href="/reports"
+                          className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
                         >
-                          <div className="tu-group/tooltip tu-relative tu-inline-block">
-                            <button
-                              type="button"
-                              className={`${
-                                primaryMetric
-                                  ? 'tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.14em] tu-text-[#10c562]'
-                                  : 'tu-text-[13px] tu-text-[#8f9197]'
-                              }`}
-                            >
-                              {metric.label}
-                            </button>
-                            <InfoTooltip
-                              text={productKpiTooltips[metric.label]}
-                              widthClass={metric.label.includes('Avg.') ? 'tu-w-[300px]' : 'tu-w-[190px]'}
-                            />
-                          </div>
+                          <span>See reports</span>
+                          <ChevronRight className="tu-h-4 tu-w-4" />
+                        </a>
+                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
+                            {metric.label}
+                          </button>
+                          <InfoTooltip
+                            text={productKpiTooltips[metric.label]}
+                            widthClass={metric.label.includes('Avg.') ? 'tu-w-[300px]' : 'tu-w-[190px]'}
+                          />
+                        </div>
 
-                          <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
-                            <div className="tu-flex tu-items-end tu-gap-2">
-                              <p
-                                className={`tu-text-[#333538] ${
-                                  primaryMetric ? 'tu-text-[24px] tu-font-semibold tu-leading-none' : 'tu-text-[17px] tu-font-medium tu-leading-none'
-                                }`}
-                              >
-                                {metric.value}
-                              </p>
-                              {'extraItems' in metric && metric.extraItems?.length ? (
-                                <div className="tu-group tu-relative tu-inline-flex tu-items-center">
-                                  <button
-                                    type="button"
-                                    className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
-                                  >
-                                    and more
-                                  </button>
-                                  <InfoTooltip text={metric.extraItems.join(', ')} widthClass="tu-min-w-[150px]" />
-                                </div>
-                              ) : null}
-                            </div>
-                            {hasTrend ? (
-                              <div className="tu-relative">
+                        <div className="tu-mt-1.5 tu-flex tu-items-end tu-gap-2.5">
+                          <div className="tu-flex tu-items-end tu-gap-2">
+                            <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
+                            {'extraItems' in metric && metric.extraItems?.length ? (
+                              <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                 <button
                                   type="button"
-                                  onMouseEnter={() => setHoveredProductKpi(metric.label)}
-                                  onMouseLeave={() => setHoveredProductKpi(null)}
-                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium ${trendColor}`}
+                                  className="tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2"
                                 >
-                                  {metric.trend}
-                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  and more
                                 </button>
-
-                                {hoveredProductKpi === metric.label ? (
-                                  <ComparisonPopover
-                                    comparison={{ ...metric.comparison!, ...productTableComparisonLabels }}
-                                    trend={metric.trend!}
-                                    direction={metric.direction!}
-                                  />
-                                ) : null}
+                                <InfoTooltip text={metric.extraItems.join(', ')} widthClass="tu-min-w-[150px]" />
                               </div>
                             ) : null}
                           </div>
+                          {hasTrend ? (
+                            <div className="tu-relative">
+                              <button
+                                type="button"
+                                onMouseEnter={() => setHoveredProductKpi(metric.label)}
+                                onMouseLeave={() => setHoveredProductKpi(null)}
+                                className={`tu-inline-flex tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-px-1.5 tu-py-0.5 tu-text-[11px] tu-font-semibold ${trendPillClass}`}
+                              >
+                                {metric.trend}
+                                <TrendIcon className="tu-h-3 tu-w-3" />
+                              </button>
+
+                              {hoveredProductKpi === metric.label ? (
+                                <ComparisonPopover
+                                  comparison={{ ...metric.comparison!, ...productTableComparisonLabels }}
+                                  trend={metric.trend!}
+                                  direction={metric.direction!}
+                                />
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
-                      );
-                    })}
-                  </div>
-                </article>
+                      </article>
+                    );
+                  })}
+                </div>
 
                 <div className="tu-min-w-0">
                   <div
