@@ -529,6 +529,22 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Delivery Failed = Count of Orders with Failed Delivery Status' }
     ]
   },
+  'Return Initiated': {
+    title: 'Return Initiated',
+    blocks: [
+      { type: 'text', text: 'Orders where the customer return process has been initiated.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Return Initiated = Count of Orders with Return-Initiated Status' }
+    ]
+  },
+  Restock: {
+    title: 'Restock',
+    blocks: [
+      { type: 'text', text: 'Returned items that have been restocked back into inventory.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Restock = Count of Returned Items Restocked to Inventory' }
+    ]
+  },
   Returned: {
     title: 'Returned',
     blocks: [
@@ -684,6 +700,36 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         comparison: {
           current: '61',
           previous: '63',
+          change: '2',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Return Initiated',
+        value: '44',
+        sublabel: 'Since Yesterday',
+        trend: '6.2%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '44',
+          previous: '41',
+          change: '3',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Restock',
+        value: '36',
+        sublabel: 'Since Yesterday',
+        trend: '4.9%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '36',
+          previous: '34',
           change: '2',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
@@ -960,12 +1006,12 @@ const scaleMetricValueByPeriod = (value: string, periodKey: PeriodKey) => {
   const scaled = numeric * getSectionSixValueMultiplier(value, periodKey);
 
   if (value.includes('PKR')) {
-    return `PKR ${Math.round(scaled).toLocaleString('en-US')}`;
+    return formatCompactCurrency(Math.round(scaled));
   }
   if (value.includes('%')) {
     return `${scaled.toFixed(1)}%`;
   }
-  return Math.round(scaled).toLocaleString('en-US');
+  return formatCompactNumber(Math.round(scaled));
 };
 
 const scaleComparisonByPeriod = (comparison: ComparisonData, periodKey: PeriodKey): ComparisonData => ({
@@ -981,13 +1027,13 @@ const scaleMetricValueByFactor = (value: string, factor: number) => {
   const scaled = numeric * factor;
 
   if (value.includes('PKR')) {
-    return `PKR ${Math.max(0, Math.round(scaled)).toLocaleString('en-US')}`;
+    return formatCompactCurrency(Math.max(0, Math.round(scaled)));
   }
   if (value.includes('%')) {
     const bounded = Math.max(0, Math.min(100, scaled));
     return `${bounded.toFixed(1)}%`;
   }
-  return Math.max(0, Math.round(scaled)).toLocaleString('en-US');
+  return formatCompactNumber(Math.max(0, Math.round(scaled)));
 };
 
 const scaleTrendPercentByFactor = (trend: string, factor: number) => {
@@ -1830,7 +1876,7 @@ const locationMetricConfig: Record<
     axisMax: 420,
     stepSize: 100,
     tickFormatter: (value) => value.toFixed(0),
-    tooltipFormatter: (value) => value.toLocaleString('en-US')
+    tooltipFormatter: (value) => formatCompactNumber(value)
   },
   'Gross Sales': {
     currentKey: 'revenueCurrent',
@@ -1838,7 +1884,7 @@ const locationMetricConfig: Record<
     axisMax: 4500000,
     stepSize: 1000000,
     tickFormatter: (value) => `PKR ${(value / 1000000).toFixed(1)}M`,
-    tooltipFormatter: (value) => `PKR ${value.toLocaleString('en-US')}`
+    tooltipFormatter: (value) => formatCompactCurrency(value)
   }
 };
 
@@ -2152,7 +2198,7 @@ const productMetricConfig: Record<
     axisMax: 75,
     stepSize: 10,
     tickFormatter: (value) => value.toFixed(0),
-    tooltipFormatter: (value) => value.toLocaleString('en-US')
+    tooltipFormatter: (value) => formatCompactNumber(value)
   },
   'Gross Sales': {
     currentKey: 'revenueCurrent',
@@ -2160,7 +2206,7 @@ const productMetricConfig: Record<
     axisMax: 1600000,
     stepSize: 200000,
     tickFormatter: (value) => `PKR ${(value / 1000000).toFixed(1)}M`,
-    tooltipFormatter: (value) => `PKR ${value.toLocaleString('en-US')}`
+    tooltipFormatter: (value) => formatCompactCurrency(value)
   }
 };
 
@@ -2272,7 +2318,7 @@ const storeChartMetricConfig: Record<
   'Gross Sales': {
     key: 'grossRevenue',
     label: 'Gross Sales',
-    formatValue: (value) => `PKR ${value.toLocaleString('en-US')}`,
+    formatValue: (value) => formatCompactCurrency(value),
     axisMax: 110000,
     stepSize: 20000,
     tickFormatter: (value) => `PKR ${(value / 1000).toFixed(1)}`
@@ -2280,7 +2326,7 @@ const storeChartMetricConfig: Record<
   'Order Returns': {
     key: 'orderReturns',
     label: 'Order Returns',
-    formatValue: (value) => value.toLocaleString('en-US'),
+    formatValue: (value) => formatCompactNumber(value),
     axisMax: 1000,
     stepSize: 200,
     tickFormatter: (value) => value.toFixed(0)
@@ -2288,7 +2334,7 @@ const storeChartMetricConfig: Record<
   'Units Sold': {
     key: 'unitsSold',
     label: 'Units Sold',
-    formatValue: (value) => value.toLocaleString('en-US'),
+    formatValue: (value) => formatCompactNumber(value),
     axisMax: 1000,
     stepSize: 200,
     tickFormatter: (value) => value.toFixed(0)
@@ -2296,7 +2342,7 @@ const storeChartMetricConfig: Record<
   'Order Volume': {
     key: 'totalOrders',
     label: 'Order Volume',
-    formatValue: (value) => value.toLocaleString('en-US'),
+    formatValue: (value) => formatCompactNumber(value),
     axisMax: 150,
     stepSize: 25,
     tickFormatter: (value) => value.toFixed(0)
@@ -2415,11 +2461,20 @@ const formatLocationFilterLabel = (selected: string[]) => {
   return `${selected.length} selected`;
 };
 
+const compactNumberFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 2
+});
+
+const formatCompactNumber = (value: number) => compactNumberFormatter.format(value);
+
+const formatCompactCurrency = (value: number) => `PKR ${formatCompactNumber(value)}`;
+
 const formatStoreMetricValue = (metric: string, value: number) =>
-  metric === 'Gross Sales' ? `PKR ${value.toLocaleString('en-US')}` : value.toLocaleString('en-US');
+  metric === 'Gross Sales' ? formatCompactCurrency(value) : formatCompactNumber(value);
 
 const formatStoreMetricDelta = (metric: string, value: number) =>
-  metric === 'Gross Sales' ? `PKR ${Math.abs(value).toLocaleString('en-US')}` : Math.abs(value).toLocaleString('en-US');
+  metric === 'Gross Sales' ? formatCompactCurrency(Math.abs(value)) : formatCompactNumber(Math.abs(value));
 
 const getStoreMetricDirection = (metric: string, current: number, previous: number) => {
   if (metric === 'Order Returns') {
@@ -3343,14 +3398,14 @@ export default function App() {
           sublabel: salesOrderMetricSublabel,
           trend,
           direction: totalCurrent >= totalPrevious ? ('up' as const) : ('down' as const),
-          value: isGrossSalesMode ? `PKR ${totalCurrent.toLocaleString('en-US')}` : totalCurrent.toLocaleString('en-US'),
+          value: isGrossSalesMode ? formatCompactCurrency(totalCurrent) : formatCompactNumber(totalCurrent),
           comparison: {
             ...metric.comparison,
-            current: isGrossSalesMode ? `PKR ${totalCurrent.toLocaleString('en-US')}` : totalCurrent.toLocaleString('en-US'),
-            previous: isGrossSalesMode ? `PKR ${totalPrevious.toLocaleString('en-US')}` : totalPrevious.toLocaleString('en-US'),
+            current: isGrossSalesMode ? formatCompactCurrency(totalCurrent) : formatCompactNumber(totalCurrent),
+            previous: isGrossSalesMode ? formatCompactCurrency(totalPrevious) : formatCompactNumber(totalPrevious),
             change: isGrossSalesMode
-              ? `PKR ${Math.abs(totalCurrent - totalPrevious).toLocaleString('en-US')}`
-              : Math.abs(totalCurrent - totalPrevious).toLocaleString('en-US')
+              ? formatCompactCurrency(Math.abs(totalCurrent - totalPrevious))
+              : formatCompactNumber(Math.abs(totalCurrent - totalPrevious))
           },
           orderShare: 100
         };
@@ -3370,14 +3425,14 @@ export default function App() {
         sublabel: salesOrderMetricSublabel,
         trend,
         direction: currentValue >= previousValue ? ('up' as const) : ('down' as const),
-        value: isGrossSalesMode ? `PKR ${currentValue.toLocaleString('en-US')}` : currentValue.toLocaleString('en-US'),
+        value: isGrossSalesMode ? formatCompactCurrency(currentValue) : formatCompactNumber(currentValue),
         comparison: {
           ...metric.comparison,
-          current: isGrossSalesMode ? `PKR ${currentValue.toLocaleString('en-US')}` : currentValue.toLocaleString('en-US'),
-          previous: isGrossSalesMode ? `PKR ${previousValue.toLocaleString('en-US')}` : previousValue.toLocaleString('en-US'),
+          current: isGrossSalesMode ? formatCompactCurrency(currentValue) : formatCompactNumber(currentValue),
+          previous: isGrossSalesMode ? formatCompactCurrency(previousValue) : formatCompactNumber(previousValue),
           change: isGrossSalesMode
-            ? `PKR ${Math.abs(currentValue - previousValue).toLocaleString('en-US')}`
-            : Math.abs(currentValue - previousValue).toLocaleString('en-US')
+            ? formatCompactCurrency(Math.abs(currentValue - previousValue))
+            : formatCompactNumber(Math.abs(currentValue - previousValue))
         },
         orderShare: denominator === 0 ? 0 : (currentValue / denominator) * 100
       };
@@ -3600,16 +3655,16 @@ export default function App() {
     return [
       {
         label: 'Total Inventory Value',
-        value: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
+        value: formatCompactCurrency(inventoryValue.current),
         trend: `${getPercentDelta(inventoryValue.current, inventoryValue.previous).toFixed(1)}%`,
         sublabel: 'vs previous period',
         secondaryLabel: 'Total Products',
-        secondaryValue: totalProducts.current.toLocaleString('en-US'),
+        secondaryValue: formatCompactNumber(totalProducts.current),
         direction: inventoryValue.current >= inventoryValue.previous ? ('up' as const) : ('down' as const),
         comparison: {
-          current: `PKR ${inventoryValue.current.toLocaleString('en-US')}`,
-          previous: `PKR ${inventoryValue.previous.toLocaleString('en-US')}`,
-          change: `PKR ${Math.abs(inventoryValue.current - inventoryValue.previous).toLocaleString('en-US')}`
+          current: formatCompactCurrency(inventoryValue.current),
+          previous: formatCompactCurrency(inventoryValue.previous),
+          change: formatCompactCurrency(Math.abs(inventoryValue.current - inventoryValue.previous))
         }
       },
       {
@@ -3628,30 +3683,30 @@ export default function App() {
       },
       {
         label: 'Quantity In',
-        value: quantityIn.current.toLocaleString('en-US'),
+        value: formatCompactNumber(quantityIn.current),
         trend: `${getPercentDelta(quantityIn.current, quantityIn.previous).toFixed(1)}%`,
         sublabel: 'vs previous period',
         secondaryLabel: '',
         secondaryValue: '',
         direction: quantityIn.current >= quantityIn.previous ? ('up' as const) : ('down' as const),
         comparison: {
-          current: quantityIn.current.toLocaleString('en-US'),
-          previous: quantityIn.previous.toLocaleString('en-US'),
-          change: Math.abs(quantityIn.current - quantityIn.previous).toLocaleString('en-US')
+          current: formatCompactNumber(quantityIn.current),
+          previous: formatCompactNumber(quantityIn.previous),
+          change: formatCompactNumber(Math.abs(quantityIn.current - quantityIn.previous))
         }
       },
       {
         label: 'Quantity Out',
-        value: quantityOut.current.toLocaleString('en-US'),
+        value: formatCompactNumber(quantityOut.current),
         trend: `${getPercentDelta(quantityOut.current, quantityOut.previous).toFixed(1)}%`,
         sublabel: 'vs previous period',
         secondaryLabel: '',
         secondaryValue: '',
         direction: quantityOut.current >= quantityOut.previous ? ('up' as const) : ('down' as const),
         comparison: {
-          current: quantityOut.current.toLocaleString('en-US'),
-          previous: quantityOut.previous.toLocaleString('en-US'),
-          change: Math.abs(quantityOut.current - quantityOut.previous).toLocaleString('en-US')
+          current: formatCompactNumber(quantityOut.current),
+          previous: formatCompactNumber(quantityOut.previous),
+          change: formatCompactNumber(Math.abs(quantityOut.current - quantityOut.previous))
         }
       },
     ];
@@ -3718,19 +3773,19 @@ export default function App() {
     );
 
     return [
-      { label: 'On-hand', value: onHand.toLocaleString('en-US') },
-      { label: 'Committed', value: committed.toLocaleString('en-US') },
-      { label: 'Available for Sale', value: availableForSale.toLocaleString('en-US') },
-      { label: 'Inbound (Incoming Inventory)', value: inbound.toLocaleString('en-US') },
-      { label: 'Unfulfilled or Damaged', value: unfulfilled.toLocaleString('en-US') },
+      { label: 'On-hand', value: formatCompactNumber(onHand) },
+      { label: 'Committed', value: formatCompactNumber(committed) },
+      { label: 'Available for Sale', value: formatCompactNumber(availableForSale) },
+      { label: 'Inbound (Incoming Inventory)', value: formatCompactNumber(inbound) },
+      { label: 'Unfulfilled or Damaged', value: formatCompactNumber(unfulfilled) },
       {
         label: 'Stockout Percentage',
         value: `${stockoutPercent.toFixed(1)}%`,
-        meta: `${stockoutProducts.toLocaleString('en-US')} products`,
+        meta: `${formatCompactNumber(stockoutProducts)} products`,
         hasDateFilter: true
       },
-      { label: 'Out of Stock Products', value: outOfStockProducts.toLocaleString('en-US') },
-      { label: 'Products in Reorder Threshold', value: reorderThresholdProducts.toLocaleString('en-US') }
+      { label: 'Out of Stock Products', value: formatCompactNumber(outOfStockProducts) },
+      { label: 'Products in Reorder Threshold', value: formatCompactNumber(reorderThresholdProducts) }
     ];
   }, [activeInventorySnapshotHealthProducts, activeInventorySnapshotStores, selectedInventorySnapshotStockoutDate]);
 
@@ -3878,7 +3933,7 @@ export default function App() {
               family: 'Poppins',
               size: 10
             },
-            callback: (value: string | number) => `PKR ${Number(value).toLocaleString('en-US')}`
+            callback: (value: string | number) => formatCompactCurrency(Number(value))
           },
           grid: {
             color: '#EEF0EB'
@@ -4131,7 +4186,7 @@ export default function App() {
               family: 'Poppins',
               size: 10
             },
-            callback: (value: string | number) => Number(value).toLocaleString('en-US')
+            callback: (value: string | number) => formatCompactNumber(Number(value))
           },
           grid: {
             color: '#EEF0EB'
@@ -4170,13 +4225,13 @@ export default function App() {
       const label = statusKey === 'unfulfillable' ? 'Unfulfilled' : inventoryStatusLabelMap[statusKey];
       return {
         label,
-        value: aggregateCurrent.toLocaleString('en-US'),
+        value: formatCompactNumber(aggregateCurrent),
         trend: `${getPercentDelta(aggregateCurrent, aggregatePrevious).toFixed(1)}%`,
         direction: aggregateCurrent >= aggregatePrevious ? ('up' as const) : ('down' as const),
         comparison: {
-          current: aggregateCurrent.toLocaleString('en-US'),
-          previous: aggregatePrevious.toLocaleString('en-US'),
-          change: Math.abs(aggregateCurrent - aggregatePrevious).toLocaleString('en-US')
+          current: formatCompactNumber(aggregateCurrent),
+          previous: formatCompactNumber(aggregatePrevious),
+          change: formatCompactNumber(Math.abs(aggregateCurrent - aggregatePrevious))
         }
       };
     };
@@ -4297,9 +4352,9 @@ export default function App() {
 
   const getInventoryHealthExportCellValue = (product: InventoryHealthProduct, columnKey: InventoryHealthSortKey) => {
     if (columnKey === 'name') return `${product.name} (${product.sku})`;
-    if (columnKey === 'quantityIn') return product.quantityIn.toLocaleString('en-US');
-    if (columnKey === 'quantityOut') return product.quantityOut.toLocaleString('en-US');
-    if (columnKey === 'deadStocks') return product.deadStocks.toLocaleString('en-US');
+    if (columnKey === 'quantityIn') return formatCompactNumber(product.quantityIn);
+    if (columnKey === 'quantityOut') return formatCompactNumber(product.quantityOut);
+    if (columnKey === 'deadStocks') return formatCompactNumber(product.deadStocks);
     if (columnKey === 'salesVelocity') return `${product.salesVelocity.toFixed(1)} units/day`;
     if (columnKey === 'stockToSalesRatio') return `${product.stockToSalesRatio.toFixed(2)} times`;
     if (columnKey === 'inventoryTurnoverRatio') return `${product.inventoryTurnoverRatio.toFixed(2)} times`;
@@ -4672,22 +4727,22 @@ export default function App() {
       selectedSalesOrderShowBy === 'Gross Sales'
         ? {
             label: 'Gross Sales',
-            formatValue: (value: number) => `PKR ${Math.round(value).toLocaleString('en-US')}`,
+            formatValue: (value: number) => formatCompactCurrency(Math.round(value)),
             axisMax: 25000000,
             tickFormatter: (value: number) => {
               if (value >= 1000000) return `PKR ${(value / 1000000).toFixed(1)}M`;
               return `PKR ${(value / 1000).toFixed(0)}K`;
             },
             supportLabel: 'Orders',
-            formatSupportValue: (value: number) => Math.round(value).toLocaleString('en-US')
+            formatSupportValue: (value: number) => formatCompactNumber(Math.round(value))
           }
         : {
             label: 'Orders Volume',
-            formatValue: (value: number) => Math.round(value).toLocaleString('en-US'),
+            formatValue: (value: number) => formatCompactNumber(Math.round(value)),
             axisMax: 2500,
-            tickFormatter: (value: number) => Math.round(value).toLocaleString('en-US'),
+            tickFormatter: (value: number) => formatCompactNumber(Math.round(value)),
             supportLabel: 'Sales',
-            formatSupportValue: (value: number) => `PKR ${Math.round(value).toLocaleString('en-US')}`
+            formatSupportValue: (value: number) => formatCompactCurrency(Math.round(value))
           },
     [selectedSalesOrderShowBy]
   );
@@ -5036,15 +5091,15 @@ export default function App() {
   };
   const formatLocationMetricValue = (value: number) =>
     selectedLocationMetric === 'Gross Sales'
-      ? `PKR ${Math.round(value).toLocaleString('en-US')}`
-      : Math.round(value).toLocaleString('en-US');
+      ? formatCompactCurrency(Math.round(value))
+      : formatCompactNumber(Math.round(value));
   const formatLocationChartValue = (value: number) => {
     if (selectedLocationMetric === 'Gross Sales') {
       if (value >= 1000000) return `PKR ${(value / 1000000).toFixed(1)}M`;
       return `PKR ${(value / 1000).toFixed(0)}K`;
     }
 
-    return Math.round(value).toLocaleString('en-US');
+    return formatCompactNumber(Math.round(value));
   };
   const locationScopedData = useMemo(() => {
     const activeRegions = selectedLocationRegion.length === 0 ? [...pakistanProvinceOptions] : selectedLocationRegion;
@@ -5405,12 +5460,12 @@ export default function App() {
         const supportMetricLabel = selectedLocationMetric === 'Gross Sales' ? 'Orders' : 'Gross Sales';
         const supportCurrent =
           selectedLocationMetric === 'Gross Sales'
-            ? item.ordersCurrent.toLocaleString('en-US')
-            : `PKR ${Math.round(item.revenueCurrent).toLocaleString('en-US')}`;
+            ? formatCompactNumber(item.ordersCurrent)
+            : formatCompactCurrency(Math.round(item.revenueCurrent));
         const supportPrevious =
           selectedLocationMetric === 'Gross Sales'
-            ? item.ordersPrevious.toLocaleString('en-US')
-            : `PKR ${Math.round(item.revenuePrevious).toLocaleString('en-US')}`;
+            ? formatCompactNumber(item.ordersPrevious)
+            : formatCompactCurrency(Math.round(item.revenuePrevious));
 
         return {
           location: item.location,
@@ -5700,7 +5755,7 @@ export default function App() {
 
   const productTableHasMoreRows = productTableVisibleRows.length < productTableMaxRows;
 
-  const formatPKR = (value: number) => `PKR ${Math.round(value).toLocaleString('en-US')}`;
+  const formatPKR = (value: number) => formatCompactCurrency(Math.round(value));
   const dashboardLastUpdatedLabel = useMemo(
     () =>
       dashboardLastUpdatedAt.toLocaleString('en-US', {
@@ -6131,7 +6186,7 @@ export default function App() {
                                 </span>
                               </div>
                               <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#22302a]">
-                                PKR {inventoryValueTooltipData.current.toLocaleString('en-US')}
+                                {formatCompactCurrency(inventoryValueTooltipData.current)}
                               </p>
                             </div>
 
@@ -6148,7 +6203,7 @@ export default function App() {
                                 </span>
                               </div>
                               <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#2e3338]">
-                                PKR {inventoryValueTooltipData.previous.toLocaleString('en-US')}
+                                {formatCompactCurrency(inventoryValueTooltipData.previous)}
                               </p>
                             </div>
                           </div>
@@ -6157,7 +6212,7 @@ export default function App() {
                             <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
                             <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
                               <span className="tu-text-[#333538]">
-                                PKR {Math.abs(inventoryValueTooltipData.change).toLocaleString('en-US')}
+                                {formatCompactCurrency(Math.abs(inventoryValueTooltipData.change))}
                               </span>
                               <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
                               <span
@@ -6515,7 +6570,7 @@ export default function App() {
                                 </span>
                               </div>
                               <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                {inventoryMovementTooltipData!.current.toLocaleString('en-US')}
+                                {formatCompactNumber(inventoryMovementTooltipData!.current)}
                               </p>
                             </div>
 
@@ -6529,7 +6584,7 @@ export default function App() {
                                 </span>
                               </div>
                               <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                {inventoryMovementTooltipData!.previous.toLocaleString('en-US')}
+                                {formatCompactNumber(inventoryMovementTooltipData!.previous)}
                               </p>
                             </div>
 
@@ -6539,7 +6594,7 @@ export default function App() {
                               <p className="tu-text-[12px] tu-font-semibold tu-text-[#333538]">Change</p>
                               <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold">
                                 <span className="tu-text-[#333538]">
-                                  {Math.abs(inventoryMovementTooltipData!.change).toLocaleString('en-US')}
+                                  {formatCompactNumber(Math.abs(inventoryMovementTooltipData!.change))}
                                 </span>
                                 <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
                                 <span
@@ -6910,13 +6965,13 @@ export default function App() {
                                     </div>
                                   ) : null}
                                   {column.key === 'quantityIn' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.quantityIn.toLocaleString('en-US')}</span>
+                                    <span className="tu-text-[13px] tu-text-[#333538]">{formatCompactNumber(product.quantityIn)}</span>
                                   ) : null}
                                   {column.key === 'quantityOut' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.quantityOut.toLocaleString('en-US')}</span>
+                                    <span className="tu-text-[13px] tu-text-[#333538]">{formatCompactNumber(product.quantityOut)}</span>
                                   ) : null}
                                   {column.key === 'deadStocks' ? (
-                                    <span className="tu-text-[13px] tu-text-[#333538]">{product.deadStocks.toLocaleString('en-US')}</span>
+                                    <span className="tu-text-[13px] tu-text-[#333538]">{formatCompactNumber(product.deadStocks)}</span>
                                   ) : null}
                                   {column.key === 'salesVelocity' ? (
                                     <span className="tu-text-[13px] tu-text-[#333538]">{product.salesVelocity.toFixed(1)} units/day</span>
@@ -6974,7 +7029,7 @@ export default function App() {
                     </div>
                     <div className="tu-flex tu-items-center tu-justify-between tu-border-t tu-border-[#edf0ea] tu-bg-[#fafbf8] tu-px-3.5 tu-py-2">
                       <p className="tu-text-[12px] tu-text-[#7f838a]">
-                        Showing {inventoryHealthVisibleProducts.length.toLocaleString('en-US')} of {inventoryHealthSortedProducts.length.toLocaleString('en-US')} products
+                        Showing {formatCompactNumber(inventoryHealthVisibleProducts.length)} of {formatCompactNumber(inventoryHealthSortedProducts.length)} products
                       </p>
                       <p className="tu-text-[11px] tu-font-medium tu-text-[#8f949b]">
                         {inventoryHealthVisibleProducts.length < inventoryHealthSortedProducts.length
@@ -7613,7 +7668,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="tu-mt-4 tu-grid tu-gap-3 lg:tu-grid-cols-4">
+              <div className="tu-mt-4 tu-grid tu-gap-3 lg:tu-grid-cols-5">
                 {salesOrderKpiCards.map((metric) => {
                   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                   const isSelectedStatus = selectedSalesOrderStatus === metric.label;
@@ -7639,7 +7694,12 @@ export default function App() {
                         <div className="tu-min-w-0">
                           <div className="tu-flex tu-items-center tu-gap-2">
                             <div className="tu-group/tooltip tu-relative tu-inline-block">
-                              <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
+                              <button
+                                type="button"
+                                className={`tu-text-[13px] tu-text-[#9a9ca2] ${
+                                  metric.label === 'Total Orders' ? 'tu-inline-block tu-min-w-[96px] tu-whitespace-nowrap' : ''
+                                }`}
+                              >
                                 {metric.label}
                               </button>
                               <InfoTooltip text={sectionSixKpiTooltips[metric.label]} widthClass="tu-w-[280px]" />
@@ -7659,7 +7719,7 @@ export default function App() {
                             >
                               {metric.value}
                             </p>
-                            <p className="tu-mt-0.5 tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
+                            <p className="tu-mt-0.5 tu-inline-block tu-min-w-[170px] tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
                               {metric.label === 'Total Orders'
                                 ? selectedSalesOrderShowBy === 'Gross Sales'
                                   ? '100% of gross sales in scope'
@@ -8207,7 +8267,7 @@ export default function App() {
                             {salesTooltipData.metric.formatValue(salesTooltipData.current)}
                           </p>
                           <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
-                            Orders: {salesTooltipData.currentOrders.toLocaleString('en-US')}
+                            Orders: {formatCompactNumber(salesTooltipData.currentOrders)}
                           </p>
                         </div>
 
@@ -8227,7 +8287,7 @@ export default function App() {
                             {salesTooltipData.metric.formatValue(salesTooltipData.previous)}
                           </p>
                           <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
-                            Orders: {salesTooltipData.previousOrders.toLocaleString('en-US')}
+                            Orders: {formatCompactNumber(salesTooltipData.previousOrders)}
                           </p>
                         </div>
                       </div>
@@ -8970,9 +9030,9 @@ export default function App() {
                                   change: formatPKR(Math.abs(row.grossSales - row.previousGrossSales))
                                 }
                               : {
-                                  current: row.currentPeriodValue.toLocaleString('en-US'),
-                                  previous: row.priorPeriodValue.toLocaleString('en-US'),
-                                  change: Math.abs(row.currentPeriodValue - row.priorPeriodValue).toLocaleString('en-US')
+                                  current: formatCompactNumber(row.currentPeriodValue),
+                                  previous: formatCompactNumber(row.priorPeriodValue),
+                                  change: formatCompactNumber(Math.abs(row.currentPeriodValue - row.priorPeriodValue))
                                 };
                           const rowHoverKey = `${row.sku}-${selectedProductTableMetric}`;
                           return (
@@ -8996,7 +9056,7 @@ export default function App() {
                                 <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
                                   {selectedProductTableMetric === 'Gross Sales'
                                     ? formatPKR(row.priorPeriodValue)
-                                    : row.priorPeriodValue.toLocaleString('en-US')}
+                                    : formatCompactNumber(row.priorPeriodValue)}
                                 </span>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
@@ -9004,7 +9064,7 @@ export default function App() {
                                   <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
                                     {selectedProductTableMetric === 'Gross Sales'
                                       ? formatPKR(row.currentPeriodValue)
-                                      : row.currentPeriodValue.toLocaleString('en-US')}
+                                      : formatCompactNumber(row.currentPeriodValue)}
                                   </span>
                                   <button
                                     type="button"
@@ -9148,7 +9208,7 @@ export default function App() {
 
                   return (
                   <div key={metricSection.title}>
-                    <div className="tu-grid tu-gap-3 lg:tu-grid-cols-4">
+                    <div className="tu-grid tu-gap-3 lg:tu-grid-cols-5">
                       {metricSection.metrics.map((metric, metricIndex) => {
                         const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                         const trendPillClass =
@@ -9192,7 +9252,12 @@ export default function App() {
                               <div className="tu-min-w-0">
                                 <div className="tu-flex tu-items-center tu-gap-2">
                                   <div className="tu-group/tooltip tu-relative tu-inline-block">
-                                  <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
+                                  <button
+                                    type="button"
+                                    className={`tu-text-[13px] tu-text-[#9a9ca2] ${
+                                      metric.label === 'Total Orders' ? 'tu-inline-block tu-min-w-[96px] tu-whitespace-nowrap' : ''
+                                    }`}
+                                  >
                                     {metric.label}
                                   </button>
                                   <InfoTooltip
@@ -9267,7 +9332,7 @@ export default function App() {
                                     </p>
                                   )}
                                   {isOrdersSection ? (
-                                    <p className="tu-mt-0.5 tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
+                                    <p className="tu-mt-0.5 tu-inline-block tu-min-w-[170px] tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
                                       {metric.label === 'Total Orders'
                                         ? '100% of orders in scope'
                                         : `${(metric.orderShare ?? 0).toFixed(1)}% of total orders`}
