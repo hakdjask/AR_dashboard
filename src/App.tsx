@@ -732,21 +732,6 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'Restock',
-        value: '36',
-        sublabel: 'Since Yesterday',
-        trend: '4.9%',
-        direction: 'up',
-        showStoreSelect: false,
-        comparison: {
-          current: '36',
-          previous: '34',
-          change: '2',
-          currentPeriodLabel: 'Current Period',
-          previousPeriodLabel: 'Previous Period'
-        }
-      },
-      {
         label: 'Returned',
         value: '38',
         sublabel: 'Since Yesterday',
@@ -757,6 +742,21 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           current: '38',
           previous: '41',
           change: '3',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Restock',
+        value: '36',
+        sublabel: 'Since Yesterday',
+        trend: '4.9%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '36',
+          previous: '34',
+          change: '2',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -852,21 +852,6 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           current: 'PKR 76,544',
           previous: 'PKR 81,240',
           change: 'PKR 4,696',
-          currentPeriodLabel: 'Current Period',
-          previousPeriodLabel: 'Previous Period'
-        }
-      },
-      {
-        label: 'Gross Sales (Shipped Orders)',
-        value: 'PKR 268,944',
-        sublabel: 'Since Yesterday',
-        trend: '8.3%',
-        direction: 'up',
-        showStoreSelect: false,
-        comparison: {
-          current: 'PKR 268,944',
-          previous: 'PKR 248,730',
-          change: 'PKR 20,214',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -1925,9 +1910,7 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
   'Units Sold': {
     title: 'Units Sold',
     blocks: [
-      { type: 'text', text: 'Total units sold across selected products and period.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Units Sold = Sum of Units Sold Across Selected Products' }
+      { type: 'text', text: 'Total units sold across selected products and period.' }
     ]
   },
   'Total Units Sold': {
@@ -2557,7 +2540,6 @@ function InfoTooltip({
 function TooltipRichContent({ text }: { text: TooltipContent }) {
   return (
     <div className="tu-space-y-0">
-      {text.title ? <p className="tu-mb-2 tu-text-[13px] tu-font-semibold tu-leading-5">{text.title}</p> : null}
       {text.blocks.map((block, index) => {
         if (block.type === 'spacer') {
           return <div key={`spacer-${index}`} className="tu-h-2" />;
@@ -3412,6 +3394,17 @@ export default function App() {
       Years: 1.08
     };
     const groupByFactor = groupByFactorMap[selectedSalesOrderGroupBy] ?? 1;
+    const statusBiasMap: Record<string, number> = {
+      Pending: 1.06,
+      'Ready to Ship': 0.94,
+      Shipped: 1.11,
+      Delivered: 0.89,
+      'Delivery Failed': 0.76,
+      'Return Initiated': 0.58,
+      Returned: 0.67,
+      Restock: 0.49,
+      Voided: 0.37
+    };
 
     const currentWeights = statusLabels.map((label, index) => {
       const baseShare = salesOrderStatusShareMap[label] ?? 1 / statusLabels.length;
@@ -3420,7 +3413,8 @@ export default function App() {
         0.18 * Math.sin((index + 1) * 0.9 + selectedSalesOrderDate.length * 0.1) +
         0.08 * Math.cos((index + 2) * 1.3 + selectedSalesOrderRegion.length * 0.15) +
         (deterministicNoise((index + 5) * (selectedSalesOrderRegion.length + 7) * 13) - 0.5) * 0.16;
-      return Math.max(0.05, baseShare * wave * showByTotalsProfile.weightBoost * groupByFactor);
+      const statusBias = statusBiasMap[label] ?? 1;
+      return Math.max(0.05, baseShare * wave * statusBias * showByTotalsProfile.weightBoost * groupByFactor);
     });
     const previousWeights = statusLabels.map((label, index) => {
       const baseShare = salesOrderStatusShareMap[label] ?? 1 / statusLabels.length;
@@ -3429,7 +3423,8 @@ export default function App() {
         0.16 * Math.sin((index + 1) * 0.8 + selectedSalesOrderDate.length * 0.16) +
         0.06 * Math.cos((index + 2) * 1.1 + selectedSalesOrderRegion.length * 0.2) +
         (deterministicNoise((index + 11) * (selectedSalesOrderRegion.length + 9) * 17) - 0.5) * 0.14;
-      return Math.max(0.05, baseShare * wave);
+      const statusBias = statusBiasMap[label] ?? 1;
+      return Math.max(0.05, baseShare * wave * statusBias);
     });
     const currentWeightTotal = currentWeights.reduce((sum, value) => sum + value, 0) || 1;
     const previousWeightTotal = previousWeights.reduce((sum, value) => sum + value, 0) || 1;
@@ -3460,10 +3455,34 @@ export default function App() {
       }
 
       const statusIndex = index - 1;
-      const currentStatusOrders = Math.max(0, Math.round(currentTotalOrders * normalizedCurrentWeights[statusIndex]));
-      const previousStatusOrders = Math.max(0, Math.round(previousTotalOrders * normalizedPreviousWeights[statusIndex]));
-      const currentStatusGross = Math.max(0, Math.round(currentTotalGrossSales * normalizedCurrentWeights[statusIndex]));
-      const previousStatusGross = Math.max(0, Math.round(previousTotalGrossSales * normalizedPreviousWeights[statusIndex]));
+      const statusValueOffsetMap: Record<string, number> = {
+        Pending: 5,
+        'Ready to Ship': 4,
+        Shipped: 3,
+        Delivered: 2,
+        'Delivery Failed': 1,
+        'Return Initiated': 0,
+        Returned: -1,
+        Restock: -2,
+        Voided: -3
+      };
+      const statusOffset = statusValueOffsetMap[metric.label] ?? 0;
+      const currentStatusOrders = Math.max(
+        0,
+        Math.round(currentTotalOrders * normalizedCurrentWeights[statusIndex]) + statusOffset
+      );
+      const previousStatusOrders = Math.max(
+        0,
+        Math.round(previousTotalOrders * normalizedPreviousWeights[statusIndex]) + statusOffset
+      );
+      const currentStatusGross = Math.max(
+        0,
+        Math.round(currentTotalGrossSales * normalizedCurrentWeights[statusIndex]) + statusOffset * 1000
+      );
+      const previousStatusGross = Math.max(
+        0,
+        Math.round(previousTotalGrossSales * normalizedPreviousWeights[statusIndex]) + statusOffset * 1000
+      );
       const currentValue = isGrossSalesMode ? currentStatusGross : currentStatusOrders;
       const previousValue = isGrossSalesMode ? previousStatusGross : previousStatusOrders;
       const denominator = isGrossSalesMode ? currentTotalGrossSales : currentTotalOrders;
@@ -9307,7 +9326,7 @@ export default function App() {
                                         </button>
                                       )}
                                       {showBreakdownPopover ? (
-                                        <div className="tu-absolute tu-left-0 tu-top-[calc(100%+10px)] tu-z-[140] tu-w-[340px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+                                        <div className="tu-absolute tu-left-0 tu-top-[calc(100%+10px)] tu-z-[140] tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
                                           <div className="tu-space-y-1.5">
                                             {breakdownRows.map((item) => (
                                               <div
@@ -9317,11 +9336,20 @@ export default function App() {
                                                 }`}
                                               >
                                                 <span
-                                                  className={`tu-whitespace-nowrap tu-text-[12px] ${
+                                                  className={`tu-text-[12px] ${
                                                     item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
                                                   }`}
                                                 >
-                                                  {item.label}
+                                                  {item.label === 'Gross Sales (Shipped Orders)' ? (
+                                                    <span className="tu-inline-flex tu-flex-col">
+                                                      <span>Gross Sales</span>
+                                                      <span className="tu-text-[11px] tu-font-normal tu-text-[#9a9ca2]">
+                                                        Shipped Orders
+                                                      </span>
+                                                    </span>
+                                                  ) : (
+                                                    <span className="tu-whitespace-nowrap">{item.label}</span>
+                                                  )}
                                                 </span>
                                                 <span
                                                   className={`tu-whitespace-nowrap tu-text-[12px] ${
@@ -9367,7 +9395,7 @@ export default function App() {
                                     <span className="tu-leading-none">?</span>
                                   </button>
                                   <InfoTooltip
-                                    text="Gross sales and profitability metrics in this section are calculated based on shipped orders only."
+                                    text="Gross profit, gross profit margin, and net profit metrics in this section are calculated based on shipped orders only."
                                     widthClass="tu-w-[340px]"
                                   />
                                 </div>
