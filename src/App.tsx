@@ -489,8 +489,8 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Total Orders = Count of Orders with Booked Status' }
     ]
   },
-  'Pending Orders': {
-    title: 'Pending Orders',
+  'Pending': {
+    title: 'Pending',
     blocks: [
       { type: 'text', text: 'Orders waiting for processing before they move to fulfillment.' },
       { type: 'spacer' },
@@ -505,12 +505,12 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Ready to Ship = Count of Orders in Ready-to-Ship Status' }
     ]
   },
-  'Shipped to Couriers': {
-    title: 'Shipped to Couriers',
+  'Shipped': {
+    title: 'Shipped',
     blocks: [
       { type: 'text', text: 'Orders successfully handed over to courier partners.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Shipped to Couriers = Count of Orders with Courier-Shipped Status' }
+      { type: 'formula', text: 'Shipped = Count of Orders with Courier-Shipped Status' }
     ]
   },
   Delivered: {
@@ -615,7 +615,7 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'Pending Orders',
+        label: 'Pending',
         value: '182',
         sublabel: 'Since Yesterday',
         trend: '3.7%',
@@ -645,7 +645,7 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
         }
       },
       {
-        label: 'Shipped to Couriers',
+        label: 'Shipped',
         value: '296',
         sublabel: 'Since Yesterday',
         trend: '5.1%',
@@ -2538,13 +2538,14 @@ function ComparisonPopover({
         </div>
         <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
         <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
-          <div>
-            <p className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Change</p>
-            <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">{comparison.change}</p>
-          </div>
-          <div className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${trendColor}`}>
-            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-            <span>{trend}</span>
+          <p className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Change</p>
+          <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
+            <span className="tu-text-[#333538]">{comparison.change}</span>
+            <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
+            <span className={`tu-inline-flex tu-items-center tu-gap-1 ${trendColor}`}>
+              <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+              <span>{trend}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -4657,13 +4658,13 @@ export default function App() {
 
   const salesOrderStatusPalette: Record<string, string> = {
     'Total Orders': '#10c562',
-    'Pending Orders': '#f59e0b',
-    'Ready to Ship': '#0ea5e9',
-    'Shipped to Couriers': '#06b6d4',
-    Delivered: '#14b8a6',
-    'Delivery Failed': '#f97316',
-    Returned: '#ef4444',
-    Voided: '#dc2626'
+    'Pending': '#10c562',
+    'Ready to Ship': '#10c562',
+    'Shipped': '#10c562',
+    Delivered: '#10c562',
+    'Delivery Failed': '#10c562',
+    Returned: '#10c562',
+    Voided: '#10c562'
   };
   const selectedSalesOrderAccent = salesOrderStatusPalette[selectedSalesOrderStatus] ?? '#10c562';
   const salesOrderMetricConfig = useMemo(
@@ -6154,17 +6155,23 @@ export default function App() {
 
                           <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
                             <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
-                            <span
-                              className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
-                                inventoryValueTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
-                              }`}
-                            >
-                              {inventoryValueTooltipData.change >= 0 ? (
-                                <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
-                              ) : (
-                                <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
-                              )}
-                              {inventoryValueTooltipData.changePercent}
+                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
+                              <span className="tu-text-[#333538]">
+                                PKR {Math.abs(inventoryValueTooltipData.change).toLocaleString('en-US')}
+                              </span>
+                              <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
+                              <span
+                                className={`tu-inline-flex tu-items-center tu-gap-1 ${
+                                  inventoryValueTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
+                                }`}
+                              >
+                                {inventoryValueTooltipData.change >= 0 ? (
+                                  <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                                ) : (
+                                  <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                                )}
+                                {inventoryValueTooltipData.changePercent}
+                              </span>
                             </span>
                           </div>
                         </div>
@@ -6528,24 +6535,25 @@ export default function App() {
 
                             <div className="tu-h-px tu-bg-[#eceee8]" />
 
-                            <div className="tu-flex tu-items-end tu-justify-between tu-gap-3">
-                              <div>
-                                <p className="tu-text-[12px] tu-font-semibold tu-text-[#333538]">Change</p>
-                                <p className="tu-mt-1.5 tu-text-[18px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                            <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
+                              <p className="tu-text-[12px] tu-font-semibold tu-text-[#333538]">Change</p>
+                              <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold">
+                                <span className="tu-text-[#333538]">
                                   {Math.abs(inventoryMovementTooltipData!.change).toLocaleString('en-US')}
-                                </p>
-                              </div>
-                              <span
-                                className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${
-                                  inventoryMovementTooltipData!.change >= 0 ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]'
-                                }`}
-                              >
-                                {inventoryMovementTooltipData!.change >= 0 ? (
-                                  <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
-                                ) : (
-                                  <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
-                                )}
-                                {inventoryMovementTooltipData!.changePercent}
+                                </span>
+                                <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
+                                <span
+                                  className={`tu-inline-flex tu-items-center tu-gap-1 ${
+                                    inventoryMovementTooltipData!.change >= 0 ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]'
+                                  }`}
+                                >
+                                  {inventoryMovementTooltipData!.change >= 0 ? (
+                                    <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                                  ) : (
+                                    <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                                  )}
+                                  {inventoryMovementTooltipData!.changePercent}
+                                </span>
                               </span>
                             </div>
                           </div>
@@ -7230,25 +7238,26 @@ export default function App() {
                                     </div>
                                     <div className="tu-my-2.5 tu-h-px tu-bg-[#eceee8]" />
                                     <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
-                                      <div>
-                                        <p className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Change</p>
-                                        <p className="tu-mt-1.5 tu-text-[13px] tu-font-semibold tu-text-[#333538]">
+                                      <p className="tu-text-[11px] tu-font-semibold tu-text-[#333538]">Change</p>
+                                      <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
+                                        <span className="tu-text-[#333538]">
                                           {trendPopoverContent[metric.key].changeValue}
-                                        </p>
-                                      </div>
-                                      <div
-                                        className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
-                                          trendPopoverContent[metric.key].direction === 'up'
-                                            ? 'tu-text-[#10c562]'
-                                            : 'tu-text-[#de524c]'
-                                        }`}
-                                      >
-                                        {trendPopoverContent[metric.key].direction === 'up' ? (
-                                          <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
-                                        ) : (
-                                          <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
-                                        )}
-                                        <span>{trendPopoverContent[metric.key].changePercent}</span>
+                                        </span>
+                                        <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
+                                        <span
+                                          className={`tu-inline-flex tu-items-center tu-gap-1 ${
+                                            trendPopoverContent[metric.key].direction === 'up'
+                                              ? 'tu-text-[#10c562]'
+                                              : 'tu-text-[#de524c]'
+                                          }`}
+                                        >
+                                          {trendPopoverContent[metric.key].direction === 'up' ? (
+                                            <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                                          ) : (
+                                            <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                                          )}
+                                          <span>{trendPopoverContent[metric.key].changePercent}</span>
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -7703,7 +7712,7 @@ export default function App() {
               >
                 <div className="tu-mb-4 tu-flex tu-items-start tu-justify-between tu-gap-3">
                   <h3 className="tu-text-[16px] tu-font-semibold tu-text-[#2a2c2f]">
-                    {`Sales Order Trend: By ${selectedSalesOrderShowBy === 'Gross Sales' ? 'Sales' : 'Volume'} (${selectedSalesOrderStatus})`}
+                    {selectedSalesOrderShowBy === 'Gross Sales' ? 'Gross Sales Trend' : 'Order Volume Trend'}
                   </h3>
                   <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-bg-[#f1f5f2] tu-px-2.5 tu-py-1">
                     <span
@@ -7777,17 +7786,23 @@ export default function App() {
 
                     <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
                       <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
-                      <span
-                        className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
-                          salesOrderTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
-                        }`}
-                      >
-                        {salesOrderTooltipData.change >= 0 ? (
-                          <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
-                        ) : (
-                          <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
-                        )}
-                        {`${salesOrderTooltipData.changePercent} (${salesOrderMetricConfig.formatValue(Math.abs(salesOrderTooltipData.change))})`}
+                      <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
+                        <span className="tu-text-[#333538]">
+                          {salesOrderMetricConfig.formatValue(Math.abs(salesOrderTooltipData.change))}
+                        </span>
+                        <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
+                        <span
+                          className={`tu-inline-flex tu-items-center tu-gap-1 ${
+                            salesOrderTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
+                          }`}
+                        >
+                          {salesOrderTooltipData.change >= 0 ? (
+                            <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                          ) : (
+                            <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                          )}
+                          {salesOrderTooltipData.changePercent}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -8219,17 +8234,23 @@ export default function App() {
 
                       <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
                         <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
-                        <span
-                          className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
-                            salesTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
-                          }`}
-                        >
-                          {salesTooltipData.change >= 0 ? (
-                            <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
-                          ) : (
-                            <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
-                          )}
-                          {salesTooltipData.changePercent} ({formatStoreMetricDelta(selectedSalesMetric, salesTooltipData.change)})
+                        <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
+                          <span className="tu-text-[#333538]">
+                            {formatStoreMetricDelta(selectedSalesMetric, salesTooltipData.change)}
+                          </span>
+                          <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
+                          <span
+                            className={`tu-inline-flex tu-items-center tu-gap-1 ${
+                              salesTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
+                            }`}
+                          >
+                            {salesTooltipData.change >= 0 ? (
+                              <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                            ) : (
+                              <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                            )}
+                            {salesTooltipData.changePercent}
+                          </span>
                         </span>
                       </div>
                     </div>
@@ -8454,17 +8475,21 @@ export default function App() {
 
                       <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
                         <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
-                        <span
-                          className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[11px] tu-font-semibold ${
-                            locationTooltipData.positive ? 'tu-text-[#14a95f]' : 'tu-text-[#d94f4f]'
-                          }`}
-                        >
-                          {locationTooltipData.positive ? (
-                            <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
-                          ) : (
-                            <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
-                          )}
-                          {`${locationTooltipData.changePercent} (${locationTooltipData.changeValue})`}
+                        <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
+                          <span className="tu-text-[#333538]">{locationTooltipData.changeValue}</span>
+                          <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
+                          <span
+                            className={`tu-inline-flex tu-items-center tu-gap-1 ${
+                              locationTooltipData.positive ? 'tu-text-[#14a95f]' : 'tu-text-[#d94f4f]'
+                            }`}
+                          >
+                            {locationTooltipData.positive ? (
+                              <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
+                            ) : (
+                              <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
+                            )}
+                            {locationTooltipData.changePercent}
+                          </span>
                         </span>
                       </div>
                     </div>
