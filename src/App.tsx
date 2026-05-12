@@ -278,10 +278,9 @@ const getMetricPopoverContent = (periodKey: PeriodKey, metricKey: MetricKey): Me
 
   if (metricKey === 'cogs') {
     return [
-      { label: 'Gross Sales', value: values.netSales },
+      { label: 'Gross Sales (Shipped Orders)', value: values.netSales },
       { label: 'COGS', value: values.cogs, prefix: '-' },
-      { label: 'Gross Profit', value: values.grossProfit, medium: true, dividerBefore: true },
-      { label: 'Gross Profit Margin', value: values.grossProfitMargin, medium: true }
+      { label: 'Gross Profit', value: values.grossProfit, medium: true, dividerBefore: true }
     ];
   }
 
@@ -290,6 +289,8 @@ const getMetricPopoverContent = (periodKey: PeriodKey, metricKey: MetricKey): Me
   }
 
   return [
+    { label: 'Gross Sales (Shipped Orders)', value: values.netSales, medium: true },
+    { label: 'COGS', value: values.cogs, prefix: '-', dividerBefore: true },
     { label: 'Gross Profit', value: values.grossProfit, medium: true },
     { label: 'Gross Profit Margin', value: values.grossProfitMargin, medium: true },
     { label: 'Expenses', value: values.expenses, prefix: '-', dividerBefore: true },
@@ -325,9 +326,11 @@ const metricTooltips: Record<MetricKey, string | TooltipContent> = {
   netProfit: {
     title: 'Net Profit',
     blocks: [
-      { type: 'text', text: 'Profit remaining after direct costs and operating expenses.' },
+      { type: 'text', text: 'Profit remaining after shipped-order gross sales, direct costs, and operating expenses.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Net Profit = Net Sales - COGS - Expenses' }
+      { type: 'formula', text: 'Net Profit = Gross Profit - Expenses' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Profit = Gross Sales (Shipped Orders) - COGS' }
     ]
   }
 };
@@ -581,17 +584,25 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   'Gross Profit': {
     title: 'Gross Profit',
     blocks: [
-      { type: 'text', text: 'Profit after subtracting COGS from gross sales.' },
+      { type: 'text', text: 'Profit after subtracting COGS from gross sales of shipped orders.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Gross Profit = Gross Sales - COGS' }
+      { type: 'formula', text: 'Gross Profit = Gross Sales (Shipped Orders) - COGS' }
     ]
   },
   'Gross Profit Margin': {
     title: 'Gross Profit Margin',
     blocks: [
-      { type: 'text', text: 'Gross profit as a percentage of gross sales.' },
+      { type: 'text', text: 'Gross profit as a percentage of gross sales from shipped orders.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Gross Profit Margin (%) = (Gross Profit / Gross Sales) x 100' }
+      { type: 'formula', text: 'Gross Profit Margin (%) = (Gross Profit / Gross Sales (Shipped Orders)) x 100' }
+    ]
+  },
+  'Gross Sales (Shipped Orders)': {
+    title: 'Gross Sales (Shipped Orders)',
+    blocks: [
+      { type: 'text', text: 'Gross sales value counted only for shipped orders in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Sales (Shipped Orders) = Sum of Gross Sales for Shipped Orders' }
     ]
   },
   COGS: metricTooltips.cogs,
@@ -841,6 +852,21 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           current: 'PKR 76,544',
           previous: 'PKR 81,240',
           change: 'PKR 4,696',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Gross Sales (Shipped Orders)',
+        value: 'PKR 268,944',
+        sublabel: 'Since Yesterday',
+        trend: '8.3%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: 'PKR 268,944',
+          previous: 'PKR 248,730',
+          change: 'PKR 20,214',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -1998,12 +2024,12 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Gross Profit per Product = Total Gross Profit / Total Products' }
     ]
   },
-  'Gross Sales per Product': {
-    title: 'Gross Sales per Product',
+  'Average Selling Price': {
+    title: 'Average Selling Price',
     blocks: [
-      { type: 'text', text: 'Average gross sales generated per product in the selected period.' },
+      { type: 'text', text: 'Average Average Selling Price product in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Gross Sales per Product = Gross Sales / Total Products' }
+      { type: 'formula', text: 'Average Selling Price = Gross Sales / Total Products' }
     ]
   },
   'Units Sold per Order': {
@@ -2554,6 +2580,28 @@ function TooltipRichContent({ text }: { text: TooltipContent }) {
           </p>
         );
       })}
+    </div>
+  );
+}
+
+function SectionTitleWithReportLink({ title }: { title: string }) {
+  return (
+    <div className="tu-group/section-title tu-relative tu-inline-flex tu-items-center tu-gap-2">
+      <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f] tu-transition-colors group-hover/section-title:tu-text-[#10c562]">
+        <span className="tu-underline-offset-4 group-hover/section-title:tu-underline group-hover/section-title:tu-decoration-[1px]">
+          {title}
+        </span>
+      </h2>
+      <a
+        href="/reports"
+        aria-label={`See report for ${title}`}
+        className="tu-inline-flex tu-items-center tu-text-[#10c562] tu-opacity-0 transition-opacity duration-150 group-hover/section-title:tu-opacity-100"
+      >
+        <ChevronRight className="tu-h-4 tu-w-4" />
+      </a>
+      <div className="tu-pointer-events-none tu-absolute tu-left-0 tu-top-[calc(100%+8px)] tu-z-30 tu-whitespace-nowrap tu-rounded-[8px] tu-border tu-border-[#dfe5dc] tu-bg-white/95 tu-px-2 tu-py-1.5 tu-text-[10px] tu-font-medium tu-leading-4 tu-text-[#5f656c] tu-opacity-0 tu-shadow-[0_6px_16px_rgba(31,41,55,0.10)] transition-opacity duration-200 delay-200 group-hover/section-title:tu-opacity-100">
+        See data in the report
+      </div>
     </div>
   );
 }
@@ -5526,7 +5574,7 @@ export default function App() {
           comparison: { current: 'PKR 11,800', previous: 'PKR 11,200', change: 'PKR 600' }
         },
         {
-          label: 'Gross Sales per Product',
+          label: 'Average Selling Price',
           value: 'PKR 26,500',
           trend: '8.6%',
           direction: 'up' as const,
@@ -6284,16 +6332,6 @@ export default function App() {
                           isStockoutCard ? 'tu-p-2.5' : 'tu-p-3'
                         }`}
                       >
-                        {!isStockoutCard ? (
-                          <a
-                            href="/reports"
-                            className="tu-absolute tu-right-3 tu-top-3 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                          >
-                            <span>See reports</span>
-                            <ChevronRight className="tu-h-4 tu-w-4" />
-                          </a>
-                        ) : null}
-
                         <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
                           <div className="tu-group/tooltip tu-relative tu-inline-block">
                             <span className="tu-text-[13px] tu-text-[#9a9ca2]">{card.label}</span>
@@ -6469,14 +6507,6 @@ export default function App() {
                       className="tu-group tu-cursor-pointer tu-rounded-[16px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-4 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]"
                     >
                       <div className="tu-relative tu-rounded-[14px] tu-border tu-border-[#eef1eb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
-                        <a
-                          href="#"
-                          onClick={(event) => event.preventDefault()}
-                          className="tu-absolute tu-right-4 tu-top-4 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover:tu-opacity-100"
-                        >
-                          <span>See reports</span>
-                          <ChevronRight className="tu-h-4 tu-w-4" />
-                        </a>
                         {inventoryMovementKpis.map((metric, index) => {
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                           const trendColor = metric.direction === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
@@ -7534,7 +7564,7 @@ export default function App() {
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Orders Overview and Insights</h2>
+                <SectionTitleWithReportLink title="Orders Overview and Insights" />
 
                 <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
                   <div className="tu-relative">
@@ -7730,14 +7760,6 @@ export default function App() {
                             </p>
                           </div>
                         </div>
-                        <a
-                          href="/reports"
-                          onClick={(event) => event.stopPropagation()}
-                          className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 tu-transition-opacity group-hover:tu-opacity-100"
-                        >
-                          <span>See reports</span>
-                          <ChevronRight className="tu-h-4 tu-w-4" />
-                        </a>
                       </div>
 
                       <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
@@ -8040,7 +8062,7 @@ export default function App() {
             {showSalesProductsChart ? (
               <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Store</h2>
+                <SectionTitleWithReportLink title="Sales Performance by Store" />
 
                 <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
                   <div className="tu-relative">
@@ -8170,13 +8192,6 @@ export default function App() {
                         key={metric.label}
                         className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
-                        <a
-                          href="/reports"
-                          className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                        >
-                          <span>See reports</span>
-                          <ChevronRight className="tu-h-4 tu-w-4" />
-                        </a>
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
                           <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
                             {metric.label}
@@ -8322,7 +8337,7 @@ export default function App() {
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">{`Sales Performance by ${selectedLocationShowBy}`}</h2>
+                <SectionTitleWithReportLink title="Sales Performance by City" />
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
@@ -8434,13 +8449,6 @@ export default function App() {
                             : 'tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]'
                       }`}
                     >
-                      <a
-                        href="/reports"
-                        className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                      >
-                        <span>See reports</span>
-                        <ChevronRight className="tu-h-4 tu-w-4" />
-                      </a>
                       <div className="tu-group/tooltip tu-relative tu-inline-block">
                         <button type="button" className="tu-text-[13px] tu-text-[#8f9197]">
                           {metric.label}
@@ -8560,7 +8568,7 @@ export default function App() {
 
             {/* <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Products</h2>
+                <SectionTitleWithReportLink title="Sales Performance by Products" />
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
@@ -8654,13 +8662,6 @@ export default function App() {
                         key={metric.label}
                         className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
-                        <a
-                          href="/reports"
-                          className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                        >
-                          <span>See reports</span>
-                          <ChevronRight className="tu-h-4 tu-w-4" />
-                        </a>
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
                           <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
                             {metric.label}
@@ -8723,7 +8724,7 @@ export default function App() {
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Sales Performance by Products</h2>
+                <SectionTitleWithReportLink title="Sales Performance by Products" />
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   <div className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
@@ -8877,13 +8878,6 @@ export default function App() {
                         key={`${metric.label}-table`}
                         className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
-                        <a
-                          href="/reports"
-                          className="tu-absolute tu-right-4 tu-top-3.5 tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 transition-opacity group-hover/card:tu-opacity-100"
-                        >
-                          <span>See reports</span>
-                          <ChevronRight className="tu-h-4 tu-w-4" />
-                        </a>
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
                           <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
                             {metric.label}
@@ -9108,9 +9102,7 @@ export default function App() {
 
             <section className="tu-order-1 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3.5 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-4">
               <div className="tu-flex tu-flex-col tu-gap-3 tu-pb-2 lg:tu-flex-row lg:tu-items-center lg:tu-justify-between">
-                <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">
-                  Sales Overview and Insights
-                </h2>
+                <SectionTitleWithReportLink title="Sales Overview and Insights" />
 
                 <div className="tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row">
                   <div className="tu-relative">
@@ -9218,16 +9210,25 @@ export default function App() {
                         const hoverKey = `${metricSection.title}-${metric.label}`;
                         const sectionSixMetricKeyMap: Record<string, MetricKey> = {
                           'Net Sales': 'netSales',
+                          'Gross Sales (Shipped Orders)': 'cogs',
                           'Gross Profit': 'cogs',
                           'Gross Profit Margin': 'cogs',
                           Expenses: 'expenses',
                           'Net Profit': 'netProfit'
                         };
                         const mappedMetricKey = sectionSixMetricKeyMap[metric.label];
+                        const isSalesMetricWithoutValueHover =
+                          metricSection.title === 'Sales' && metric.label === 'Gross Profit Margin';
+                        const showShippedOrdersInfoTooltip =
+                          metricSection.title === 'Sales' &&
+                          ['COGS', 'Gross Sales (Shipped Orders)', 'Gross Profit', 'Gross Profit Margin', 'Net Profit'].includes(
+                            metric.label
+                          );
                         const breakdownRows =
                           metricSection.title === 'Sales' &&
                           mappedMetricKey &&
-                          metric.label !== 'Expenses'
+                          metric.label !== 'Expenses' &&
+                          !isSalesMetricWithoutValueHover
                             ? getMetricPopoverContent(selectedGlancePeriodKey, mappedMetricKey)
                             : [];
                         const showBreakdownPopover =
@@ -9276,27 +9277,37 @@ export default function App() {
                                 <div className="tu-mt-1">
                                   {metricSection.title === 'Sales' ? (
                                     <div className="tu-relative">
-                                      <button
-                                        type="button"
-                                        onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
-                                        onMouseLeave={() => setHoveredSectionSixValue(null)}
-                                        className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold ${
-                                          metricIndex === 0 ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]' : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'
-                                        } tu-transition-all hover:tu-scale-[1.01] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
-                                          breakdownRows.length === 0
-                                            ? ''
-                                            : 'tu-decoration-dotted tu-underline tu-underline-offset-4'
-                                        }`}
-                                        style={
-                                          breakdownRows.length === 0
-                                            ? undefined
-                                            : { textDecorationThickness: '1px', textDecorationColor: '#10c562' }
-                                        }
-                                      >
-                                        {metric.value}
-                                      </button>
+                                      {isSalesMetricWithoutValueHover ? (
+                                        <p
+                                          className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold ${
+                                            metricIndex === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
+                                          }`}
+                                        >
+                                          {metric.value}
+                                        </p>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
+                                          onMouseLeave={() => setHoveredSectionSixValue(null)}
+                                          className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold ${
+                                            metricIndex === 0 ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]' : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'
+                                          } tu-transition-all hover:tu-scale-[1.01] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
+                                            breakdownRows.length === 0
+                                              ? ''
+                                              : 'tu-decoration-dotted tu-underline tu-underline-offset-4'
+                                          }`}
+                                          style={
+                                            breakdownRows.length === 0
+                                              ? undefined
+                                              : { textDecorationThickness: '1px', textDecorationColor: '#10c562' }
+                                          }
+                                        >
+                                          {metric.value}
+                                        </button>
+                                      )}
                                       {showBreakdownPopover ? (
-                                        <div className="tu-absolute tu-left-0 tu-top-[calc(100%+10px)] tu-z-[140] tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
+                                        <div className="tu-absolute tu-left-0 tu-top-[calc(100%+10px)] tu-z-[140] tu-w-[340px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
                                           <div className="tu-space-y-1.5">
                                             {breakdownRows.map((item) => (
                                               <div
@@ -9306,14 +9317,14 @@ export default function App() {
                                                 }`}
                                               >
                                                 <span
-                                                  className={`tu-text-[12px] ${
+                                                  className={`tu-whitespace-nowrap tu-text-[12px] ${
                                                     item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
                                                   }`}
                                                 >
                                                   {item.label}
                                                 </span>
                                                 <span
-                                                  className={`tu-text-[12px] ${
+                                                  className={`tu-whitespace-nowrap tu-text-[12px] ${
                                                     item.medium ? 'tu-font-semibold tu-text-[#333538]' : 'tu-text-[#44464b]'
                                                   }`}
                                                 >
@@ -9346,7 +9357,7 @@ export default function App() {
                                   ) : null}
                                 </div>
                               </div>
-                              {metric.label === 'COGS' ? (
+                              {showShippedOrdersInfoTooltip ? (
                                 <div className="tu-group/tooltip tu-relative tu-inline-flex tu-shrink-0">
                                   <button
                                     type="button"
@@ -9356,19 +9367,11 @@ export default function App() {
                                     <span className="tu-leading-none">?</span>
                                   </button>
                                   <InfoTooltip
-                                    text="COGS is calculated only for shipped orders where inventory is detected."
-                                    widthClass="tu-w-[280px]"
+                                    text="Gross sales and profitability metrics in this section are calculated based on shipped orders only."
+                                    widthClass="tu-w-[340px]"
                                   />
                                 </div>
-                              ) : (
-                                <a
-                                  href="/reports"
-                                  className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-medium tu-text-[#10c562] tu-underline tu-decoration-dotted tu-underline-offset-2 tu-opacity-0 tu-transition-opacity group-hover:tu-opacity-100"
-                                >
-                                  <span>See reports</span>
-                                  <ChevronRight className="tu-h-4 tu-w-4" />
-                                </a>
-                              )}
+                              ) : null}
                             </div>
                             <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
                               <div className="tu-relative">
