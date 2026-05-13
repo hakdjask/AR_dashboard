@@ -3038,7 +3038,7 @@ export default function App() {
   });
   const [selectedCustomerOverviewDate, setSelectedCustomerOverviewDate] = useState('This Week');
   const [selectedCustomerOverviewRegion, setSelectedCustomerOverviewRegion] = useState<string[]>([...pakistanProvinceOptions]);
-  const [selectedCustomerOverviewStores, setSelectedCustomerOverviewStores] = useState<string[]>([...storeOptions]);
+  const [selectedCustomerOverviewStores, setSelectedCustomerOverviewStores] = useState<string[]>([...salesStoreOptions]);
   const [customerOverviewMenuSearch, setCustomerOverviewMenuSearch] = useState({
     date: '',
     location: '',
@@ -3267,13 +3267,7 @@ export default function App() {
   const customerOverviewMetrics = useMemo(() => {
     const customersSection = sectionSixMetricSectionsBase.find((section) => section.title === 'Customers');
     if (!customersSection) return [];
-    const selectedRegionCount =
-      selectedCustomerOverviewRegion.length === 0 ? pakistanProvinceOptions.length : selectedCustomerOverviewRegion.length;
-    const selectedStoreCount = selectedCustomerOverviewStores.length === 0 ? storeOptions.length : selectedCustomerOverviewStores.length;
-    const regionCoverage = Math.max(0.2, Math.min(1, selectedRegionCount / pakistanProvinceOptions.length));
-    const storeCoverage = Math.max(0.2, Math.min(1, selectedStoreCount / storeOptions.length));
-    const filterValueFactor = 0.45 + regionCoverage * storeCoverage * 0.55;
-    const filterTrendFactor = 0.85 + regionCoverage * storeCoverage * 0.25;
+
     const metricOrder: Record<string, number> = {
       'Total Customers': 0,
       'New Customers': 1,
@@ -3281,39 +3275,103 @@ export default function App() {
       'Average Order Value': 3,
       'Customer Lifetime Value': 4
     };
-    return customersSection.metrics.map((metric) => ({
-      ...metric,
-      trend: scaleTrendPercentByFactor(metric.trend, filterTrendFactor),
-      sublabel: customerOverviewMetricSublabel,
-      value: scaleMetricValueByFactor(scaleMetricValueByPeriod(metric.value, selectedCustomerOverviewPeriodKey), filterValueFactor),
-      comparison: {
-        ...scaleComparisonByPeriod(metric.comparison, selectedCustomerOverviewPeriodKey),
-        current: scaleMetricValueByFactor(
-          scaleMetricValueByPeriod(metric.comparison.current, selectedCustomerOverviewPeriodKey),
-          filterValueFactor
-        ),
-        previous: scaleMetricValueByFactor(
-          scaleMetricValueByPeriod(metric.comparison.previous, selectedCustomerOverviewPeriodKey),
-          filterValueFactor
-        ),
-        change: scaleMetricValueByFactor(
-          scaleMetricValueByPeriod(metric.comparison.change, selectedCustomerOverviewPeriodKey),
-          filterValueFactor
-        )
-      },
-      showStoreSelect: false
-    }))
+    const scopedRegions = selectedCustomerOverviewRegion.length ? selectedCustomerOverviewRegion : pakistanProvinceOptions;
+    const scopedStores = (selectedCustomerOverviewStores.length ? selectedCustomerOverviewStores : salesStoreOptions).filter((store) =>
+      scopedRegions.includes(salesStoreRegionMap[store] ?? '')
+    );
+    const activeStores = scopedStores.length ? scopedStores : salesStoreOptions;
+    const selectedSeries = storeSeries.filter((series) => activeStores.includes(series.name));
+    if (selectedSeries.length === 0) return [];
+
+    const rawDays = getComparisonPeriodDayCount(selectedCustomerOverviewDate);
+    const windowSize = Math.max(1, Math.min(15, rawDays));
+    const seriesLength = selectedSeries[0].totalOrders.length;
+    const currentStart = Math.max(0, seriesLength - windowSize);
+    const previousStart = Math.max(0, currentStart - windowSize);
+    const previousEnd = currentStart;
+
+    let ordersCurrent = 0;
+    let ordersPrevious = 0;
+    let revenueCurrent = 0;
+    let revenuePrevious = 0;
+
+    selectedSeries.forEach((series) => {
+      ordersCurrent += series.totalOrders.slice(currentStart).reduce((sum, value) => sum + value, 0);
+      revenueCurrent += series.grossRevenue.slice(currentStart).reduce((sum, value) => sum + value, 0);
+      ordersPrevious += series.totalOrders.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
+      revenuePrevious += series.grossRevenue.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
+    });
+
+    const impliedCustomersCurrent = Math.max(1, Math.round(ordersCurrent * 0.78));
+    const impliedCustomersPrevious = Math.max(1, Math.round(ordersPrevious * 0.78));
+    const newCustomersCurrent = Math.max(1, Math.round(impliedCustomersCurrent * 0.16));
+    const newCustomersPrevious = Math.max(1, Math.round(impliedCustomersPrevious * 0.16));
+    const retainedCurrent = Math.max(0, impliedCustomersCurrent - newCustomersCurrent);
+    const retainedPrevious = Math.max(0, impliedCustomersPrevious - newCustomersPrevious);
+
+    const retentionCurrent = impliedCustomersPrevious > 0 ? (retainedCurrent / impliedCustomersPrevious) * 100 : 0;
+    const retentionPrevious = impliedCustomersPrevious > 0 ? (retainedPrevious / impliedCustomersPrevious) * 100 : 0;
+    const aovCurrent = ordersCurrent > 0 ? revenueCurrent / ordersCurrent : 0;
+    const aovPrevious = ordersPrevious > 0 ? revenuePrevious / ordersPrevious : 0;
+    const purchaseFrequencyCurrent = impliedCustomersCurrent > 0 ? ordersCurrent / impliedCustomersCurrent : 0;
+    const purchaseFrequencyPrevious = impliedCustomersPrevious > 0 ? ordersPrevious / impliedCustomersPrevious : 0;
+    const lifespanPeriods = Math.max(1.4, Math.min(2.2, windowSize >= 30 ? 2.2 : windowSize / 14));
+    const clvCurrent = aovCurrent * purchaseFrequencyCurrent * lifespanPeriods;
+    const clvPrevious = aovPrevious * purchaseFrequencyPrevious * lifespanPeriods;
+
+    const metricsByLabel: Record<
+      string,
+      {
+        current: number;
+        previous: number;
+        asCurrency?: boolean;
+        asPercent?: boolean;
+      }
+    > = {
+      'Total Customers': { current: impliedCustomersCurrent, previous: impliedCustomersPrevious },
+      'New Customers': { current: newCustomersCurrent, previous: newCustomersPrevious },
+      'Customer Retention': { current: retentionCurrent, previous: retentionPrevious, asPercent: true },
+      'Average Order Value': { current: aovCurrent, previous: aovPrevious, asCurrency: true },
+      'Customer Lifetime Value': { current: clvCurrent, previous: clvPrevious, asCurrency: true }
+    };
+
+    const toTrend = (current: number, previous: number) => {
+      if (previous === 0) return 0;
+      return ((current - previous) / previous) * 100;
+    };
+    const asValue = (value: number, asCurrency?: boolean, asPercent?: boolean) => {
+      if (asCurrency) return formatCompactCurrency(Math.round(value));
+      if (asPercent) return `${Math.max(0, value).toFixed(1)}%`;
+      return formatCompactNumber(Math.max(0, Math.round(value)));
+    };
+
+    return customersSection.metrics
+      .map((metric) => {
+        const base = metricsByLabel[metric.label];
+        if (!base) return metric;
+        const trendValue = toTrend(base.current, base.previous);
+        const changeValue = base.current - base.previous;
+        return {
+          ...metric,
+          direction: trendValue >= 0 ? ('up' as const) : ('down' as const),
+          trend: `${Math.abs(trendValue).toFixed(1)}%`,
+          sublabel: customerOverviewMetricSublabel,
+          value: asValue(base.current, base.asCurrency, base.asPercent),
+          comparison: {
+            ...metric.comparison,
+            current: asValue(base.current, base.asCurrency, base.asPercent),
+            previous: asValue(base.previous, base.asCurrency, base.asPercent),
+            change: asValue(Math.abs(changeValue), base.asCurrency, base.asPercent)
+          },
+          showStoreSelect: false
+        };
+      })
       .sort((a, b) => (metricOrder[a.label] ?? Number.MAX_SAFE_INTEGER) - (metricOrder[b.label] ?? Number.MAX_SAFE_INTEGER));
-  }, [
-    customerOverviewMetricSublabel,
-    selectedCustomerOverviewPeriodKey,
-    selectedCustomerOverviewRegion,
-    selectedCustomerOverviewStores
-  ]);
+  }, [customerOverviewMetricSublabel, selectedCustomerOverviewDate, selectedCustomerOverviewRegion, selectedCustomerOverviewStores]);
   const customerOverviewStoreSummaryLabel =
     selectedCustomerOverviewStores.length === 0 ||
-    (selectedCustomerOverviewStores.length === storeOptions.length &&
-      storeOptions.every((store) => selectedCustomerOverviewStores.includes(store)))
+    (selectedCustomerOverviewStores.length === salesStoreOptions.length &&
+      salesStoreOptions.every((store) => selectedCustomerOverviewStores.includes(store)))
       ? 'All Stores'
       : formatMultiSelectLabel(selectedCustomerOverviewStores, 'All Stores', 'store', 'stores');
   const salesOrderComparisonLabels = useMemo(
@@ -7924,7 +7982,7 @@ export default function App() {
                     {
                       key: 'store',
                       value: customerOverviewStoreSummaryLabel,
-                      options: storeOptions
+                      options: salesStoreOptions
                     },
                     { key: 'date', value: selectedCustomerOverviewDate, options: glanceDateOptions },
                     {
@@ -8001,9 +8059,9 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="tu-mt-4 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-3.5 sm:tu-p-4">
-                <div className="tu-grid tu-gap-3 lg:tu-grid-cols-5">
-                  {customerOverviewMetrics.map((metric, index) => {
+              <div className="tu-mt-4">
+                <div className="tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
+                  {customerOverviewMetrics.map((metric) => {
                     const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                     const trendPillClass =
                       metric.direction === 'up'
@@ -8014,9 +8072,7 @@ export default function App() {
                     return (
                       <article
                         key={hoverKey}
-                        className={`tu-group tu-relative tu-min-w-0 tu-px-2 tu-py-1 lg:tu-pr-4 ${
-                          index > 0 ? 'lg:tu-border-l lg:tu-border-[#e8ece6] lg:tu-pl-6' : ''
-                        }`}
+                        className="tu-group tu-relative tu-z-0 tu-min-w-0 tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
                           <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
@@ -8036,8 +8092,10 @@ export default function App() {
                         </div>
                         <div className="tu-mt-1">
                           <p
-                            className={`tu-text-[26px] tu-font-semibold ${
-                              index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
+                            className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold tu-transition-all hover:tu-scale-[1.01] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
+                              metric.label === 'Total Customers'
+                                ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]'
+                                : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'
                             }`}
                           >
                             {metric.value}
