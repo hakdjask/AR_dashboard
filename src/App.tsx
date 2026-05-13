@@ -42,7 +42,7 @@ type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'last90' | 'last36
 type TabKey = 'courier' | 'sales' | 'inventory';
 type MetricKey = 'netSales' | 'cogs' | 'expenses' | 'netProfit';
 type StoreChartMetricKey = 'grossRevenue' | 'orderReturns' | 'unitsSold' | 'totalOrders';
-type CustomerLtvSortKey = 'name' | 'newCustomers' | 'oldCustomers' | 'avgLtv' | 'retentionPercent';
+type CustomerLtvSortKey = 'name' | 'newCustomers' | 'oldCustomers' | 'avgLtv' | 'retentionPercent' | 'repeatPurchasePercent';
 type ComparisonData = {
   current: string;
   previous: string;
@@ -3436,6 +3436,7 @@ export default function App() {
       const storeFrequencyCurrent = storeCustomersCurrent > 0 ? storeOrdersCurrent / storeCustomersCurrent : 0;
       const storeLtv = storeAovCurrent * storeFrequencyCurrent * lifespanPeriods;
       const storeRetention = storeCustomersPrevious > 0 ? (storeOldCustomers / storeCustomersPrevious) * 100 : 0;
+      const storeRepeatPurchase = storeCustomersCurrent > 0 ? (storeOldCustomers / storeCustomersCurrent) * 100 : 0;
       const _storeLtvPrevious = storeAovPrevious * (storeCustomersPrevious > 0 ? storeOrdersPrevious / storeCustomersPrevious : 0) * lifespanPeriods;
       const logoText = series.name.slice(0, 2).toUpperCase();
       const logoSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='36' height='36'><rect width='36' height='36' rx='10' fill='#eef3ec'/><text x='18' y='22' text-anchor='middle' font-family='Arial' font-size='12' fill='#5f656c'>${logoText}</text></svg>`;
@@ -3445,7 +3446,8 @@ export default function App() {
         newCustomers: storeNewCustomers,
         oldCustomers: storeOldCustomers,
         avgLtv: storeLtv,
-        retentionPercent: Math.max(0, Math.min(100, storeRetention))
+        retentionPercent: Math.max(0, Math.min(100, storeRetention)),
+        repeatPurchasePercent: Math.max(0, Math.min(100, storeRepeatPurchase))
       };
     });
 
@@ -3464,7 +3466,8 @@ export default function App() {
         newCustomers: Math.max(1, Math.round(source.newCustomers * variation)),
         oldCustomers: Math.max(1, Math.round(source.oldCustomers * (variation + 0.05))),
         avgLtv: Math.max(1, source.avgLtv * (0.95 + ((index * 5) % 8) * 0.02)),
-        retentionPercent: Math.max(0, Math.min(100, source.retentionPercent * (0.97 + ((index * 3) % 6) * 0.01)))
+        retentionPercent: Math.max(0, Math.min(100, source.retentionPercent * (0.97 + ((index * 3) % 6) * 0.01))),
+        repeatPurchasePercent: Math.max(0, Math.min(100, source.repeatPurchasePercent * (0.96 + ((index * 2) % 5) * 0.01)))
       };
     });
 
@@ -8304,7 +8307,8 @@ export default function App() {
                             { label: 'New Customers', key: 'newCustomers' as CustomerLtvSortKey },
                             { label: 'Old Customers', key: 'oldCustomers' as CustomerLtvSortKey },
                             { label: 'Avg. LTV', key: 'avgLtv' as CustomerLtvSortKey },
-                            { label: 'Retention Percentages', key: 'retentionPercent' as CustomerLtvSortKey }
+                            { label: 'Retention Percentages', key: 'retentionPercent' as CustomerLtvSortKey },
+                            { label: 'Repeat Purchase', key: 'repeatPurchasePercent' as CustomerLtvSortKey }
                           ].map((column) => (
                             <th
                               key={column.label}
@@ -8339,7 +8343,18 @@ export default function App() {
                             <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.newCustomers)}</td>
                             <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.oldCustomers)}</td>
                             <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`PKR ${Math.round(row.avgLtv).toLocaleString()}`}</td>
-                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.retentionPercent.toFixed(1)}%`}</td>
+                            <td className="tu-px-4 tu-py-3">
+                              <div className="tu-flex tu-items-center tu-gap-2.5">
+                                <div className="tu-h-2 tu-w-[88px] tu-overflow-hidden tu-rounded-full tu-bg-[#e7ece6]">
+                                  <div
+                                    className="tu-h-full tu-rounded-full tu-bg-[#31c56f]"
+                                    style={{ width: `${Math.max(6, Math.min(100, row.retentionPercent))}%` }}
+                                  />
+                                </div>
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.retentionPercent.toFixed(1)}%`}</span>
+                              </div>
+                            </td>
+                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.repeatPurchasePercent.toFixed(1)}%`}</td>
                           </tr>
                         ))}
                       </tbody>
