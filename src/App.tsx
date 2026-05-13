@@ -552,9 +552,9 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   Returned: {
     title: 'Returned',
     blocks: [
-      { type: 'text', text: 'Orders returned back after delivery or failed acceptance.' },
+      { type: 'text', text: 'Combined return-flow metric including Return Initiated, Returned, and Restock statuses.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Returned = Count of Orders with Returned Status' }
+      { type: 'formula', text: 'Returned (Combined) = Return Initiated + Returned + Restock' }
     ]
   },
   Voided: {
@@ -1908,7 +1908,21 @@ const locationPerformanceData = [
   { location: 'Hub', province: 'Balochistan', ordersCurrent: 160, ordersPrevious: 180, revenueCurrent: 1760000, revenuePrevious: 1930000 },
   { location: 'Kashmir', province: 'Azad Jammu & Kashmir', ordersCurrent: 140, ordersPrevious: 150, revenueCurrent: 1620000, revenuePrevious: 1710000 },
   { location: 'Bahawalpur', province: 'Punjab', ordersCurrent: 120, ordersPrevious: 140, revenueCurrent: 1380000, revenuePrevious: 1520000 },
-  { location: 'Rawalpindi', province: 'Punjab', ordersCurrent: 100, ordersPrevious: 55, revenueCurrent: 1140000, revenuePrevious: 760000 }
+  { location: 'Rawalpindi', province: 'Punjab', ordersCurrent: 100, ordersPrevious: 55, revenueCurrent: 1140000, revenuePrevious: 760000 },
+  { location: 'Faisalabad', province: 'Punjab', ordersCurrent: 290, ordersPrevious: 240, revenueCurrent: 3090000, revenuePrevious: 2680000 },
+  { location: 'Multan', province: 'Punjab', ordersCurrent: 230, ordersPrevious: 260, revenueCurrent: 2450000, revenuePrevious: 2760000 },
+  { location: 'Hyderabad', province: 'Sindh', ordersCurrent: 210, ordersPrevious: 175, revenueCurrent: 2320000, revenuePrevious: 1980000 },
+  { location: 'Sukkur', province: 'Sindh', ordersCurrent: 145, ordersPrevious: 172, revenueCurrent: 1590000, revenuePrevious: 1820000 },
+  { location: 'Sialkot', province: 'Punjab', ordersCurrent: 195, ordersPrevious: 168, revenueCurrent: 2140000, revenuePrevious: 1880000 },
+  { location: 'Gujranwala', province: 'Punjab', ordersCurrent: 205, ordersPrevious: 232, revenueCurrent: 2210000, revenuePrevious: 2460000 },
+  { location: 'Abbottabad', province: 'Khyber Pakhtunkhwa', ordersCurrent: 170, ordersPrevious: 141, revenueCurrent: 1860000, revenuePrevious: 1630000 },
+  { location: 'Mardan', province: 'Khyber Pakhtunkhwa', ordersCurrent: 158, ordersPrevious: 176, revenueCurrent: 1710000, revenuePrevious: 1880000 },
+  { location: 'Muzaffarabad', province: 'Azad Jammu & Kashmir', ordersCurrent: 134, ordersPrevious: 112, revenueCurrent: 1490000, revenuePrevious: 1270000 },
+  { location: 'Mirpur', province: 'Azad Jammu & Kashmir', ordersCurrent: 126, ordersPrevious: 148, revenueCurrent: 1410000, revenuePrevious: 1590000 },
+  { location: 'Skardu', province: 'Gilgit Baltistan', ordersCurrent: 118, ordersPrevious: 94, revenueCurrent: 1360000, revenuePrevious: 1110000 },
+  { location: 'Khuzdar', province: 'Balochistan', ordersCurrent: 108, ordersPrevious: 127, revenueCurrent: 1230000, revenuePrevious: 1390000 },
+  { location: 'Gwadar', province: 'Balochistan', ordersCurrent: 96, ordersPrevious: 78, revenueCurrent: 1110000, revenuePrevious: 920000 },
+  { location: 'Dera Ismail Khan', province: 'Khyber Pakhtunkhwa', ordersCurrent: 102, ordersPrevious: 121, revenueCurrent: 1180000, revenuePrevious: 1360000 }
 ];
 
 const locationMetricConfig: Record<
@@ -3614,7 +3628,7 @@ export default function App() {
     const normalizedCurrentWeights = currentWeights.map((value) => value / currentWeightTotal);
     const normalizedPreviousWeights = previousWeights.map((value) => value / previousWeightTotal);
 
-    return ordersSection.metrics.map((metric, index) => {
+    const baseCards = ordersSection.metrics.map((metric, index) => {
       if (metric.label === 'Total Orders') {
         const totalCurrent = isGrossSalesMode ? currentTotalGrossSales : currentTotalOrders;
         const totalPrevious = isGrossSalesMode ? previousTotalGrossSales : previousTotalOrders;
@@ -3633,7 +3647,15 @@ export default function App() {
               ? formatCompactCurrency(Math.abs(totalCurrent - totalPrevious))
               : formatCompactNumber(Math.abs(totalCurrent - totalPrevious))
           },
-          orderShare: 100
+          orderShare: 100,
+          currentNumeric: totalCurrent,
+          previousNumeric: totalPrevious,
+          isBreakdownCard: false,
+          isCombinedReturned: false,
+          codShare: 0,
+          nonCodShare: 0,
+          codCount: 0,
+          nonCodCount: 0
         };
       }
 
@@ -3684,9 +3706,106 @@ export default function App() {
             ? formatCompactCurrency(Math.abs(currentValue - previousValue))
             : formatCompactNumber(Math.abs(currentValue - previousValue))
         },
-        orderShare: denominator === 0 ? 0 : (currentValue / denominator) * 100
+        orderShare: denominator === 0 ? 0 : (currentValue / denominator) * 100,
+        currentNumeric: currentValue,
+        previousNumeric: previousValue,
+        isBreakdownCard: false,
+        isCombinedReturned: false,
+        codShare: 0,
+        nonCodShare: 0,
+        codCount: 0,
+        nonCodCount: 0
       };
     });
+
+    const returnInitiatedCard = baseCards.find((card) => card.label === 'Return Initiated');
+    const returnedCard = baseCards.find((card) => card.label === 'Returned');
+    const restockCard = baseCards.find((card) => card.label === 'Restock');
+
+    const combinedReturnedCurrent =
+      (returnInitiatedCard?.currentNumeric ?? 0) + (returnedCard?.currentNumeric ?? 0) + (restockCard?.currentNumeric ?? 0);
+    const combinedReturnedPrevious =
+      (returnInitiatedCard?.previousNumeric ?? 0) + (returnedCard?.previousNumeric ?? 0) + (restockCard?.previousNumeric ?? 0);
+    const combinedReturnedOrderShare =
+      (returnInitiatedCard?.orderShare ?? 0) + (returnedCard?.orderShare ?? 0) + (restockCard?.orderShare ?? 0);
+    const combinedReturnedTrend = `${getPercentDelta(combinedReturnedCurrent, combinedReturnedPrevious).toFixed(1)}%`;
+    const combinedReturnedCard = {
+      ...(returnedCard ?? baseCards[0]),
+      label: 'Returned',
+      value: isGrossSalesMode ? formatCompactCurrency(combinedReturnedCurrent) : formatCompactNumber(combinedReturnedCurrent),
+      trend: combinedReturnedTrend,
+      direction: combinedReturnedCurrent >= combinedReturnedPrevious ? ('up' as const) : ('down' as const),
+      comparison: {
+        ...(returnedCard?.comparison ?? baseCards[0].comparison),
+        current: isGrossSalesMode
+          ? formatCompactCurrency(combinedReturnedCurrent)
+          : formatCompactNumber(combinedReturnedCurrent),
+        previous: isGrossSalesMode
+          ? formatCompactCurrency(combinedReturnedPrevious)
+          : formatCompactNumber(combinedReturnedPrevious),
+        change: isGrossSalesMode
+          ? formatCompactCurrency(Math.abs(combinedReturnedCurrent - combinedReturnedPrevious))
+          : formatCompactNumber(Math.abs(combinedReturnedCurrent - combinedReturnedPrevious))
+      },
+      orderShare: combinedReturnedOrderShare,
+      currentNumeric: combinedReturnedCurrent,
+      previousNumeric: combinedReturnedPrevious,
+      isCombinedReturned: true
+    };
+
+    const codShare = Math.max(
+      20,
+      Math.min(
+        90,
+        62 +
+          Math.sin(selectedSalesOrderDate.length * 0.7 + selectedSalesOrderGroupBy.length * 0.4) * 8 +
+          (selectedSalesOrderRegion.length - 2) * 1.2
+      )
+    );
+    const nonCodShare = Math.max(0, 100 - codShare);
+    const codCount = Math.round((currentTotalOrders * codShare) / 100);
+    const nonCodCount = Math.max(0, currentTotalOrders - codCount);
+
+    const codBreakdownCard = {
+      label: 'Order Type Breakdown',
+      value: '',
+      trend: '',
+      direction: 'up' as const,
+      sublabel: '',
+      comparison: {
+        current: '',
+        previous: '',
+        change: ''
+      },
+      orderShare: 0,
+      showStoreSelect: false,
+      isBreakdownCard: true,
+      isCombinedReturned: false,
+      codShare,
+      nonCodShare,
+      codCount,
+      nonCodCount,
+      currentNumeric: 0,
+      previousNumeric: 0
+    };
+
+    const filteredCards = baseCards.filter(
+      (card) => card.label !== 'Return Initiated' && card.label !== 'Returned' && card.label !== 'Restock'
+    );
+    const deliveryFailedIndex = filteredCards.findIndex((card) => card.label === 'Delivery Failed');
+    if (deliveryFailedIndex >= 0) {
+      filteredCards.splice(deliveryFailedIndex + 1, 0, combinedReturnedCard);
+    } else {
+      filteredCards.push(combinedReturnedCard);
+    }
+    const voidedIndex = filteredCards.findIndex((card) => card.label === 'Voided');
+    if (voidedIndex >= 0) {
+      filteredCards.splice(voidedIndex + 1, 0, codBreakdownCard);
+    } else {
+      filteredCards.push(codBreakdownCard);
+    }
+
+    return filteredCards;
   }, [
     salesOrderMetricSublabel,
     salesOrderStatusShareMap,
@@ -5395,11 +5514,24 @@ export default function App() {
 
   const locationRankedData = useMemo(() => {
     const currentMetricKey = selectedLocationMetricConfig.currentKey;
-    return [...locationScopedData].sort((a, b) =>
-      selectedLocationPerformanceView === 'Top Performing'
-        ? b[currentMetricKey] - a[currentMetricKey]
-        : a[currentMetricKey] - b[currentMetricKey]
+    const previousMetricKey = selectedLocationMetricConfig.previousKey;
+    const withDelta = locationScopedData.map((item) => ({
+      ...item,
+      deltaPercent: getSignedPercentDelta(item[currentMetricKey], item[previousMetricKey])
+    }));
+
+    const directionalFiltered = withDelta.filter((item) =>
+      selectedLocationPerformanceView === 'Top Performing' ? item.deltaPercent > 0 : item.deltaPercent < 0
     );
+
+    const fallbackRows = directionalFiltered.length > 0 ? directionalFiltered : withDelta;
+    const sorted = [...fallbackRows].sort((a, b) =>
+      selectedLocationPerformanceView === 'Top Performing'
+        ? b.deltaPercent - a.deltaPercent || b[currentMetricKey] - a[currentMetricKey]
+        : a.deltaPercent - b.deltaPercent || a[currentMetricKey] - b[currentMetricKey]
+    );
+
+    return sorted.slice(0, 10).map(({ deltaPercent: _deltaPercent, ...item }) => item);
   }, [locationScopedData, selectedLocationMetricConfig, selectedLocationPerformanceView]);
   const locationGrowthRanking = useMemo(() => {
     const currentMetricKey = selectedLocationMetricConfig.currentKey;
@@ -7902,6 +8034,29 @@ export default function App() {
 
               <div className="tu-mt-4 tu-grid tu-gap-3 lg:tu-grid-cols-5">
                 {salesOrderKpiCards.map((metric) => {
+                  if (metric.isBreakdownCard) {
+                    return (
+                      <article
+                        key="sales-order-cod-breakdown"
+                        className="tu-rounded-[12px] tu-border tu-border-[#dfe8de] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf8_100%)] tu-p-2.5 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] lg:tu-col-span-2"
+                      >
+                        <div className="tu-text-[13px] tu-text-[#9a9ca2]">Order Type Breakdown</div>
+                        <div className="tu-mt-2 tu-grid tu-gap-2 sm:tu-grid-cols-2">
+                          <div className="tu-flex tu-min-h-[106px] tu-flex-col tu-justify-center tu-rounded-[10px] tu-border tu-border-[#dbeee1] tu-bg-[#f3fcf6] tu-px-3 tu-py-2">
+                            <p className="tu-text-[11px] tu-font-medium tu-text-[#7e868f]">COD Orders</p>
+                            <p className="tu-mt-2 tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.codCount)}</p>
+                            <p className="tu-mt-1.5 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.codShare.toFixed(1)}% of total orders`}</p>
+                          </div>
+                          <div className="tu-flex tu-min-h-[106px] tu-flex-col tu-justify-center tu-rounded-[10px] tu-border tu-border-[#f2e3ce] tu-bg-[#fffaf3] tu-px-3 tu-py-2">
+                            <p className="tu-text-[11px] tu-font-medium tu-text-[#7e868f]">Non COD Orders</p>
+                            <p className="tu-mt-2 tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.nonCodCount)}</p>
+                            <p className="tu-mt-1.5 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.nonCodShare.toFixed(1)}% of total orders`}</p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+
                   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                   const isSelectedStatus = selectedSalesOrderStatus === metric.label;
                   const trendPillClass =
@@ -7918,7 +8073,7 @@ export default function App() {
                         metric.label === 'Total Orders'
                           ? 'tu-border-[#cfe8d6] tu-bg-[linear-gradient(180deg,#f3fbf6_0%,#e9f7ef_100%)] hover:tu-border-[#b8dcc4] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
                           : metric.label === 'Voided'
-                            ? 'tu-border-[#efc8c4] tu-bg-[linear-gradient(180deg,#fff6f6_0%,#ffe9e8_100%)] hover:tu-border-[#e79e97] hover:tu-shadow-[0_14px_30px_rgba(222,82,76,0.16)]'
+                            ? 'tu-border-[#f2d8d3] tu-bg-[linear-gradient(180deg,#fffafa_0%,#fff3f2_100%)] hover:tu-border-[#e9b7af] hover:tu-shadow-[0_14px_30px_rgba(222,82,76,0.12)]'
                             : 'tu-border-[#dfe8de] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbf8_100%)] hover:tu-border-[#cfe5d6] hover:tu-shadow-[0_14px_30px_rgba(16,197,98,0.10)]'
                       } ${isSelectedStatus ? 'tu-ring-2 tu-ring-offset-0 tu-ring-[#6ecf93] tu-shadow-[0_14px_30px_rgba(16,197,98,0.18)]' : ''} tu-cursor-pointer`}
                     >
@@ -8190,7 +8345,7 @@ export default function App() {
                   <div className="tu-mt-3 tu-h-3 tu-overflow-hidden tu-rounded-full tu-bg-[#e7efe7]">
                     <div className="tu-flex tu-h-full tu-w-full">
                       <div
-                        className="tu-h-full tu-bg-[#f4a024]"
+                        className="tu-h-full tu-bg-[#40D181]"
                         style={{
                           width: `${Math.max(
                             8,
@@ -8203,23 +8358,29 @@ export default function App() {
                           )}%`
                         }}
                       />
-                      <div className="tu-h-full tu-flex-1 tu-bg-[#FF7172]" />
+                      <div className="tu-h-full tu-flex-1 tu-bg-[#7DC1F7]" />
                     </div>
                   </div>
                   <div className="tu-mt-3 tu-grid tu-gap-3 sm:tu-grid-cols-2">
                     <div className="tu-flex tu-items-start tu-gap-2.5">
-                      <span className="tu-mt-1 tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-sm tu-bg-[#f4a024]" />
-                      <div>
-                        <p className="tu-text-[13px] tu-font-medium tu-text-[#5f656c]">New Customers</p>
-                        <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(customerRevenueSplit.newCustomers)}</p>
+                      <span className="tu-mt-1 tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-sm tu-bg-[#40D181]" />
+                      <div className="tu-space-y-1">
+                        <p className="tu-text-[13px] tu-font-medium tu-text-[ ]">New Customers</p>
+                        <p className="tu-pt-0.5 tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(customerRevenueSplit.newCustomers)}</p>
+                        <p className="tu-pt-0.5 tu-text-[11px] tu-font-medium tu-text-[#9aa19a]">
+                          {`${((customerRevenueSplit.newCustomers / Math.max(1, customerRevenueSplit.newCustomers + customerRevenueSplit.returningCustomers)) * 100).toFixed(1)}%`}
+                        </p>
                       </div>
                     </div>
                     <div className="tu-flex tu-items-start tu-gap-2.5 sm:tu-justify-self-end">
-                      <span className="tu-mt-1 tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-sm tu-bg-[#FF7172]" />
-                      <div className="sm:tu-text-right">
-                        <p className="tu-text-[13px] tu-font-medium tu-text-[#5f656c]">Returning Customers</p>
-                        <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">
+                      <span className="tu-mt-1 tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-sm tu-bg-[#7DC1F7]" />
+                      <div className="tu-space-y-1 sm:tu-text-right">
+                        <p className="tu-text-[13px] tu-font-medium tu-text-[ ]">Returning Customers</p>
+                        <p className="tu-pt-0.5 tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">
                           {formatCompactNumber(customerRevenueSplit.returningCustomers)}
+                        </p>
+                        <p className="tu-pt-0.5 tu-text-[11px] tu-font-medium tu-text-[#9aa19a]">
+                          {`${((customerRevenueSplit.returningCustomers / Math.max(1, customerRevenueSplit.newCustomers + customerRevenueSplit.returningCustomers)) * 100).toFixed(1)}%`}
                         </p>
                       </div>
                     </div>
@@ -8306,7 +8467,7 @@ export default function App() {
                             { label: 'Store Name', key: 'name' as CustomerLtvSortKey },
                             { label: 'New Customers', key: 'newCustomers' as CustomerLtvSortKey },
                             { label: 'Old Customers', key: 'oldCustomers' as CustomerLtvSortKey },
-                            { label: 'Avg. LTV', key: 'avgLtv' as CustomerLtvSortKey },
+                            { label: 'Lifetime Value', key: 'avgLtv' as CustomerLtvSortKey },
                             { label: 'Retention Percentages', key: 'retentionPercent' as CustomerLtvSortKey },
                             { label: 'Repeat Purchase', key: 'repeatPurchasePercent' as CustomerLtvSortKey }
                           ].map((column) => (
@@ -8642,7 +8803,7 @@ export default function App() {
 
             <section className="tu-order-2 tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
-                <SectionTitleWithReportLink title="Sales Performance by City" />
+                <SectionTitleWithReportLink title="Sales Performance by Location" />
 
                 <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
                   {[
@@ -8657,12 +8818,7 @@ export default function App() {
                       options: locationPerformanceViewOptions
                     },
                     { key: 'metric', value: selectedLocationMetric, options: locationMetricOptions },
-                    { key: 'date', value: selectedLocationDate, options: locationDateOptions },
-                    {
-                      key: 'region',
-                      value: formatLocationFilterLabel(selectedLocationRegion),
-                      options: []
-                    }
+                    { key: 'date', value: selectedLocationDate, options: locationDateOptions }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-flex tu-items-center tu-gap-2">
                       <div className="tu-relative">
@@ -8734,64 +8890,9 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="tu-mt-6 tu-grid tu-gap-3 lg:tu-grid-cols-4">
-                {dynamicLocationKpiCards.map((metric) => {
-                  const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
-                  const locationTooltipKey = metric.label.replace('Province', 'City');
-                  const trendPillClass =
-                    metric.direction === 'up'
-                      ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
-                      : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
-
-                  return (
-                    <article
-                      key={metric.label}
-                      className={`tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 ${
-                        metric.label.includes('Most Improved')
-                          ? 'tu-border-[#d9f3e6] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f2fcf7_100%)] hover:tu-border-[#b7e7cd]'
-                          : metric.label.includes('Most Declined')
-                            ? 'tu-border-[#f3dddb] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fff6f5_100%)] hover:tu-border-[#efcbc7]'
-                            : 'tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]'
-                      }`}
-                    >
-                      <div className="tu-group/tooltip tu-relative tu-inline-block">
-                        <button type="button" className="tu-text-[13px] tu-text-[#8f9197]">
-                          {metric.label}
-                        </button>
-                        <InfoTooltip
-                          text={locationKpiTooltips[locationTooltipKey] ?? locationKpiTooltips[metric.label]}
-                          widthClass={metric.label.includes('Average') ? 'tu-w-[280px]' : 'tu-w-[190px]'}
-                        />
-                      </div>
-                      <div className="tu-mt-2.5 tu-flex tu-items-end tu-gap-2.5">
-                        <p className="tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
-                        <div className="tu-relative">
-                          <button
-                            type="button"
-                            onMouseEnter={() => setHoveredLocationKpi(metric.label)}
-                            onMouseLeave={() => setHoveredLocationKpi(null)}
-                            className={`tu-inline-flex tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-px-1.5 tu-py-0.5 tu-text-[11px] tu-font-semibold ${trendPillClass}`}
-                          >
-                            {metric.trend}
-                            <TrendIcon className="tu-h-3 tu-w-3" />
-                          </button>
-                          {hoveredLocationKpi === metric.label ? (
-                            <ComparisonPopover
-                              comparison={{ ...metric.comparison, ...locationComparisonLabels }}
-                              trend={metric.trend}
-                              direction={metric.direction}
-                            />
-                          ) : null}
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-
               {showSalesCityChart ? (
                 <div
-                  className="tu-relative tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#e9eef1] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] tu-p-4 tu-shadow-[0_10px_26px_rgba(31,41,55,0.08)]"
+                  className="tu-relative tu-mt-6 tu-rounded-[14px] tu-border tu-border-[#e9eef1] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] tu-p-4 tu-shadow-[0_10px_26px_rgba(31,41,55,0.08)]"
                   onMouseLeave={() => setHoveredLocationPoint(null)}
                 >
                   <div className="tu-h-[420px]">
