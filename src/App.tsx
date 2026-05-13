@@ -3264,24 +3264,21 @@ export default function App() {
     () => buildComparisonDateLabels(selectedCustomerOverviewDate),
     [selectedCustomerOverviewDate]
   );
-  const customerOverviewMetrics = useMemo(() => {
-    const customersSection = sectionSixMetricSectionsBase.find((section) => section.title === 'Customers');
-    if (!customersSection) return [];
-
-    const metricOrder: Record<string, number> = {
-      'Total Customers': 0,
-      'New Customers': 1,
-      'Customer Retention': 2,
-      'Average Order Value': 3,
-      'Customer Lifetime Value': 4
-    };
+  const customerOverviewInsights = useMemo(() => {
     const scopedRegions = selectedCustomerOverviewRegion.length ? selectedCustomerOverviewRegion : pakistanProvinceOptions;
     const scopedStores = (selectedCustomerOverviewStores.length ? selectedCustomerOverviewStores : salesStoreOptions).filter((store) =>
       scopedRegions.includes(salesStoreRegionMap[store] ?? '')
     );
     const activeStores = scopedStores.length ? scopedStores : salesStoreOptions;
     const selectedSeries = storeSeries.filter((series) => activeStores.includes(series.name));
-    if (selectedSeries.length === 0) return [];
+    if (selectedSeries.length === 0) {
+      return {
+        metrics: [],
+        split: { newRevenue: 0, returningRevenue: 0, newCustomers: 0, returningCustomers: 0 },
+        tableRows: [],
+        tableTotals: { newCustomers: 0, oldCustomers: 0, avgLtv: 0, retentionPercent: 0 }
+      };
+    }
 
     const rawDays = getComparisonPeriodDayCount(selectedCustomerOverviewDate);
     const windowSize = Math.max(1, Math.min(15, rawDays));
@@ -3317,7 +3314,14 @@ export default function App() {
     const purchaseFrequencyPrevious = impliedCustomersPrevious > 0 ? ordersPrevious / impliedCustomersPrevious : 0;
     const lifespanPeriods = Math.max(1.4, Math.min(2.2, windowSize >= 30 ? 2.2 : windowSize / 14));
     const clvCurrent = aovCurrent * purchaseFrequencyCurrent * lifespanPeriods;
-    const clvPrevious = aovPrevious * purchaseFrequencyPrevious * lifespanPeriods;
+    const newRevenueCurrent = revenueCurrent * 0.42;
+    const returningRevenueCurrent = Math.max(0, revenueCurrent - newRevenueCurrent);
+    const newRevenuePrevious = revenuePrevious * 0.42;
+    const returningRevenuePrevious = Math.max(0, revenuePrevious - newRevenuePrevious);
+    const newAovCurrent = newCustomersCurrent > 0 ? newRevenueCurrent / newCustomersCurrent : 0;
+    const newAovPrevious = newCustomersPrevious > 0 ? newRevenuePrevious / newCustomersPrevious : 0;
+    const returningAovCurrent = retainedCurrent > 0 ? returningRevenueCurrent / retainedCurrent : 0;
+    const returningAovPrevious = retainedPrevious > 0 ? returningRevenuePrevious / retainedPrevious : 0;
 
     const metricsByLabel: Record<
       string,
@@ -3328,11 +3332,10 @@ export default function App() {
         asPercent?: boolean;
       }
     > = {
-      'Total Customers': { current: impliedCustomersCurrent, previous: impliedCustomersPrevious },
-      'New Customers': { current: newCustomersCurrent, previous: newCustomersPrevious },
-      'Customer Retention': { current: retentionCurrent, previous: retentionPrevious, asPercent: true },
-      'Average Order Value': { current: aovCurrent, previous: aovPrevious, asCurrency: true },
-      'Customer Lifetime Value': { current: clvCurrent, previous: clvPrevious, asCurrency: true }
+      'New Customers Revenue': { current: newRevenueCurrent, previous: newRevenuePrevious, asCurrency: true },
+      'Returning Customers Revenue': { current: returningRevenueCurrent, previous: returningRevenuePrevious, asCurrency: true },
+      'AOV New Customers': { current: newAovCurrent, previous: newAovPrevious, asCurrency: true },
+      'AOV Returning Customers': { current: returningAovCurrent, previous: returningAovPrevious, asCurrency: true }
     };
 
     const toTrend = (current: number, previous: number) => {
@@ -3345,29 +3348,95 @@ export default function App() {
       return formatCompactNumber(Math.max(0, Math.round(value)));
     };
 
-    return customersSection.metrics
-      .map((metric) => {
-        const base = metricsByLabel[metric.label];
-        if (!base) return metric;
-        const trendValue = toTrend(base.current, base.previous);
-        const changeValue = base.current - base.previous;
-        return {
-          ...metric,
-          direction: trendValue >= 0 ? ('up' as const) : ('down' as const),
-          trend: `${Math.abs(trendValue).toFixed(1)}%`,
-          sublabel: customerOverviewMetricSublabel,
-          value: asValue(base.current, base.asCurrency, base.asPercent),
-          comparison: {
-            ...metric.comparison,
-            current: asValue(base.current, base.asCurrency, base.asPercent),
-            previous: asValue(base.previous, base.asCurrency, base.asPercent),
-            change: asValue(Math.abs(changeValue), base.asCurrency, base.asPercent)
-          },
-          showStoreSelect: false
-        };
-      })
-      .sort((a, b) => (metricOrder[a.label] ?? Number.MAX_SAFE_INTEGER) - (metricOrder[b.label] ?? Number.MAX_SAFE_INTEGER));
+    const metrics = ([
+      'New Customers Revenue',
+      'Returning Customers Revenue',
+      'AOV New Customers',
+      'AOV Returning Customers'
+    ] as const).map((label) => {
+      const metric = sectionSixMetricSectionsBase.find((section) => section.title === 'Customers')?.metrics[0];
+      if (!metric) return null;
+      const base = metricsByLabel[label];
+      const trendValue = toTrend(base.current, base.previous);
+      const changeValue = base.current - base.previous;
+      return {
+        ...metric,
+        label,
+        direction: trendValue >= 0 ? ('up' as const) : ('down' as const),
+        trend: `${Math.abs(trendValue).toFixed(1)}%`,
+        sublabel: customerOverviewMetricSublabel,
+        value: asValue(base.current, base.asCurrency, base.asPercent),
+        comparison: {
+          ...metric.comparison,
+          current: asValue(base.current, base.asCurrency, base.asPercent),
+          previous: asValue(base.previous, base.asCurrency, base.asPercent),
+          change: asValue(Math.abs(changeValue), base.asCurrency, base.asPercent)
+        },
+        showStoreSelect: false
+      };
+    }).filter(Boolean) as GlanceMetricCard[];
+
+    const perStoreRows = selectedSeries.map((series) => {
+      const storeOrdersCurrent = series.totalOrders.slice(currentStart).reduce((sum, value) => sum + value, 0);
+      const storeRevenueCurrent = series.grossRevenue.slice(currentStart).reduce((sum, value) => sum + value, 0);
+      const storeOrdersPrevious = series.totalOrders.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
+      const storeRevenuePrevious = series.grossRevenue.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
+      const storeCustomersCurrent = Math.max(1, Math.round(storeOrdersCurrent * 0.78));
+      const storeCustomersPrevious = Math.max(1, Math.round(storeOrdersPrevious * 0.78));
+      const storeNewCustomers = Math.max(1, Math.round(storeCustomersCurrent * 0.16));
+      const storeOldCustomers = Math.max(0, storeCustomersCurrent - storeNewCustomers);
+      const storeAovCurrent = storeOrdersCurrent > 0 ? storeRevenueCurrent / storeOrdersCurrent : 0;
+      const storeAovPrevious = storeOrdersPrevious > 0 ? storeRevenuePrevious / storeOrdersPrevious : 0;
+      const storeFrequencyCurrent = storeCustomersCurrent > 0 ? storeOrdersCurrent / storeCustomersCurrent : 0;
+      const storeLtv = storeAovCurrent * storeFrequencyCurrent * lifespanPeriods;
+      const storeRetention = storeCustomersPrevious > 0 ? (storeOldCustomers / storeCustomersPrevious) * 100 : 0;
+      const _storeLtvPrevious = storeAovPrevious * (storeCustomersPrevious > 0 ? storeOrdersPrevious / storeCustomersPrevious : 0) * lifespanPeriods;
+      const logoText = series.name.slice(0, 2).toUpperCase();
+      const logoSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='36' height='36'><rect width='36' height='36' rx='10' fill='#eef3ec'/><text x='18' y='22' text-anchor='middle' font-family='Arial' font-size='12' fill='#5f656c'>${logoText}</text></svg>`;
+      return {
+        name: series.name,
+        logo: `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`,
+        newCustomers: storeNewCustomers,
+        oldCustomers: storeOldCustomers,
+        avgLtv: storeLtv,
+        retentionPercent: Math.max(0, Math.min(100, storeRetention))
+      };
+    });
+
+    const totals = perStoreRows.reduce(
+      (acc, row) => {
+        acc.newCustomers += row.newCustomers;
+        acc.oldCustomers += row.oldCustomers;
+        acc.avgLtv += row.avgLtv;
+        acc.retentionPercent += row.retentionPercent;
+        return acc;
+      },
+      { newCustomers: 0, oldCustomers: 0, avgLtv: 0, retentionPercent: 0 }
+    );
+    const avgDenominator = Math.max(1, perStoreRows.length);
+    const tableTotals = {
+      newCustomers: totals.newCustomers,
+      oldCustomers: totals.oldCustomers,
+      avgLtv: totals.avgLtv / avgDenominator,
+      retentionPercent: totals.retentionPercent / avgDenominator
+    };
+
+    return {
+      metrics,
+      split: {
+        newRevenue: newRevenueCurrent,
+        returningRevenue: returningRevenueCurrent,
+        newCustomers: newCustomersCurrent,
+        returningCustomers: retainedCurrent
+      },
+      tableRows: perStoreRows,
+      tableTotals
+    };
   }, [customerOverviewMetricSublabel, selectedCustomerOverviewDate, selectedCustomerOverviewRegion, selectedCustomerOverviewStores]);
+  const customerOverviewMetrics = customerOverviewInsights.metrics;
+  const customerRevenueSplit = customerOverviewInsights.split;
+  const customerOverviewTableRows = customerOverviewInsights.tableRows;
+  const customerOverviewTableTotals = customerOverviewInsights.tableTotals;
   const customerOverviewStoreSummaryLabel =
     selectedCustomerOverviewStores.length === 0 ||
     (selectedCustomerOverviewStores.length === salesStoreOptions.length &&
@@ -8060,7 +8129,48 @@ export default function App() {
               </div>
 
               <div className="tu-mt-4">
-                <div className="tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
+                <div className="tu-rounded-[14px] tu-border tu-border-[#e8ede6] tu-bg-[#fafcf9] tu-p-4">
+                  <p className="tu-text-[14px] tu-font-medium tu-text-[#5f656c]">New vs Returning Customers</p>
+                  <div className="tu-mt-3 tu-h-3 tu-overflow-hidden tu-rounded-full tu-bg-[#e7efe7]">
+                    <div className="tu-flex tu-h-full tu-w-full">
+                      <div
+                        className="tu-h-full tu-bg-[#f4a024]"
+                        style={{
+                          width: `${Math.max(
+                            8,
+                            Math.min(
+                              92,
+                              (customerRevenueSplit.newRevenue /
+                                Math.max(1, customerRevenueSplit.newRevenue + customerRevenueSplit.returningRevenue)) *
+                                100
+                            )
+                          )}%`
+                        }}
+                      />
+                      <div className="tu-h-full tu-flex-1 tu-bg-[#3f98f3]" />
+                    </div>
+                  </div>
+                  <div className="tu-mt-3 tu-grid tu-gap-3 sm:tu-grid-cols-2">
+                    <div className="tu-flex tu-items-start tu-gap-2.5">
+                      <span className="tu-mt-1 tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-sm tu-bg-[#f4a024]" />
+                      <div>
+                        <p className="tu-text-[13px] tu-font-medium tu-text-[#5f656c]">New Customers</p>
+                        <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(customerRevenueSplit.newCustomers)}</p>
+                      </div>
+                    </div>
+                    <div className="tu-flex tu-items-start tu-gap-2.5 sm:tu-justify-self-end">
+                      <span className="tu-mt-1 tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-sm tu-bg-[#3f98f3]" />
+                      <div className="sm:tu-text-right">
+                        <p className="tu-text-[13px] tu-font-medium tu-text-[#5f656c]">Returning Customers</p>
+                        <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">
+                          {formatCompactNumber(customerRevenueSplit.returningCustomers)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="tu-mt-4 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
                   {customerOverviewMetrics.map((metric) => {
                     const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                     const trendPillClass =
@@ -8079,15 +8189,9 @@ export default function App() {
                             {metric.label}
                           </button>
                           <InfoTooltip
-                            text={sectionSixKpiTooltips[metric.label]}
-                            widthClass={
-                              metric.label === 'Customer Lifetime Value'
-                                ? 'tu-w-[420px]'
-                                : metric.label === 'Customer Retention'
-                                  ? 'tu-w-[400px]'
-                                  : 'tu-w-[280px]'
-                            }
-                            alignRight={metric.label === 'Customer Retention'}
+                            text={sectionSixKpiTooltips[metric.label] ?? metric.label}
+                            widthClass="tu-w-[280px]"
+                            alignRight={false}
                           />
                         </div>
                         <div className="tu-mt-1">
@@ -8132,6 +8236,51 @@ export default function App() {
                       </article>
                     );
                   })}
+                </div>
+
+                <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[14px] tu-border tu-border-[#e8ede6]">
+                  <div className="tu-border-b tu-border-[#e8ede6] tu-bg-[#fafcf9] tu-px-4 tu-py-3">
+                    <h3 className="tu-text-[14px] tu-font-semibold tu-text-[#2a2c2f]">Per Store LTV and Retention</h3>
+                  </div>
+                  <div className="tu-overflow-x-auto">
+                    <table className="tu-min-w-full tu-border-collapse">
+                      <thead>
+                        <tr className="tu-border-b tu-border-[#edf1ea] tu-bg-white">
+                          {['Store Name', 'New Customers', 'Old Customers', 'Avg. LTV', 'Retention Percentages'].map((column) => (
+                            <th
+                              key={column}
+                              className="tu-whitespace-nowrap tu-px-4 tu-py-3 tu-text-left tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.04em] tu-text-[#8f9197]"
+                            >
+                              {column}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {customerOverviewTableRows.map((row) => (
+                          <tr key={row.name} className="tu-border-b tu-border-[#f1f4ef] last:tu-border-b-0">
+                            <td className="tu-px-4 tu-py-3">
+                              <div className="tu-flex tu-items-center tu-gap-2.5">
+                                <img src={row.logo} alt={`${row.name} placeholder logo`} className="tu-h-8 tu-w-8 tu-rounded-[8px] tu-border tu-border-[#e3e8e1]" />
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{row.name}</span>
+                              </div>
+                            </td>
+                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.newCustomers)}</td>
+                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.oldCustomers)}</td>
+                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`PKR ${Math.round(row.avgLtv).toLocaleString()}`}</td>
+                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.retentionPercent.toFixed(1)}%`}</td>
+                          </tr>
+                        ))}
+                        <tr className="tu-bg-[#fafcf9]">
+                          <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-semibold tu-text-[#2a2c2f]">Total / Avg</td>
+                          <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-semibold tu-text-[#2a2c2f]">{formatCompactNumber(customerOverviewTableTotals.newCustomers)}</td>
+                          <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-semibold tu-text-[#2a2c2f]">{formatCompactNumber(customerOverviewTableTotals.oldCustomers)}</td>
+                          <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-semibold tu-text-[#2a2c2f]">{`PKR ${Math.round(customerOverviewTableTotals.avgLtv).toLocaleString()}`}</td>
+                          <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-semibold tu-text-[#2a2c2f]">{`${customerOverviewTableTotals.retentionPercent.toFixed(1)}%`}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </section>
