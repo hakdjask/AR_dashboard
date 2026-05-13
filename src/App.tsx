@@ -3376,11 +3376,11 @@ export default function App() {
         asPercent?: boolean;
       }
     > = {
+      'Total Customers': { current: impliedCustomersCurrent, previous: impliedCustomersPrevious },
       'New Customers Revenue': { current: newRevenueCurrent, previous: newRevenuePrevious, asCurrency: true },
       'Returning Customers Revenue': { current: returningRevenueCurrent, previous: returningRevenuePrevious, asCurrency: true },
       'AOV New Customers': { current: newAovCurrent, previous: newAovPrevious, asCurrency: true },
-      'AOV Returning Customers': { current: returningAovCurrent, previous: returningAovPrevious, asCurrency: true },
-      'Retention Rate': { current: retentionCurrent, previous: retentionPrevious, asPercent: true }
+      'AOV Returning Customers': { current: returningAovCurrent, previous: returningAovPrevious, asCurrency: true }
     };
 
     const toTrend = (current: number, previous: number) => {
@@ -3394,11 +3394,11 @@ export default function App() {
     };
 
     const metrics = ([
+      'Total Customers',
       'New Customers Revenue',
       'Returning Customers Revenue',
       'AOV New Customers',
-      'AOV Returning Customers',
-      'Retention Rate'
+      'AOV Returning Customers'
     ] as const).map((label) => {
       const metric = sectionSixMetricSectionsBase.find((section) => section.title === 'Customers')?.metrics[0];
       if (!metric) return null;
