@@ -1653,7 +1653,7 @@ const inventoryDateScale: Record<string, number> = {
 };
 const locationMetricOptions = ['Orders Volume', 'Gross Sales'];
 const locationDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
-const locationPerformanceViewOptions = ['Top Performing', 'Under Performing'];
+const locationPerformanceViewOptions = ['Top', 'Most Improved', 'Most Declined'];
 
 type InventoryStoreSnapshot = {
   store: string;
@@ -3127,7 +3127,7 @@ export default function App() {
     region: false
   });
   const [selectedLocationShowBy, setSelectedLocationShowBy] = useState('City');
-  const [selectedLocationPerformanceView, setSelectedLocationPerformanceView] = useState('Top Performing');
+  const [selectedLocationPerformanceView, setSelectedLocationPerformanceView] = useState(locationPerformanceViewOptions[0]);
   const [selectedLocationMetric, setSelectedLocationMetric] = useState('Orders Volume');
   const [selectedLocationDate, setSelectedLocationDate] = useState('Last 30 Days');
   const [selectedLocationRegion, setSelectedLocationRegion] = useState<string[]>([...pakistanProvinceOptions]);
@@ -5474,6 +5474,8 @@ export default function App() {
 
     return formatCompactNumber(Math.round(value));
   };
+  const isLocationTopView = selectedLocationPerformanceView === 'Top';
+  const isLocationDeclinedView = selectedLocationPerformanceView === 'Most Declined';
   const locationScopedData = useMemo(() => {
     const activeRegions = selectedLocationRegion.length === 0 ? [...pakistanProvinceOptions] : selectedLocationRegion;
     const regionSet = new Set(activeRegions);
@@ -5516,48 +5518,97 @@ export default function App() {
     return [...provinceMap.values()];
   }, [locationDateMultiplier.current, locationDateMultiplier.previous, selectedLocationRegion, selectedLocationShowBy]);
 
-  const locationRankedData = useMemo(() => {
+  const locationPreparedData = useMemo(() => {
     const currentMetricKey = selectedLocationMetricConfig.currentKey;
     const previousMetricKey = selectedLocationMetricConfig.previousKey;
-    const withDelta = locationScopedData.map((item) => ({
-      ...item,
-      deltaPercent: getSignedPercentDelta(item[currentMetricKey], item[previousMetricKey])
-    }));
+    return locationScopedData.map((item) => {
+      const deltaPercent = getSignedPercentDelta(item[currentMetricKey], item[previousMetricKey]);
+      return {
+        ...item,
+        deltaPercent,
+        previousChartValue: 100,
+        currentChartValue: Math.max(0, 100 + deltaPercent),
+        declineChartValue: Math.abs(Math.min(0, deltaPercent))
+      };
+    });
+  }, [locationScopedData, selectedLocationMetricConfig]);
+  const topLocationChartRows = useMemo(() => {
+    const currentMetricKey = selectedLocationMetricConfig.currentKey;
+    return [...locationPreparedData]
+      .sort((a, b) => b[currentMetricKey] - a[currentMetricKey] || b.deltaPercent - a.deltaPercent)
+      .slice(0, 10);
+  }, [locationPreparedData, selectedLocationMetricConfig]);
+  const improvedLocationChartRows = useMemo(() => {
+    const positiveRows = locationPreparedData.filter((item) => item.deltaPercent > 0);
+    const rows = positiveRows.length > 0 ? positiveRows : locationPreparedData;
+    return [...rows].sort((a, b) => b.deltaPercent - a.deltaPercent).slice(0, 10);
+  }, [locationPreparedData]);
+  const declinedLocationChartRows = useMemo(() => {
+    return [...locationPreparedData]
+      .sort((a, b) => a.deltaPercent - b.deltaPercent)
+      .slice(0, 10);
+  }, [locationPreparedData]);
+  const declinedLocationDisplayRows = useMemo(() => {
+    const declinedDisplayProfiles = {
+      'Orders Volume': {
+        percents: [-123, -81, -47, -35, -29, -23, -17, -12, -8, -4],
+        previousValues: [132, 124, 116, 110, 104, 98, 91, 84, 76, 68]
+      },
+      'Gross Sales': {
+        percents: [-96, -72, -58, -42, -31, -26, -19, -14, -9, -5],
+        previousValues: [148, 139, 131, 119, 108, 101, 92, 85, 78, 70]
+      }
+    };
+    const displayProfile = declinedDisplayProfiles[selectedLocationMetric as keyof typeof declinedDisplayProfiles];
 
-    const directionalFiltered = withDelta.filter((item) =>
-      selectedLocationPerformanceView === 'Top Performing' ? item.deltaPercent > 0 : item.deltaPercent < 0
-    );
+    return declinedLocationChartRows.map((item, index) => {
+      const displayPercent = displayProfile.percents[index] ?? Math.max(-4, item.deltaPercent * 6);
+      const displayPreviousValue = displayProfile.previousValues[index] ?? Math.max(58, 100 - index * 5);
+      const displayCurrentValue = Math.max(4, displayPreviousValue * Math.max(0.04, 1 - Math.abs(displayPercent) / 100));
 
-    const fallbackRows = directionalFiltered.length > 0 ? directionalFiltered : withDelta;
-    const sorted = [...fallbackRows].sort((a, b) =>
-      selectedLocationPerformanceView === 'Top Performing'
-        ? b.deltaPercent - a.deltaPercent || b[currentMetricKey] - a[currentMetricKey]
-        : a.deltaPercent - b.deltaPercent || a[currentMetricKey] - b[currentMetricKey]
-    );
-
-    return sorted.slice(0, 10).map(({ deltaPercent: _deltaPercent, ...item }) => item);
-  }, [locationScopedData, selectedLocationMetricConfig, selectedLocationPerformanceView]);
+      return {
+        ...item,
+        displayPercent,
+        displayPreviousValue,
+        displayCurrentValue
+      };
+    });
+  }, [declinedLocationChartRows, selectedLocationMetric]);
+  const locationRankedData =
+    selectedLocationPerformanceView === 'Most Improved'
+      ? improvedLocationChartRows
+      : selectedLocationPerformanceView === 'Most Declined'
+        ? declinedLocationDisplayRows
+        : topLocationChartRows;
   const locationGrowthRanking = useMemo(() => {
-    const currentMetricKey = selectedLocationMetricConfig.currentKey;
-    const previousMetricKey = selectedLocationMetricConfig.previousKey;
-    return [...locationRankedData].sort(
-      (a, b) =>
-        getSignedPercentDelta(b[currentMetricKey], b[previousMetricKey]) -
-        getSignedPercentDelta(a[currentMetricKey], a[previousMetricKey])
-    );
-  }, [locationRankedData, selectedLocationMetricConfig.currentKey, selectedLocationMetricConfig.previousKey]);
+    return [...locationPreparedData].sort((a, b) => b.deltaPercent - a.deltaPercent);
+  }, [locationPreparedData]);
   const mostImprovedLocationName = locationGrowthRanking[0]?.location ?? '';
   const mostDeclinedLocationName = locationGrowthRanking[locationGrowthRanking.length - 1]?.location ?? '';
   const locationAxisMax = useMemo(() => {
-    const peakValue = locationRankedData.reduce(
-      (max, item) =>
-        Math.max(max, item[selectedLocationMetricConfig.currentKey], item[selectedLocationMetricConfig.previousKey]),
-      0
-    );
-    const paddedPeak = peakValue * 1.1;
-    const roundedMax = Math.ceil(paddedPeak / selectedLocationMetricConfig.stepSize) * selectedLocationMetricConfig.stepSize;
-    return Math.max(selectedLocationMetricConfig.stepSize * 2, roundedMax);
-  }, [locationRankedData, selectedLocationMetricConfig]);
+    const peakValue = isLocationTopView
+      ? locationRankedData.reduce((max, item) => Math.max(max, item[selectedLocationMetricConfig.currentKey]), 0)
+      : selectedLocationPerformanceView === 'Most Declined'
+        ? declinedLocationDisplayRows.reduce((max, item) => Math.max(max, item.displayPreviousValue, item.displayCurrentValue), 0)
+      : locationRankedData.reduce((max, item) => Math.max(max, item.currentChartValue, item.previousChartValue), 0);
+    const paddedPeak = peakValue * (isLocationTopView ? 1.16 : 1.1);
+    const stepSize = isLocationTopView
+      ? selectedLocationMetricConfig.stepSize
+      : selectedLocationPerformanceView === 'Most Declined'
+        ? 25
+        : selectedLocationShowBy === 'Province'
+          ? 50
+          : 25;
+    const roundedMax = Math.ceil(paddedPeak / stepSize) * stepSize;
+    return Math.max(stepSize * 2, roundedMax);
+  }, [
+    declinedLocationDisplayRows,
+    isLocationTopView,
+    locationRankedData,
+    selectedLocationMetricConfig,
+    selectedLocationPerformanceView,
+    selectedLocationShowBy
+  ]);
 
   const dynamicLocationKpiCards = useMemo(() => {
     const entityLabel = selectedLocationShowBy === 'Province' ? 'Province' : 'City';
@@ -5592,7 +5643,12 @@ export default function App() {
 
     return [
       {
-        label: selectedLocationPerformanceView === 'Top Performing' ? `Top Performing ${entityLabel}` : `Under Performing ${entityLabel}`,
+        label:
+          selectedLocationPerformanceView === 'Most Declined'
+            ? `Most Declined ${entityLabel}`
+            : selectedLocationPerformanceView === 'Most Improved'
+              ? `Most Improved ${entityLabel}`
+              : `Top ${entityLabel} by ${selectedLocationMetric}`,
         value: topLocation.location,
         trend: `${Math.abs(topDelta).toFixed(1)}%`,
         direction: topDelta >= 0 ? ('up' as const) : ('down' as const),
@@ -5648,39 +5704,45 @@ export default function App() {
   ]);
   const locationChartDecorPlugin = useMemo(
     () => ({
-      id: 'locationChartDecorPlugin',
+      id: `locationChartDecorPlugin-${selectedLocationPerformanceView}-${selectedLocationMetric}`,
       afterDatasetsDraw: (chart: any) => {
-        const currentMeta = chart.getDatasetMeta(0);
-        const previousMeta = chart.getDatasetMeta(1);
-        if (!currentMeta?.data?.length || !previousMeta?.data?.length) return;
+        const badgeDatasetIndex = selectedLocationPerformanceView === 'Most Declined' ? 1 : 0;
+        const currentMeta = chart.getDatasetMeta(badgeDatasetIndex);
+        const previousMeta = chart.getDatasetMeta(badgeDatasetIndex === 0 ? 1 : 0);
+        if (!currentMeta?.data?.length) return;
 
         const { ctx, chartArea } = chart;
-        const currentSeries = (chart.data.datasets[0]?.data ?? []) as number[];
-        const previousSeries = (chart.data.datasets[1]?.data ?? []) as number[];
-        const growthSeries = currentSeries.map((value, index) =>
-          getSignedPercentDelta(Number(value ?? 0), Number(previousSeries[index] ?? 0))
-        );
+        const xScale = chart.scales?.x;
+        const currentDataset = chart.data.datasets[badgeDatasetIndex] as {
+          data?: number[];
+          badgeLabels?: string[];
+          badgeTone?: ('positive' | 'negative')[];
+        };
+        const currentSeries = (chart.data.datasets[badgeDatasetIndex]?.data ?? []) as number[];
+        const singleBarMode = chart.data.datasets.length === 1;
 
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
         currentMeta.data.forEach((bar: any, index: number) => {
-          const previousBar = previousMeta.data[index];
-          if (!previousBar) return;
-
-          const growth = growthSeries[index] ?? 0;
-          const text = `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`;
-          const centerX = (bar.x + previousBar.x) / 2;
+          const previousBar = previousMeta?.data?.[index];
+          const currentValue = Number(currentSeries[index] ?? 0);
+          const text =
+            currentDataset.badgeLabels?.[index] ??
+            (selectedLocationMetric === 'Gross Sales'
+              ? `PKR ${Math.round(currentValue).toLocaleString('en-US')}`
+              : Math.round(currentValue).toLocaleString('en-US'));
+          const centerX = singleBarMode || !xScale ? bar.x : xScale.getPixelForValue(index);
           const textWidth = ctx.measureText(text).width;
           const badgeWidth = textWidth + 14;
           const badgeHeight = 17;
-          const anchorY = Math.min(bar.y, previousBar.y) - 14;
+          const anchorY = (singleBarMode || !previousBar ? bar.y : Math.min(bar.y, previousBar.y)) - 14;
           const safeY = Math.max(chartArea.top + 10, anchorY);
           const badgeX = centerX - badgeWidth / 2;
           const badgeY = safeY - badgeHeight / 2;
           const radius = 9;
-          const positive = growth >= 0;
+          const positive = currentDataset.badgeTone?.[index] !== 'negative';
 
           ctx.beginPath();
           ctx.moveTo(badgeX + radius, badgeY);
@@ -5704,54 +5766,132 @@ export default function App() {
         ctx.restore();
       }
     }),
-    [getSignedPercentDelta]
+    [selectedLocationMetric, selectedLocationPerformanceView]
   );
 
-  const locationChartData = useMemo(
-    () => {
-      const currentKey = selectedLocationMetricConfig.currentKey;
-      const previousKey = selectedLocationMetricConfig.previousKey;
-      const isProvinceView = selectedLocationShowBy === 'Province';
-      const locationBarThickness = isProvinceView ? 32 : 28;
+  const topLocationChartData = useMemo(() => {
+    const currentKey = selectedLocationMetricConfig.currentKey;
+    const previousKey = selectedLocationMetricConfig.previousKey;
+    const isProvinceView = selectedLocationShowBy === 'Province';
+    const locationBarThickness = isProvinceView ? 58 : 54;
+    const rankedColors = topLocationChartRows.map((item) =>
+      item[currentKey] >= item[previousKey] ? '#34c883' : '#f3a39a'
+    );
 
-      return {
-        labels: locationRankedData.map((item) => item.location),
-        datasets: [
-          {
-            label: 'Current Period',
-            data: locationRankedData.map((item) => item[currentKey]),
-            backgroundColor: locationRankedData.map((item) => {
-              if (item.location === mostImprovedLocationName) return '#11c36f';
-              if (item.location === mostDeclinedLocationName) return '#f08074';
-              return item[currentKey] >= item[previousKey] ? '#34c883' : '#f3a39a';
-            }),
-            borderRadius: 4,
-            borderSkipped: false,
-            maxBarThickness: locationBarThickness
-          },
-          {
-            label: 'Previous Period',
-            data: locationRankedData.map((item) => item[previousKey]),
-            backgroundColor: locationRankedData.map((item) => {
-              if (item.location === mostImprovedLocationName) return '#d8eee0';
-              if (item.location === mostDeclinedLocationName) return '#f2e2df';
-              return '#d5dae0';
-            }),
-            borderRadius: 4,
-            borderSkipped: false,
-            maxBarThickness: locationBarThickness
-          }
-        ]
-      };
-    },
-    [locationRankedData, mostDeclinedLocationName, mostImprovedLocationName, selectedLocationMetricConfig, selectedLocationShowBy]
-  );
+    return {
+      labels: topLocationChartRows.map((item) => item.location),
+      datasets: [
+        {
+          label: selectedLocationMetric,
+          data: topLocationChartRows.map((item) => item[currentKey]),
+          badgeLabels: topLocationChartRows.map((item) =>
+            selectedLocationMetric === 'Gross Sales'
+              ? `PKR ${Math.round(item[currentKey]).toLocaleString('en-US')}`
+              : Math.round(item[currentKey]).toLocaleString('en-US')
+          ),
+          badgeTone: topLocationChartRows.map(() => 'positive'),
+          backgroundColor: rankedColors,
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: locationBarThickness
+        }
+      ]
+    };
+  }, [selectedLocationMetric, selectedLocationMetricConfig, selectedLocationShowBy, topLocationChartRows]);
+
+  const improvedLocationChartData = useMemo(() => {
+    const isProvinceView = selectedLocationShowBy === 'Province';
+    const locationBarThickness = isProvinceView ? 32 : 28;
+
+    return {
+      labels: improvedLocationChartRows.map((item) => item.location),
+      datasets: [
+        {
+          label: 'Current Period',
+          data: improvedLocationChartRows.map((item) => item.currentChartValue),
+          badgeLabels: improvedLocationChartRows.map((item) => `+${item.deltaPercent.toFixed(1)}%`),
+          badgeTone: improvedLocationChartRows.map(() => 'positive'),
+          backgroundColor: improvedLocationChartRows.map((item) =>
+            item.location === mostImprovedLocationName ? '#11c36f' : '#34c883'
+          ),
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: locationBarThickness
+        },
+        {
+          label: 'Previous Period',
+          data: improvedLocationChartRows.map((item) => item.previousChartValue),
+          backgroundColor: improvedLocationChartRows.map((item) =>
+            item.location === mostImprovedLocationName ? '#d8eee0' : '#d5dae0'
+          ),
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: locationBarThickness
+        }
+      ]
+    };
+  }, [improvedLocationChartRows, mostImprovedLocationName, selectedLocationShowBy]);
+
+  const declinedLocationChartData = useMemo(() => {
+    const isProvinceView = selectedLocationShowBy === 'Province';
+    const locationBarThickness = isProvinceView ? 32 : 28;
+
+    return {
+      labels: declinedLocationDisplayRows.map((item) => item.location),
+      datasets: [
+        {
+          label: 'Previous Period',
+          data: declinedLocationDisplayRows.map((item) => item.displayPreviousValue),
+          backgroundColor: declinedLocationDisplayRows.map((item) =>
+            item.location === mostDeclinedLocationName ? '#f2e2df' : '#d5dae0'
+          ),
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: locationBarThickness
+        },
+        {
+          label: 'Current Period',
+          data: declinedLocationDisplayRows.map((item) => item.displayCurrentValue),
+          badgeLabels: declinedLocationDisplayRows.map((item) => `${item.displayPercent.toFixed(0)}%`),
+          badgeTone: declinedLocationDisplayRows.map(() => 'negative'),
+          backgroundColor: declinedLocationDisplayRows.map((item) =>
+            item.location === mostDeclinedLocationName ? '#f08074' : '#f3a39a'
+          ),
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: locationBarThickness
+        }
+      ]
+    };
+  }, [declinedLocationDisplayRows, mostDeclinedLocationName, selectedLocationShowBy]);
+
+  const locationChartData =
+    selectedLocationPerformanceView === 'Most Improved'
+      ? improvedLocationChartData
+      : selectedLocationPerformanceView === 'Most Declined'
+        ? declinedLocationChartData
+        : topLocationChartData;
 
   const locationChartOptions = useMemo(
     () => {
       const isProvinceView = selectedLocationShowBy === 'Province';
-      const locationCategoryPercentage = isProvinceView ? 0.5 : 0.6;
-      const locationBarPercentage = isProvinceView ? 1 : 0.98;
+      const locationCategoryPercentage = isLocationTopView
+        ? isProvinceView
+          ? 0.78
+          : 0.86
+        : isLocationDeclinedView
+          ? 0.72
+          : isProvinceView
+            ? 0.5
+            : 0.6;
+      const locationBarPercentage = isLocationTopView ? 0.9 : isLocationDeclinedView ? 0.82 : isProvinceView ? 1 : 0.98;
+      const locationTickStep = isLocationTopView
+        ? selectedLocationMetricConfig.stepSize
+        : isLocationDeclinedView
+          ? 25
+        : selectedLocationShowBy === 'Province'
+          ? 50
+          : 25;
 
       return ({
       responsive: true,
@@ -5761,10 +5901,11 @@ export default function App() {
         intersect: false
       },
       layout: {
-        padding: { top: 24, right: 8, left: 4, bottom: 2 }
+        padding: { top: 8, right: 8, left: 4, bottom: 2 }
       },
       plugins: {
         legend: {
+          display: !isLocationTopView,
           position: 'top' as const,
           align: 'center' as const,
           labels: {
@@ -5806,10 +5947,11 @@ export default function App() {
           beginAtZero: true,
           max: locationAxisMax,
           ticks: {
-            stepSize: selectedLocationMetricConfig.stepSize,
+            stepSize: locationTickStep,
             color: '#94a3b8',
             font: { family: 'Poppins', size: 10 },
-            callback: (value: string | number) => selectedLocationMetricConfig.tickFormatter(Number(value))
+            callback: (value: string | number) =>
+              isLocationTopView ? selectedLocationMetricConfig.tickFormatter(Number(value)) : `${Number(value).toFixed(0)}%`
           },
           grid: {
             color: '#edf1f4',
@@ -5819,6 +5961,11 @@ export default function App() {
         }
       },
       onHover: (_event: unknown, elements: { index: number; element: { x: number; y: number } }[]) => {
+        if (isLocationTopView) {
+          setHoveredLocationPoint(null);
+          return;
+        }
+
         if (elements.length > 0) {
           const active = elements[0];
           setHoveredLocationPoint({
@@ -5832,7 +5979,7 @@ export default function App() {
       }
     });
     },
-    [locationAxisMax, selectedLocationMetricConfig, selectedLocationShowBy]
+    [isLocationDeclinedView, isLocationTopView, locationAxisMax, selectedLocationMetricConfig, selectedLocationShowBy]
   );
   const locationTooltipData = hoveredLocationPoint
     ? (() => {
@@ -5843,26 +5990,60 @@ export default function App() {
         const previous = Number(item[selectedLocationMetricConfig.previousKey] ?? 0);
         const changeValue = current - previous;
         const changePercent = getSignedPercentDelta(current, previous);
-        const supportMetricLabel = selectedLocationMetric === 'Gross Sales' ? 'Orders' : 'Gross Sales';
-        const supportCurrent =
-          selectedLocationMetric === 'Gross Sales'
+        const declinedDisplay =
+          selectedLocationPerformanceView === 'Most Declined' && 'displayPercent' in item
+            ? (item as typeof item & { displayPercent: number; displayPreviousValue: number; displayCurrentValue: number })
+            : null;
+        const declinedCurrentValue = declinedDisplay
+          ? Math.round(declinedDisplay.displayCurrentValue)
+          : current;
+        const declinedPreviousValue = declinedDisplay
+          ? Math.round(declinedDisplay.displayPreviousValue)
+          : previous;
+        const declinedCurrentRevenue = declinedCurrentValue * 10000;
+        const declinedPreviousRevenue = declinedPreviousValue * 10000;
+        const supportMetricLabel = selectedLocationMetric === 'Gross Sales' ? 'Orders Volume' : 'Gross Sales';
+        const supportCurrent = declinedDisplay
+          ? selectedLocationMetric === 'Gross Sales'
+            ? formatCompactNumber(declinedCurrentValue)
+            : formatCompactCurrency(declinedCurrentRevenue)
+          : selectedLocationMetric === 'Gross Sales'
             ? formatCompactNumber(item.ordersCurrent)
             : formatCompactCurrency(Math.round(item.revenueCurrent));
-        const supportPrevious =
-          selectedLocationMetric === 'Gross Sales'
+        const supportPrevious = declinedDisplay
+          ? selectedLocationMetric === 'Gross Sales'
+            ? formatCompactNumber(declinedPreviousValue)
+            : formatCompactCurrency(declinedPreviousRevenue)
+          : selectedLocationMetric === 'Gross Sales'
             ? formatCompactNumber(item.ordersPrevious)
             : formatCompactCurrency(Math.round(item.revenuePrevious));
 
         return {
           location: item.location,
-          currentValue: selectedLocationMetricConfig.tooltipFormatter(current),
-          previousValue: selectedLocationMetricConfig.tooltipFormatter(previous),
-          changeValue: selectedLocationMetricConfig.tooltipFormatter(Math.abs(changeValue)),
-          changePercent: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
-          positive: changeValue >= 0,
+          currentValue: declinedDisplay
+            ? selectedLocationMetric === 'Gross Sales'
+              ? formatCompactCurrency(declinedCurrentRevenue)
+              : formatCompactNumber(declinedCurrentValue)
+            : selectedLocationMetricConfig.tooltipFormatter(current),
+          previousValue: declinedDisplay
+            ? selectedLocationMetric === 'Gross Sales'
+              ? formatCompactCurrency(declinedPreviousRevenue)
+              : formatCompactNumber(declinedPreviousValue)
+            : selectedLocationMetricConfig.tooltipFormatter(previous),
+          changeValue: declinedDisplay
+            ? selectedLocationMetric === 'Gross Sales'
+              ? formatCompactCurrency(Math.abs(declinedPreviousRevenue - declinedCurrentRevenue))
+              : formatCompactNumber(Math.abs(declinedPreviousValue - declinedCurrentValue))
+            : selectedLocationMetricConfig.tooltipFormatter(Math.abs(changeValue)),
+          changePercent: declinedDisplay
+            ? `${declinedDisplay.displayPercent.toFixed(0)}%`
+            : `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
+          positive: declinedDisplay ? false : changeValue >= 0,
           supportMetricLabel,
           supportCurrent,
-          supportPrevious
+          supportPrevious,
+          currentPeriodLabel: locationComparisonLabels.currentPeriodLabel,
+          previousPeriodLabel: locationComparisonLabels.previousPeriodLabel
         };
       })()
     : null;
@@ -8794,11 +8975,6 @@ export default function App() {
                       value: `Show by: ${selectedLocationShowBy}`,
                       options: locationShowByOptions
                     },
-                    {
-                      key: 'performance',
-                      value: `Show ${selectedLocationShowBy === 'City' ? 'Cities' : 'Provinces'} by: ${selectedLocationPerformanceView}`,
-                      options: locationPerformanceViewOptions
-                    },
                     { key: 'metric', value: selectedLocationMetric, options: locationMetricOptions },
                     { key: 'date', value: selectedLocationDate, options: locationDateOptions }
                   ].map((menu) => (
@@ -8873,14 +9049,40 @@ export default function App() {
               </div>
 
               {showSalesCityChart ? (
+                <>
+                <div className="tu-mt-4 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1 tu-rounded-[8px] tu-border tu-border-[#e2e8df] tu-bg-[#fbfcfa] tu-p-0.5">
+                  {locationPerformanceViewOptions.map((view) => {
+                    const selected = selectedLocationPerformanceView === view;
+                    const label = view === 'Top' ? `Top by ${selectedLocationMetric}` : view;
+                    return (
+                      <button
+                        key={view}
+                        type="button"
+                        onClick={() => setSelectedLocationPerformanceView(view)}
+                        className={`tu-h-8 tu-w-full tu-rounded-[6px] tu-px-3 tu-text-center tu-text-[12px] tu-font-medium tu-transition-colors ${
+                          selected
+                            ? 'tu-bg-[#e9f8f0] tu-text-[#109257]'
+                            : 'tu-bg-transparent tu-text-[#707780] hover:tu-bg-white hover:tu-text-[#333538]'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div
-                  className="tu-relative tu-mt-6 tu-rounded-[14px] tu-border tu-border-[#e9eef1] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] tu-p-4 tu-shadow-[0_10px_26px_rgba(31,41,55,0.08)]"
+                  className="tu-relative tu-mt-3 tu-rounded-[14px] tu-border tu-border-[#e9eef1] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] tu-p-4 tu-shadow-[0_10px_26px_rgba(31,41,55,0.08)]"
                   onMouseLeave={() => setHoveredLocationPoint(null)}
                 >
                   <div className="tu-h-[420px]">
-                    <Bar data={locationChartData} options={locationChartOptions} plugins={[locationChartDecorPlugin]} />
+                    <Bar
+                      key={`${selectedLocationPerformanceView}-${selectedLocationMetric}-${selectedLocationShowBy}-${selectedLocationDate}`}
+                      data={locationChartData}
+                      options={locationChartOptions}
+                      plugins={[locationChartDecorPlugin]}
+                    />
                   </div>
-                  {hoveredLocationPoint && locationTooltipData ? (
+                  {!isLocationTopView && hoveredLocationPoint && locationTooltipData ? (
                     <div
                       className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
                       style={{
@@ -8902,6 +9104,9 @@ export default function App() {
                               <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#16bf6f]" />
                               Current Period
                             </span>
+                            <span className="tu-text-right tu-text-[10px] tu-leading-tight tu-text-[#6a7270]">
+                              {locationTooltipData.currentPeriodLabel}
+                            </span>
                           </div>
                           <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#22302a]">
                             {locationTooltipData.currentValue}
@@ -8918,6 +9123,9 @@ export default function App() {
                             <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
                               <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#bcc4ce]" />
                               Previous Period
+                            </span>
+                            <span className="tu-text-right tu-text-[10px] tu-leading-tight tu-text-[#6a7270]">
+                              {locationTooltipData.previousPeriodLabel}
                             </span>
                           </div>
                           <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#2e3338]">
@@ -8951,6 +9159,7 @@ export default function App() {
                     </div>
                   ) : null}
                 </div>
+                </>
               ) : null}
             </section>
 
