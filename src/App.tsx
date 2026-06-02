@@ -50,7 +50,7 @@ type ComparisonData = {
   currentPeriodLabel?: string;
   previousPeriodLabel?: string;
 };
-type ProductTableSortKey = 'product' | 'priorPeriod' | 'currentPeriod' | 'contribution' | 'grossProfit';
+type ProductTableColumnKey = 'product' | 'priorPeriod' | 'currentPeriod' | 'change' | 'contribution' | 'grossProfit';
 
 type PeriodCard = {
   key: PeriodKey;
@@ -1957,8 +1957,9 @@ const locationMetricConfig: Record<
 const productMetricOptions = ['Units Sold', 'Gross Sales'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const productPerformanceViewOptions = ['Top Performing', 'Under Performing'];
+const productTableViewOptions = ['Top Sellers', 'Most Improved', 'Most Declined'];
 const locationShowByOptions = ['City', 'Province'];
-const productTableDisplayOptions = ['20 Products', '30 Products', '50 Products', '100 Products'];
+const productTableDisplayOptions = ['5 Products', '10 Products', '20 Products', '30 Products'];
 const productTableLazyChunk = 20;
 
 const productKpiTooltips: Record<string, string | TooltipContent> = {
@@ -2080,7 +2081,7 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
   }
 };
 
-const productTableColumnTooltips: Record<ProductTableSortKey, string | TooltipContent> = {
+const productTableColumnTooltips: Record<ProductTableColumnKey, string | TooltipContent> = {
   product: {
     title: 'Products',
     blocks: [
@@ -2101,6 +2102,14 @@ const productTableColumnTooltips: Record<ProductTableSortKey, string | TooltipCo
       { type: 'text', text: 'Metric value from the active date range for each product.' },
       { type: 'spacer' },
       { type: 'formula', text: 'Current Period = Metric Value in Active Date Range' }
+    ]
+  },
+  change: {
+    title: 'Change',
+    blocks: [
+      { type: 'text', text: 'Difference between current and previous period values for each product.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Change = Current Period - Previous Period' }
     ]
   },
   contribution: {
@@ -3156,6 +3165,7 @@ export default function App() {
   const [selectedProductTableDisplayLimit, setSelectedProductTableDisplayLimit] = useState('20 Products');
   const [selectedProductTableMetric, setSelectedProductTableMetric] = useState('Gross Sales');
   const [selectedProductTableDate, setSelectedProductTableDate] = useState('Last 30 Days');
+  const [selectedProductTableView, setSelectedProductTableView] = useState(productTableViewOptions[0]);
   const [selectedProductTableRegion, setSelectedProductTableRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [openProductTableColumnMenu, setOpenProductTableColumnMenu] = useState(false);
   const [productTableVisibleColumns, setProductTableVisibleColumns] = useState({
@@ -3167,11 +3177,6 @@ export default function App() {
     metric: '',
     date: '',
     region: ''
-  });
-  const [productTableRegionProvince, setProductTableRegionProvince] = useState<string | null>(null);
-  const [productTableSort, setProductTableSort] = useState<{ key: ProductTableSortKey; direction: 'asc' | 'desc' }>({
-    key: 'currentPeriod',
-    direction: 'desc'
   });
   const [productTableVisibleCount, setProductTableVisibleCount] = useState(productTableLazyChunk);
   const productTableScrollRef = useRef<HTMLDivElement | null>(null);
@@ -3204,7 +3209,6 @@ export default function App() {
   const [hoveredLocationKpi, setHoveredLocationKpi] = useState<string | null>(null);
   const [hoveredLocationPoint, setHoveredLocationPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredProductKpi, setHoveredProductKpi] = useState<string | null>(null);
-  const [hoveredProductTableCurrentPeriodKey, setHoveredProductTableCurrentPeriodKey] = useState<string | null>(null);
   const [dashboardLastUpdatedAt] = useState(() => new Date());
   const [cardDates, setCardDates] = useState<
     Record<PeriodKey, { title: string; dateLabel: string; from: string; to: string }>
@@ -6050,9 +6054,13 @@ export default function App() {
   const productTableOptionalVisibleCount =
     (productTableVisibleColumns.contribution ? 1 : 0) + (productTableVisibleColumns.grossProfit ? 1 : 0);
   const productTableProductColWidthClass =
-    productTableOptionalVisibleCount === 2 ? 'tu-w-[29%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[31%]' : 'tu-w-[33%]';
+    productTableOptionalVisibleCount === 2 ? 'tu-w-[25%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[29%]' : 'tu-w-[34%]';
+  const productTablePeriodColWidthClass =
+    productTableOptionalVisibleCount === 2 ? 'tu-w-[15%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[16%]' : 'tu-w-[18%]';
   const productTableCurrentPeriodColWidthClass =
-    productTableOptionalVisibleCount === 2 ? 'tu-w-[21%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[23%]' : 'tu-w-[25%]';
+    productTableOptionalVisibleCount === 2 ? 'tu-w-[15%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[16%]' : 'tu-w-[18%]';
+  const productTableChangeColWidthClass =
+    productTableOptionalVisibleCount === 2 ? 'tu-w-[18%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[18%]' : 'tu-w-[24%]';
 
   const allProductTableRows = useMemo(() => {
     const dateScale = productDateScaleByRange[selectedProductTableDate] ?? productDateScaleByRange['Last 30 Days'];
@@ -6107,13 +6115,15 @@ export default function App() {
     }));
 
     const sortedRows = [...withContribution].sort((a, b) => {
-      const directionFactor = productTableSort.direction === 'asc' ? 1 : -1;
-      if (productTableSort.key === 'product') return a.product.localeCompare(b.product) * directionFactor;
-      if (productTableSort.key === 'priorPeriod') return (a.priorPeriodValue - b.priorPeriodValue) * directionFactor;
-      if (productTableSort.key === 'currentPeriod') return (a.currentPeriodValue - b.currentPeriodValue) * directionFactor;
-      if (productTableSort.key === 'contribution') return (a.contributionPercent - b.contributionPercent) * directionFactor;
-      if (productTableSort.key === 'grossProfit') return (a.grossProfitValue - b.grossProfitValue) * directionFactor;
-      return 0;
+      const changeA = a.currentPeriodValue - a.priorPeriodValue;
+      const changeB = b.currentPeriodValue - b.priorPeriodValue;
+      if (selectedProductTableView === 'Most Improved') {
+        return changeB - changeA;
+      }
+      if (selectedProductTableView === 'Most Declined') {
+        return changeA - changeB;
+      }
+      return b.currentPeriodValue - a.currentPeriodValue;
     });
 
     return sortedRows;
@@ -6121,8 +6131,7 @@ export default function App() {
     selectedProductTableDate,
     selectedProductTableMetric,
     selectedProductTableRegion,
-    productTableSort.direction,
-    productTableSort.key
+    selectedProductTableView
   ]);
 
   const productTableMaxRows = useMemo(
@@ -6150,32 +6159,6 @@ export default function App() {
     [dashboardLastUpdatedAt]
   );
 
-  const handleProductTableSort = (key: ProductTableSortKey) => {
-    setProductTableSort((current) => {
-      if (current.key === key) {
-        return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
-      }
-      return { key, direction: key === 'product' ? 'asc' : 'desc' };
-    });
-  };
-
-  useEffect(() => {
-    setProductTableSort({
-      key: 'currentPeriod',
-      direction: 'desc'
-    });
-  }, [selectedProductTableMetric]);
-
-  useEffect(() => {
-    if (productTableSort.key === 'contribution' && !productTableVisibleColumns.contribution) {
-      setProductTableSort({ key: 'currentPeriod', direction: 'desc' });
-      return;
-    }
-    if (productTableSort.key === 'grossProfit' && !productTableVisibleColumns.grossProfit) {
-      setProductTableSort({ key: 'currentPeriod', direction: 'desc' });
-    }
-  }, [productTableSort.key, productTableVisibleColumns.contribution, productTableVisibleColumns.grossProfit]);
-
   const handleProductTableScroll = (event: { currentTarget: HTMLDivElement }) => {
     setProductHeaderTooltip(null);
     if (!productTableHasMoreRows) return;
@@ -6197,8 +6180,7 @@ export default function App() {
     selectedProductTableMetric,
     selectedProductTableDate,
     selectedProductTableRegion,
-    productTableSort.key,
-    productTableSort.direction,
+    selectedProductTableView,
     productTableMaxRows
   ]);
 
@@ -9074,7 +9056,7 @@ export default function App() {
                           </button>
                           <InfoTooltip
                             text={productKpiTooltips[metric.label]}
-                            widthClass={metric.label.includes('Avg.') ? 'tu-w-[300px]' : 'tu-w-[190px]'}
+                            widthClass="tu-w-[320px]"
                           />
                         </div>
 
@@ -9132,7 +9114,7 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <SectionTitleWithReportLink title="Sales Performance by Products" />
 
-                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                <div className="tu-flex tu-flex-wrap tu-justify-end tu-gap-2.5 sm:tu-gap-3">
                   <div className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
                     <div className="tu-relative">
                       <button
@@ -9151,8 +9133,9 @@ export default function App() {
                         <div className="tu-absolute tu-right-0 tu-z-20 tu-mt-2 tu-w-[230px] tu-rounded-[12px] tu-border tu-border-[#dde4db] tu-bg-white tu-p-2 tu-shadow-[0_18px_35px_rgba(31,41,55,0.15)]">
                           {[
                             { key: 'product', label: 'Product', checked: true, disabled: true },
-                            { key: 'priorPeriod', label: 'Prior Period Sales', checked: true, disabled: true },
-                            { key: 'currentPeriod', label: 'Current Period Sales', checked: true, disabled: true },
+                            { key: 'priorPeriod', label: 'Previous Period', checked: true, disabled: true },
+                            { key: 'currentPeriod', label: 'Current Period', checked: true, disabled: true },
+                            { key: 'change', label: 'Change', checked: true, disabled: true },
                             {
                               key: 'contribution',
                               label: '% of Sales',
@@ -9199,13 +9182,8 @@ export default function App() {
                       value: `Show: ${selectedProductTableDisplayLimit.split(' ')[0]}`,
                       options: productTableDisplayOptions
                     },
-                    { key: 'metric', value: `Show by ${selectedProductTableMetric.toLowerCase()}`, options: productMetricOptions },
-                    { key: 'date', value: selectedProductTableDate, options: productDateOptions },
-                    {
-                      key: 'region',
-                      value: formatLocationFilterLabel(selectedProductTableRegion),
-                      options: []
-                    }
+                    { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productMetricOptions },
+                    { key: 'date', value: selectedProductTableDate, options: productDateOptions }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
                       <div className="tu-relative">
@@ -9221,7 +9199,6 @@ export default function App() {
                               [menu.key]: !current[menu.key as keyof typeof current]
                             }));
                             setProductTableMenuSearch((current) => ({ ...current, [menu.key]: '' }));
-                            if (menu.key === 'region') setProductTableRegionProvince(null);
                           }}
                           className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                         >
@@ -9230,39 +9207,25 @@ export default function App() {
                           <ChevronDown className="tu-h-3 tu-w-3" />
                         </button>
 
-                        {menu.key === 'region' ? (
-                          <HierarchicalLocationDropdown
-                            open={productTableMenus.region}
-                            selected={selectedProductTableRegion}
-                            onChange={setSelectedProductTableRegion}
-                            searchValue={productTableMenuSearch.region}
-                            onSearchChange={(value) =>
-                              setProductTableMenuSearch((current) => ({ ...current, region: value }))
-                            }
-                            activeProvince={productTableRegionProvince}
-                            onProvinceChange={setProductTableRegionProvince}
-                          />
-                        ) : (
-                          <SearchableDropdownMenu
-                            open={productTableMenus[menu.key as keyof typeof productTableMenus]}
-                            options={menu.options}
-                            selected={
-                              menu.key === 'show'
-                                ? selectedProductTableDisplayLimit
-                                : menu.key === 'metric'
-                                  ? selectedProductTableMetric
-                                  : selectedProductTableDate
-                            }
-                            searchable={false}
-                            widthClass={menu.key === 'show' ? 'tu-w-[170px]' : 'tu-w-[190px]'}
-                            onSelect={(item) => {
-                              if (menu.key === 'show') setSelectedProductTableDisplayLimit(item);
-                              if (menu.key === 'metric') setSelectedProductTableMetric(item);
-                              if (menu.key === 'date') setSelectedProductTableDate(item);
-                              setProductTableMenus({ show: false, metric: false, date: false, region: false });
-                            }}
-                          />
-                        )}
+                        <SearchableDropdownMenu
+                          open={productTableMenus[menu.key as keyof typeof productTableMenus]}
+                          options={menu.options}
+                          selected={
+                            menu.key === 'show'
+                              ? selectedProductTableDisplayLimit
+                              : menu.key === 'metric'
+                                ? selectedProductTableMetric
+                                : selectedProductTableDate
+                          }
+                          searchable={false}
+                          widthClass={menu.key === 'show' ? 'tu-w-[170px]' : 'tu-w-[190px]'}
+                          onSelect={(item) => {
+                            if (menu.key === 'show') setSelectedProductTableDisplayLimit(item);
+                            if (menu.key === 'metric') setSelectedProductTableMetric(item);
+                            if (menu.key === 'date') setSelectedProductTableDate(item);
+                            setProductTableMenus({ show: false, metric: false, date: false, region: false });
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -9290,7 +9253,7 @@ export default function App() {
                           </button>
                           <InfoTooltip
                             text={productKpiTooltips[metric.label]}
-                            widthClass={metric.label.includes('Avg.') ? 'tu-w-[300px]' : 'tu-w-[190px]'}
+                            widthClass="tu-w-[320px]"
                           />
                         </div>
 
@@ -9337,20 +9300,40 @@ export default function App() {
                 </div>
 
                 <div className="tu-min-w-0">
+                  <div className="tu-mb-3 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1 tu-rounded-[8px] tu-border tu-border-[#e2e8df] tu-bg-[#fbfcfa] tu-p-0.5">
+                    {productTableViewOptions.map((view) => {
+                      const selected = selectedProductTableView === view;
+                      return (
+                        <button
+                          key={view}
+                          type="button"
+                          onClick={() => setSelectedProductTableView(view)}
+                          className={`tu-h-8 tu-w-full tu-rounded-[6px] tu-px-3 tu-text-center tu-text-[12px] tu-font-medium tu-transition-colors ${
+                            selected
+                              ? 'tu-bg-[#e9f8f0] tu-text-[#109257]'
+                              : 'tu-bg-transparent tu-text-[#707780] hover:tu-bg-white hover:tu-text-[#333538]'
+                          }`}
+                        >
+                          {view}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <div
                     ref={productTableScrollRef}
                     onScroll={handleProductTableScroll}
                     className="tu-min-h-0 tu-flex-1 tu-overflow-y-auto tu-overflow-x-hidden tu-rounded-[10px] tu-border tu-border-[#eceee8] tu-bg-white"
-                    style={{ height: 'clamp(340px, 60vh, 453px)' }}
+                    style={{ height: '386px' }}
                   >
                     <table className="tu-w-full tu-table-fixed tu-border-separate tu-border-spacing-0">
                       <colgroup>
                         <col className={productTableProductColWidthClass} />
-                        <col className="tu-w-[18%]" />
+                        <col className={productTablePeriodColWidthClass} />
                         <col className={productTableCurrentPeriodColWidthClass} />
-                        {productTableVisibleColumns.contribution ? <col className="tu-w-[14%]" /> : null}
+                        <col className={productTableChangeColWidthClass} />
+                        {productTableVisibleColumns.contribution ? <col className="tu-w-[12%]" /> : null}
                         {productTableVisibleColumns.grossProfit ? (
-                          <col className={productTableVisibleColumns.contribution ? 'tu-w-[18%]' : 'tu-w-[20%]'} />
+                          <col className={productTableVisibleColumns.contribution ? 'tu-w-[14%]' : 'tu-w-[20%]'} />
                         ) : null}
                       </colgroup>
                       <thead>
@@ -9359,26 +9342,16 @@ export default function App() {
                             { key: 'product', label: 'Product' },
                             {
                               key: 'priorPeriod',
-                              label: selectedProductTableMetric === 'Gross Sales' ? 'Prior Period Sales' : 'Prior Period Units'
+                              label: 'Previous Period'
                             },
                             {
                               key: 'currentPeriod',
-                              label: selectedProductTableMetric === 'Gross Sales' ? 'Current Period Sales' : 'Current Period Units'
+                              label: 'Current Period'
                             },
+                            { key: 'change', label: 'Change' },
                             ...(productTableVisibleColumns.contribution ? [{ key: 'contribution', label: '% of Sales' }] : []),
                             ...(productTableVisibleColumns.grossProfit ? [{ key: 'grossProfit', label: 'Gross Profit' }] : [])
                           ].map((column) => {
-                            const isSorted = productTableSort.key === column.key;
-                            const directionIcon = isSorted ? (
-                              productTableSort.direction === 'asc' ? (
-                                <ChevronUp className="tu-h-3.5 tu-w-3.5" />
-                              ) : (
-                                <ChevronDown className="tu-h-3.5 tu-w-3.5" />
-                              )
-                            ) : (
-                              <ArrowUpDown className="tu-h-3.5 tu-w-3.5" />
-                            );
-
                             return (
                               <th
                                 key={column.key}
@@ -9394,23 +9367,16 @@ export default function App() {
                                     const left = Math.max(viewportPadding, Math.min(targetRect.left, maxLeft));
 
                                     setProductHeaderTooltip({
-                                      text: productTableColumnTooltips[column.key as ProductTableSortKey],
+                                      text: productTableColumnTooltips[column.key as ProductTableColumnKey],
                                       left,
                                       top: targetRect.top - 8
                                     });
                                   }}
                                   onMouseLeave={() => setProductHeaderTooltip(null)}
                                 >
-                                  <button
-                                    type="button"
-                                    onClick={() => handleProductTableSort(column.key as ProductTableSortKey)}
-                                    className={`tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[12px] tu-font-semibold ${
-                                      isSorted ? 'tu-text-[#2f3133]' : 'tu-text-[#6f747a]'
-                                    }`}
-                                  >
-                                    <span>{column.label}</span>
-                                    {directionIcon}
-                                  </button>
+                                  <span className="tu-inline-flex tu-items-center tu-text-[12px] tu-font-semibold tu-text-[#6f747a]">
+                                    {column.label}
+                                  </span>
                                 </div>
                               </th>
                             );
@@ -9422,19 +9388,10 @@ export default function App() {
                           const CurrentPeriodTrendIcon = row.currentPeriodTrendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
                           const currentPeriodTrendColor =
                             row.currentPeriodTrendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
-                          const currentPeriodComparison =
+                          const productTableChangeValue =
                             selectedProductTableMetric === 'Gross Sales'
-                              ? {
-                                  current: formatPKR(row.grossSales),
-                                  previous: formatPKR(row.previousGrossSales),
-                                  change: formatPKR(Math.abs(row.grossSales - row.previousGrossSales))
-                                }
-                              : {
-                                  current: formatCompactNumber(row.currentPeriodValue),
-                                  previous: formatCompactNumber(row.priorPeriodValue),
-                                  change: formatCompactNumber(Math.abs(row.currentPeriodValue - row.priorPeriodValue))
-                                };
-                          const rowHoverKey = `${row.sku}-${selectedProductTableMetric}`;
+                              ? formatPKR(Math.abs(row.currentPeriodValue - row.priorPeriodValue))
+                              : formatCompactNumber(Math.abs(row.currentPeriodValue - row.priorPeriodValue));
                           return (
                             <tr key={row.sku} className="hover:tu-bg-[#fbfcfa]">
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
@@ -9460,28 +9417,20 @@ export default function App() {
                                 </span>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                <div className="tu-relative tu-inline-flex tu-items-center tu-gap-2">
-                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                    {selectedProductTableMetric === 'Gross Sales'
-                                      ? formatPKR(row.currentPeriodValue)
-                                      : formatCompactNumber(row.currentPeriodValue)}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onMouseEnter={() => setHoveredProductTableCurrentPeriodKey(rowHoverKey)}
-                                    onMouseLeave={() => setHoveredProductTableCurrentPeriodKey(null)}
-                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${currentPeriodTrendColor}`}
-                                  >
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                  {selectedProductTableMetric === 'Gross Sales'
+                                    ? formatPKR(row.currentPeriodValue)
+                                    : formatCompactNumber(row.currentPeriodValue)}
+                                </span>
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{productTableChangeValue}</span>
+                                  <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#a8b0aa]" />
+                                  <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${currentPeriodTrendColor}`}>
                                     {row.currentPeriodTrendPercent.toFixed(1)}%
                                     <CurrentPeriodTrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                  </button>
-                                  {hoveredProductTableCurrentPeriodKey === rowHoverKey ? (
-                                    <ComparisonPopover
-                                      comparison={{ ...currentPeriodComparison, ...productTableComparisonLabels }}
-                                      trend={`${row.currentPeriodTrendPercent.toFixed(1)}%`}
-                                      direction={row.currentPeriodTrendDirection}
-                                    />
-                                  ) : null}
+                                  </span>
                                 </div>
                               </td>
                               {productTableVisibleColumns.contribution ? (
