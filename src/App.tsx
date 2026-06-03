@@ -354,7 +354,7 @@ const metricTooltips: Record<MetricKey | 'netProfitMargin', string | TooltipCont
     blocks: [
       { type: 'text', text: 'Direct costs tied to products sold during the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'COGS = Opening Inventory + Purchases - Closing Inventory' }
+      { type: 'formula', text: 'COGS = ∑ (Unit Price of the Product + Landed Cost)' }
     ]
   },
   expenses: {
@@ -362,7 +362,6 @@ const metricTooltips: Record<MetricKey | 'netProfitMargin', string | TooltipCont
     blocks: [
       { type: 'text', text: 'Operating expenses allocated to the selected date range.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Expenses = Sum of Operating Costs in Period' }
     ]
   },
   netProfit: {
@@ -371,8 +370,6 @@ const metricTooltips: Record<MetricKey | 'netProfitMargin', string | TooltipCont
       { type: 'text', text: 'Profit remaining after shipped-order gross sales, direct costs, and operating expenses.' },
       { type: 'spacer' },
       { type: 'formula', text: 'Net Profit = Gross Profit - Expenses' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Gross Profit = Gross Sales (Shipped Orders) - COGS' }
     ]
   },
   netProfitMargin: {
@@ -537,49 +534,37 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   'Total Orders': {
     title: 'Total Orders',
     blocks: [
-      { type: 'text', text: 'Total number of orders successfully booked in the selected period.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Total Orders = Count of Orders with Booked Status' }
+      { type: 'text', text: 'Total number of orders successfully created in the selected period.' }
     ]
   },
   'Pending': {
     title: 'Pending',
     blocks: [
-      { type: 'text', text: 'Orders waiting for processing before they move to fulfillment.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Pending Orders = Count of Orders in Pending Status' }
+      { type: 'text', text: 'Orders waiting for processing before they move to fulfillment.' }
     ]
   },
   'Ready to Ship': {
     title: 'Ready to Ship',
     blocks: [
-      { type: 'text', text: 'Orders prepared and packed, waiting for courier handover.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Ready to Ship = Count of Orders in Ready-to-Ship Status' }
+      { type: 'text', text: 'Orders prepared and packed, waiting for courier handover.' }
     ]
   },
   'Shipped': {
     title: 'Shipped',
     blocks: [
-      { type: 'text', text: 'Orders successfully handed over to courier partners.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Shipped = Count of Orders with Courier-Shipped Status' }
+      { type: 'text', text: 'Orders successfully handed over to courier partners.' }
     ]
   },
   Delivered: {
     title: 'Delivered',
     blocks: [
-      { type: 'text', text: 'Orders completed and delivered to customers.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Delivered = Count of Orders with Delivered Status' }
+      { type: 'text', text: 'Orders completed and delivered to customers.' }
     ]
   },
   'Delivery Failed': {
     title: 'Delivery Failed',
     blocks: [
       { type: 'text', text: 'Total number of shipment attempts that failed delivery in the selected period.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Delivery Failed = Count of Orders with Failed Delivery Status' }
     ]
   },
   'Return Initiated': {
@@ -609,26 +594,20 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   Voided: {
     title: 'Voided',
     blocks: [
-      { type: 'text', text: 'Orders canceled or voided before final fulfillment.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Voided = Count of Orders with Voided Status' }
+      { type: 'text', text: 'Orders canceled or voided before final fulfillment.' }
     ]
   },
   'Net Sales': metricTooltips.netSales,
   "Today's Sales": {
     title: "Today's Sales",
     blocks: [
-      { type: 'text', text: "Gross sales generated today in the selected period context." },
-      { type: 'spacer' },
-      { type: 'formula', text: "Today's Sales = Sum of Today's Gross Sales" }
+      { type: 'text', text: "Gross sales generated today in the selected period context." }
     ]
   },
   'Gross Sales': {
     title: 'Gross Sales',
     blocks: [
-      { type: 'text', text: 'Total sales before taxes, discounts, and returns in the selected period.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Gross Sales = Sum of Sales Before Deductions' }
+      { type: 'text', text: 'Total sales before taxes, discounts, and returns in the selected period.' }
     ]
   },
   'Gross Profit': {
