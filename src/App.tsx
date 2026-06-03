@@ -5899,7 +5899,6 @@ export default function App() {
 
   const topLocationChartData = useMemo(() => {
     const currentKey = selectedLocationMetricConfig.currentKey;
-    const previousKey = selectedLocationMetricConfig.previousKey;
     const isProvinceView = selectedLocationShowBy === 'Province';
     const locationBarThickness = isProvinceView ? 58 : 54;
     return {
@@ -5914,9 +5913,7 @@ export default function App() {
               : Math.round(item[currentKey]).toLocaleString('en-US')
           ),
           badgeTone: topLocationChartRows.map(() => 'positive'),
-          backgroundColor: topLocationChartRows.map((item) =>
-            item[currentKey] >= item[previousKey] ? '#10c562' : '#D5DAE0'
-          ),
+          backgroundColor: '#10c562',
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: locationBarThickness
