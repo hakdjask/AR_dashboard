@@ -42,7 +42,14 @@ type PeriodKey = 'today' | 'yesterday' | 'last7' | 'last30' | 'last90' | 'last36
 type TabKey = 'courier' | 'sales' | 'inventory';
 type MetricKey = 'netSales' | 'cogs' | 'expenses' | 'netProfit';
 type StoreChartMetricKey = 'grossRevenue' | 'orderReturns' | 'unitsSold' | 'totalOrders';
-type CustomerLtvSortKey = 'name' | 'newCustomers' | 'oldCustomers' | 'avgLtv' | 'retentionPercent' | 'repeatPurchasePercent';
+type CustomerLtvSortKey =
+  | 'name'
+  | 'totalCustomers'
+  | 'newCustomers'
+  | 'oldCustomers'
+  | 'avgLtv'
+  | 'retentionPercent'
+  | 'repeatPurchasePercent';
 type ComparisonData = {
   current: string;
   previous: string;
@@ -51,6 +58,33 @@ type ComparisonData = {
   previousPeriodLabel?: string;
 };
 type ProductTableColumnKey = 'product' | 'priorPeriod' | 'currentPeriod' | 'change' | 'contribution' | 'grossProfit';
+
+const customerLtvColumnTooltips: Partial<Record<CustomerLtvSortKey, TooltipContent>> = {
+  avgLtv: {
+    blocks: [
+      { type: 'text', text: 'Average customer lifetime value for each store in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Lifetime Value = Average Order Value x Purchase Frequency x Customer Lifespan' }
+    ]
+  },
+  retentionPercent: {
+    blocks: [
+      { type: 'text', text: 'Share of customers who continued buying from the store after their first purchase.' },
+      { type: 'spacer' },
+      {
+        type: 'formula',
+        text: 'Retention % = ((Customers at End of Period - New Customers) / Customers at Start of Period) x 100'
+      }
+    ]
+  },
+  repeatPurchasePercent: {
+    blocks: [
+      { type: 'text', text: 'Percentage of customers who placed more than one order in the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Repeat Purchase % = (Customers with 1+ Orders / Total Customers) x 100' }
+    ]
+  }
+};
 
 type PeriodCard = {
   key: PeriodKey;
@@ -97,6 +131,7 @@ const salesOverviewBreakdownValues: Record<
     grossProfitMargin: string;
     expenses: string;
     netProfit: string;
+    netProfitMargin: string;
   }
 > = {
   today: {
@@ -109,7 +144,8 @@ const salesOverviewBreakdownValues: Record<
     grossProfit: 'PKR 146,912',
     grossProfitMargin: '65.7%',
     expenses: 'PKR 23,456',
-    netProfit: 'PKR 123,456'
+    netProfit: 'PKR 123,456',
+    netProfitMargin: '55.2%'
   },
   yesterday: {
     grossSales: 'PKR 286,000',
@@ -121,7 +157,8 @@ const salesOverviewBreakdownValues: Record<
     grossProfit: 'PKR 129,780',
     grossProfitMargin: '60.9%',
     expenses: 'PKR 22,128',
-    netProfit: 'PKR 107,652'
+    netProfit: 'PKR 107,652',
+    netProfitMargin: '50.5%'
   },
   last7: {
     grossSales: 'PKR 1,965,000',
@@ -133,7 +170,8 @@ const salesOverviewBreakdownValues: Record<
     grossProfit: 'PKR 1,012,320',
     grossProfitMargin: '65.7%',
     expenses: 'PKR 164,880',
-    netProfit: 'PKR 847,440'
+    netProfit: 'PKR 847,440',
+    netProfitMargin: '55.0%'
   },
   last30: {
     grossSales: 'PKR 8,420,000',
@@ -145,7 +183,8 @@ const salesOverviewBreakdownValues: Record<
     grossProfit: 'PKR 4,296,680',
     grossProfitMargin: '66.0%',
     expenses: 'PKR 698,540',
-    netProfit: 'PKR 3,598,140'
+    netProfit: 'PKR 3,598,140',
+    netProfitMargin: '55.3%'
   },
   last90: {
     grossSales: 'PKR 25,260,000',
@@ -157,7 +196,8 @@ const salesOverviewBreakdownValues: Record<
     grossProfit: 'PKR 12,890,040',
     grossProfitMargin: '66.0%',
     expenses: 'PKR 2,095,620',
-    netProfit: 'PKR 10,794,420'
+    netProfit: 'PKR 10,794,420',
+    netProfitMargin: '55.3%'
   },
   last365: {
     grossSales: 'PKR 102,724,000',
@@ -169,7 +209,8 @@ const salesOverviewBreakdownValues: Record<
     grossProfit: 'PKR 52,419,496',
     grossProfitMargin: '66.0%',
     expenses: 'PKR 8,522,188',
-    netProfit: 'PKR 43,897,308'
+    netProfit: 'PKR 43,897,308',
+    netProfitMargin: '55.3%'
   }
 };
 
@@ -299,7 +340,7 @@ const getMetricPopoverContent = (periodKey: PeriodKey, metricKey: MetricKey): Me
   ];
 };
 
-const metricTooltips: Record<MetricKey, string | TooltipContent> = {
+const metricTooltips: Record<MetricKey | 'netProfitMargin', string | TooltipContent> = {
   netSales: {
     title: 'Net Sales',
     blocks: [
@@ -332,6 +373,14 @@ const metricTooltips: Record<MetricKey, string | TooltipContent> = {
       { type: 'formula', text: 'Net Profit = Gross Profit - Expenses' },
       { type: 'spacer' },
       { type: 'formula', text: 'Gross Profit = Gross Sales (Shipped Orders) - COGS' }
+    ]
+  },
+  netProfitMargin: {
+    title: 'Net Profit Margin',
+    blocks: [
+      { type: 'text', text: 'Net profit expressed as a percentage of net sales for the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Net Profit Margin (%) = (Net Profit / Net Sales) x 100' }
     ]
   }
 };
@@ -609,12 +658,11 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   COGS: metricTooltips.cogs,
   Expenses: metricTooltips.expenses,
   'Net Profit': metricTooltips.netProfit,
+  'Net Profit Margin': metricTooltips.netProfitMargin,
   'Total Customers': {
     title: 'Total Customers',
     blocks: [
-      { type: 'text', text: 'Total unique customers active in the selected period.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Total Customers = Count of Unique Customers in Period' }
+      { type: 'text', text: 'Total unique customers active in the selected period.' }
     ]
   },
   'New Customers': glanceKpiTooltips['New Customers'],
@@ -624,17 +672,13 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   'New Customers Revenue': {
     title: 'New Customers Revenue',
     blocks: [
-      { type: 'text', text: 'Revenue generated by first-time customers in the selected period.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'New Customers Revenue = Sum of Orders from New Customers' }
+      { type: 'text', text: 'Revenue generated by first-time customers in the selected period.' }
     ]
   },
   'Returning Customers Revenue': {
     title: 'Returning Customers Revenue',
     blocks: [
-      { type: 'text', text: 'Revenue generated by repeat customers in the selected period.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Returning Customers Revenue = Sum of Orders from Returning Customers' }
+      { type: 'text', text: 'Revenue generated by repeat customers in the selected period.' }
     ]
   },
   'AOV New Customers': {
@@ -938,6 +982,21 @@ const sectionSixMetricSectionsBase: { title: 'Orders' | 'Sales' | 'Customers'; m
           current: 'PKR 123,456',
           previous: 'PKR 112,880',
           change: 'PKR 10,576',
+          currentPeriodLabel: 'Current Period',
+          previousPeriodLabel: 'Previous Period'
+        }
+      },
+      {
+        label: 'Net Profit Margin',
+        value: '55.2%',
+        sublabel: 'Since Yesterday',
+        trend: '1.4%',
+        direction: 'up',
+        showStoreSelect: false,
+        comparison: {
+          current: '55.2%',
+          previous: '54.4%',
+          change: '0.8%',
           currentPeriodLabel: 'Current Period',
           previousPeriodLabel: 'Previous Period'
         }
@@ -2399,6 +2458,22 @@ const storeSeries = [
   })
 ];
 
+const sumStoreSeriesPeriod = (values: number[], dayCount: number, offsetDays = 0) => {
+  if (values.length === 0) return 0;
+
+  let total = 0;
+  for (let dayIndex = 0; dayIndex < dayCount; dayIndex += 1) {
+    const daysBack = offsetDays + dayIndex;
+    const sourceIndex = values.length - 1 - (daysBack % values.length);
+    const cycle = Math.floor(daysBack / values.length);
+    const seasonality = 0.94 + deterministicNoise((sourceIndex + 1) * (cycle + 3)) * 0.12;
+    const historicalDrift = Math.max(0.72, 1 - daysBack * 0.00045);
+    total += values[sourceIndex] * seasonality * historicalDrift;
+  }
+
+  return Math.round(total);
+};
+
 const baseDayBreakdown = [
   {
     date: 'May 12, 2023',
@@ -3197,14 +3272,13 @@ export default function App() {
     key: 'name',
     direction: 'asc'
   });
-  const [selectedCustomerOverviewRegion, setSelectedCustomerOverviewRegion] = useState<string[]>([...pakistanProvinceOptions]);
+  const [selectedCustomerOverviewRegion] = useState<string[]>([...pakistanProvinceOptions]);
   const [selectedCustomerOverviewStores, setSelectedCustomerOverviewStores] = useState<string[]>([...salesStoreOptions]);
   const [customerOverviewMenuSearch, setCustomerOverviewMenuSearch] = useState({
     date: '',
     location: '',
     store: ''
   });
-  const [customerOverviewRegionProvince, setCustomerOverviewRegionProvince] = useState<string | null>(null);
   const [locationMenus, setLocationMenus] = useState<{
     showBy: boolean;
     performance: boolean;
@@ -3279,6 +3353,11 @@ export default function App() {
   const showSalesProductsChart = true;
   const [productHeaderTooltip, setProductHeaderTooltip] = useState<{
     text: string | TooltipContent;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [customerLtvHeaderTooltip, setCustomerLtvHeaderTooltip] = useState<{
+    text: TooltipContent;
     left: number;
     top: number;
   } | null>(null);
@@ -3435,12 +3514,7 @@ export default function App() {
       };
     }
 
-    const rawDays = getComparisonPeriodDayCount(selectedCustomerOverviewDate);
-    const windowSize = Math.max(1, Math.min(15, rawDays));
-    const seriesLength = selectedSeries[0].totalOrders.length;
-    const currentStart = Math.max(0, seriesLength - windowSize);
-    const previousStart = Math.max(0, currentStart - windowSize);
-    const previousEnd = currentStart;
+    const windowSize = getComparisonPeriodDayCount(selectedCustomerOverviewDate);
 
     let ordersCurrent = 0;
     let ordersPrevious = 0;
@@ -3448,10 +3522,10 @@ export default function App() {
     let revenuePrevious = 0;
 
     selectedSeries.forEach((series) => {
-      ordersCurrent += series.totalOrders.slice(currentStart).reduce((sum, value) => sum + value, 0);
-      revenueCurrent += series.grossRevenue.slice(currentStart).reduce((sum, value) => sum + value, 0);
-      ordersPrevious += series.totalOrders.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
-      revenuePrevious += series.grossRevenue.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
+      ordersCurrent += sumStoreSeriesPeriod(series.totalOrders, windowSize);
+      revenueCurrent += sumStoreSeriesPeriod(series.grossRevenue, windowSize);
+      ordersPrevious += sumStoreSeriesPeriod(series.totalOrders, windowSize, windowSize);
+      revenuePrevious += sumStoreSeriesPeriod(series.grossRevenue, windowSize, windowSize);
     });
 
     const impliedCustomersCurrent = Math.max(1, Math.round(ordersCurrent * 0.78));
@@ -3534,10 +3608,10 @@ export default function App() {
     }).filter(Boolean) as GlanceMetricCard[];
 
     const perStoreRows = selectedSeries.map((series) => {
-      const storeOrdersCurrent = series.totalOrders.slice(currentStart).reduce((sum, value) => sum + value, 0);
-      const storeRevenueCurrent = series.grossRevenue.slice(currentStart).reduce((sum, value) => sum + value, 0);
-      const storeOrdersPrevious = series.totalOrders.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
-      const storeRevenuePrevious = series.grossRevenue.slice(previousStart, previousEnd).reduce((sum, value) => sum + value, 0);
+      const storeOrdersCurrent = sumStoreSeriesPeriod(series.totalOrders, windowSize);
+      const storeRevenueCurrent = sumStoreSeriesPeriod(series.grossRevenue, windowSize);
+      const storeOrdersPrevious = sumStoreSeriesPeriod(series.totalOrders, windowSize, windowSize);
+      const storeRevenuePrevious = sumStoreSeriesPeriod(series.grossRevenue, windowSize, windowSize);
       const storeCustomersCurrent = Math.max(1, Math.round(storeOrdersCurrent * 0.78));
       const storeCustomersPrevious = Math.max(1, Math.round(storeOrdersPrevious * 0.78));
       const storeNewCustomers = Math.max(1, Math.round(storeCustomersCurrent * 0.16));
@@ -3554,6 +3628,7 @@ export default function App() {
       return {
         name: series.name,
         logo: `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`,
+        totalCustomers: storeCustomersCurrent,
         newCustomers: storeNewCustomers,
         oldCustomers: storeOldCustomers,
         avgLtv: storeLtv,
@@ -3569,13 +3644,16 @@ export default function App() {
       const derivedName = index < perStoreRows.length ? source.name : `${source.name.split('-')[0]}-${suffix}`;
       const logoText = derivedName.slice(0, 2).toUpperCase();
       const logoSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='36' height='36'><rect width='36' height='36' rx='10' fill='#eef3ec'/><text x='18' y='22' text-anchor='middle' font-family='Arial' font-size='12' fill='#5f656c'>${logoText}</text></svg>`;
+      const newCustomers = Math.max(1, Math.round(source.newCustomers * variation));
+      const oldCustomers = Math.max(1, Math.round(source.oldCustomers * (variation + 0.05)));
 
       return {
         ...source,
         name: derivedName,
         logo: `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`,
-        newCustomers: Math.max(1, Math.round(source.newCustomers * variation)),
-        oldCustomers: Math.max(1, Math.round(source.oldCustomers * (variation + 0.05))),
+        totalCustomers: newCustomers + oldCustomers,
+        newCustomers,
+        oldCustomers,
         avgLtv: Math.max(1, source.avgLtv * (0.95 + ((index * 5) % 8) * 0.02)),
         retentionPercent: Math.max(0, Math.min(100, source.retentionPercent * (0.97 + ((index * 3) % 6) * 0.01))),
         repeatPurchasePercent: Math.max(0, Math.min(100, source.repeatPurchasePercent * (0.96 + ((index * 2) % 5) * 0.01)))
@@ -8488,12 +8566,7 @@ export default function App() {
                       value: customerOverviewStoreSummaryLabel,
                       options: salesStoreOptions
                     },
-                    { key: 'date', value: selectedCustomerOverviewDate, options: glanceDateOptions },
-                    {
-                      key: 'location',
-                      value: formatLocationFilterLabel(selectedCustomerOverviewRegion),
-                      options: []
-                    }
+                    { key: 'date', value: selectedCustomerOverviewDate, options: glanceDateOptions }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
                       <button
@@ -8506,7 +8579,6 @@ export default function App() {
                             [menu.key]: !current[menu.key as keyof typeof current]
                           }));
                           setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: '' }));
-                          if (menu.key === 'location') setCustomerOverviewRegionProvince(null);
                         }}
                         className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                       >
@@ -8514,50 +8586,36 @@ export default function App() {
                         <ChevronDown className="tu-h-3 tu-w-3" />
                       </button>
 
-                      {menu.key === 'location' ? (
-                        <HierarchicalLocationDropdown
-                          open={customerOverviewMenus.location}
-                          selected={selectedCustomerOverviewRegion}
-                          onChange={setSelectedCustomerOverviewRegion}
-                          searchValue={customerOverviewMenuSearch.location}
-                          onSearchChange={(value) =>
-                            setCustomerOverviewMenuSearch((current) => ({ ...current, location: value }))
+                      <SearchableDropdownMenu
+                        open={customerOverviewMenus[menu.key as keyof typeof customerOverviewMenus]}
+                        options={menu.options}
+                        selected={menu.key === 'store' ? selectedCustomerOverviewStores : selectedCustomerOverviewDate}
+                        multiSelect={menu.key === 'store'}
+                        onToggleAll={
+                          menu.key === 'store'
+                            ? (values) => setSelectedCustomerOverviewStores((current) => setMultiSelectGroup(current, values))
+                            : undefined
+                        }
+                        searchable={menu.key !== 'date'}
+                        searchValue={customerOverviewMenuSearch[menu.key as keyof typeof customerOverviewMenuSearch]}
+                        onSearchChange={
+                          menu.key !== 'date'
+                            ? (value) => setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                            : undefined
+                        }
+                        widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                        showChevronForCustom={menu.key === 'date'}
+                        onSelect={(item) => {
+                          if (menu.key === 'date') {
+                            setSelectedCustomerOverviewDate(item);
+                            setCustomerOverviewMenus({ date: false, location: false, store: false });
+                            return;
                           }
-                          activeProvince={customerOverviewRegionProvince}
-                          onProvinceChange={setCustomerOverviewRegionProvince}
-                        />
-                      ) : (
-                        <SearchableDropdownMenu
-                          open={customerOverviewMenus[menu.key as keyof typeof customerOverviewMenus]}
-                          options={menu.options}
-                          selected={menu.key === 'store' ? selectedCustomerOverviewStores : selectedCustomerOverviewDate}
-                          multiSelect={menu.key === 'store'}
-                          onToggleAll={
-                            menu.key === 'store'
-                              ? (values) => setSelectedCustomerOverviewStores((current) => setMultiSelectGroup(current, values))
-                              : undefined
+                          if (menu.key === 'store') {
+                            setSelectedCustomerOverviewStores((current) => toggleMultiSelectValue(current, item));
                           }
-                          searchable={menu.key !== 'date'}
-                          searchValue={customerOverviewMenuSearch[menu.key as keyof typeof customerOverviewMenuSearch]}
-                          onSearchChange={
-                            menu.key !== 'date'
-                              ? (value) => setCustomerOverviewMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                              : undefined
-                          }
-                          widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
-                          showChevronForCustom={menu.key === 'date'}
-                          onSelect={(item) => {
-                            if (menu.key === 'date') {
-                              setSelectedCustomerOverviewDate(item);
-                              setCustomerOverviewMenus({ date: false, location: false, store: false });
-                              return;
-                            }
-                            if (menu.key === 'store') {
-                              setSelectedCustomerOverviewStores((current) => toggleMultiSelectValue(current, item));
-                            }
-                          }}
-                        />
-                      )}
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -8575,8 +8633,8 @@ export default function App() {
                             8,
                             Math.min(
                               92,
-                              (customerRevenueSplit.newRevenue /
-                                Math.max(1, customerRevenueSplit.newRevenue + customerRevenueSplit.returningRevenue)) *
+                              (customerRevenueSplit.newCustomers /
+                                Math.max(1, customerRevenueSplit.newCustomers + customerRevenueSplit.returningCustomers)) *
                                 100
                             )
                           )}%`
@@ -8683,54 +8741,84 @@ export default function App() {
                   <div className="tu-border-b tu-border-[#e8ede6] tu-bg-[#fafcf9] tu-px-4 tu-py-3">
                     <h3 className="tu-text-[14px] tu-font-semibold tu-text-[#2a2c2f]">Per Store LTV and Retention</h3>
                   </div>
-                  <div className="tu-overflow-x-auto tu-overflow-y-auto tu-max-h-[320px]">
-                    <table className="tu-min-w-full tu-border-collapse">
+                  <div className="tu-max-h-[320px] tu-overflow-y-auto tu-overflow-x-hidden">
+                    <table className="tu-w-full tu-table-fixed tu-border-collapse">
+                      <colgroup>
+                        <col className="tu-w-[21%]" />
+                        <col className="tu-w-[12%]" />
+                        <col className="tu-w-[12%]" />
+                        <col className="tu-w-[12%]" />
+                        <col className="tu-w-[13%]" />
+                        <col className="tu-w-[18%]" />
+                        <col className="tu-w-[12%]" />
+                      </colgroup>
                       <thead className="tu-sticky tu-top-0 tu-z-10">
                         <tr className="tu-border-b tu-border-[#edf1ea] tu-bg-white">
                           {[
                             { label: 'Store Name', key: 'name' as CustomerLtvSortKey },
+                            { label: 'Total Customers', key: 'totalCustomers' as CustomerLtvSortKey },
                             { label: 'New Customers', key: 'newCustomers' as CustomerLtvSortKey },
                             { label: 'Old Customers', key: 'oldCustomers' as CustomerLtvSortKey },
                             { label: 'Lifetime Value', key: 'avgLtv' as CustomerLtvSortKey },
                             { label: 'Retention Percentages', key: 'retentionPercent' as CustomerLtvSortKey },
                             { label: 'Repeat Purchase', key: 'repeatPurchasePercent' as CustomerLtvSortKey }
-                          ].map((column) => (
-                            <th
-                              key={column.label}
-                              className="tu-whitespace-nowrap tu-px-4 tu-py-3 tu-text-left tu-text-[12px] tu-font-semibold tu-uppercase tu-tracking-[0.04em] tu-text-[#8f9197]"
-                            >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setCustomerLtvSort((current) => ({
-                                    key: column.key,
-                                    direction: current.key === column.key && current.direction === 'asc' ? 'desc' : 'asc'
-                                  }))
-                                }
-                                className="tu-inline-flex tu-items-center tu-gap-1.5 hover:tu-text-[#5f656c]"
+                          ].map((column) => {
+                            const tooltip = customerLtvColumnTooltips[column.key];
+
+                            return (
+                              <th
+                                key={column.label}
+                                className="tu-px-2.5 tu-py-3 tu-text-left tu-text-[11px] tu-font-semibold tu-uppercase tu-leading-4 tu-tracking-[0.03em] tu-text-[#8f9197]"
                               >
-                                <span>{column.label}</span>
-                                <ArrowUpDown className="tu-h-3.5 tu-w-3.5" />
-                              </button>
-                            </th>
-                          ))}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setCustomerLtvSort((current) => ({
+                                      key: column.key,
+                                      direction: current.key === column.key && current.direction === 'asc' ? 'desc' : 'asc'
+                                    }))
+                                  }
+                                  onMouseEnter={(event) => {
+                                    if (!tooltip) return;
+                                    const tooltipWidth = 360;
+                                    const viewportPadding = 12;
+                                    const targetRect = event.currentTarget.getBoundingClientRect();
+                                    const maxLeft = window.innerWidth - tooltipWidth - viewportPadding;
+                                    const left = Math.max(viewportPadding, Math.min(targetRect.left, maxLeft));
+
+                                    setCustomerLtvHeaderTooltip({
+                                      text: tooltip,
+                                      left,
+                                      top: targetRect.top - 8
+                                    });
+                                  }}
+                                  onMouseLeave={() => setCustomerLtvHeaderTooltip(null)}
+                                  className="tu-inline-flex tu-min-w-0 tu-max-w-full tu-items-center tu-gap-1 tu-text-left hover:tu-text-[#5f656c]"
+                                >
+                                  <span className="tu-min-w-0 tu-whitespace-normal">{column.label}</span>
+                                  <ArrowUpDown className="tu-h-3 tu-w-3 tu-shrink-0" />
+                                </button>
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
                       <tbody>
                         {customerOverviewTableRows.map((row) => (
                           <tr key={row.name} className="tu-border-b tu-border-[#f1f4ef] last:tu-border-b-0">
-                            <td className="tu-px-4 tu-py-3">
+                            <td className="tu-px-2.5 tu-py-3">
                               <div className="tu-flex tu-items-center tu-gap-2.5">
                                 <img src={row.logo} alt={`${row.name} placeholder logo`} className="tu-h-8 tu-w-8 tu-rounded-[8px] tu-border tu-border-[#e3e8e1]" />
-                                <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">{row.name}</span>
+                                <span className="tu-min-w-0 tu-truncate tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">{row.name}</span>
                               </div>
                             </td>
-                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.newCustomers)}</td>
-                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.oldCustomers)}</td>
-                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`PKR ${Math.round(row.avgLtv).toLocaleString()}`}</td>
-                            <td className="tu-px-4 tu-py-3">
-                              <div className="tu-flex tu-items-center tu-gap-2.5">
-                                <div className="tu-h-2 tu-w-[88px] tu-overflow-hidden tu-rounded-full tu-bg-[#e7ece6]">
+                            <td className="tu-px-2.5 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.totalCustomers)}</td>
+                            <td className="tu-px-2.5 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.newCustomers)}</td>
+                            <td className="tu-px-2.5 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.oldCustomers)}</td>
+                            <td className="tu-px-2.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`PKR ${Math.round(row.avgLtv).toLocaleString()}`}</td>
+                            <td className="tu-px-2.5 tu-py-3">
+                              <div className="tu-flex tu-items-center tu-gap-2">
+                                <div className="tu-h-2 tu-w-[72px] tu-overflow-hidden tu-rounded-full tu-bg-[#e7ece6]">
                                   <div
                                     className="tu-h-full tu-rounded-full tu-bg-[#31c56f]"
                                     style={{ width: `${Math.max(6, Math.min(100, row.retentionPercent))}%` }}
@@ -8739,7 +8827,7 @@ export default function App() {
                                 <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.retentionPercent.toFixed(1)}%`}</span>
                               </div>
                             </td>
-                            <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.repeatPurchasePercent.toFixed(1)}%`}</td>
+                            <td className="tu-px-2.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.repeatPurchasePercent.toFixed(1)}%`}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -9844,16 +9932,29 @@ export default function App() {
                           'Gross Profit': 'cogs',
                           'Gross Profit Margin': 'cogs',
                           Expenses: 'expenses',
-                          'Net Profit': 'netProfit'
+                          'Net Profit': 'netProfit',
+                          'Net Profit Margin': 'netProfit'
                         };
                         const mappedMetricKey = sectionSixMetricKeyMap[metric.label];
                         const isSalesMetricWithoutValueHover =
-                          metricSection.title === 'Sales' && metric.label === 'Gross Profit Margin';
+                          metricSection.title === 'Sales' &&
+                          (metric.label === 'Gross Profit Margin' || metric.label === 'Net Profit Margin');
                         const showShippedOrdersInfoTooltip =
                           metricSection.title === 'Sales' &&
-                          ['COGS', 'Gross Sales (Shipped Orders)', 'Gross Profit', 'Gross Profit Margin', 'Net Profit'].includes(
+                          [
+                            'COGS',
+                            'Gross Sales (Shipped Orders)',
+                            'Gross Profit',
+                            'Gross Profit Margin',
+                            'Net Profit',
+                            'Net Profit Margin'
+                          ].includes(
                             metric.label
                           );
+                        const shippedOrdersInfoTooltipText =
+                          metric.label === 'Net Profit Margin'
+                            ? sectionSixKpiTooltips['Net Profit Margin']
+                            : 'Gross profit, gross profit margin, and net profit metrics in this section are calculated based on shipped orders only.';
                         const breakdownRows =
                           metricSection.title === 'Sales' &&
                           mappedMetricKey &&
@@ -10000,14 +10101,14 @@ export default function App() {
                                 <div className="tu-group/tooltip tu-relative tu-inline-flex tu-shrink-0">
                                   <button
                                     type="button"
-                                    aria-label="COGS tooltip"
+                                    aria-label={`${metric.label} tooltip`}
                                     className="tu-inline-flex tu-h-[18px] tu-w-[18px] tu-shrink-0 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#939393] tu-bg-[#939393] tu-text-[10px] tu-font-medium tu-leading-none tu-text-white"
                                   >
                                     <span className="tu-leading-none">?</span>
                                   </button>
                                   <InfoTooltip
-                                    text="Gross profit, gross profit margin, and net profit metrics in this section are calculated based on shipped orders only."
-                                    widthClass="tu-w-[340px]"
+                                    text={shippedOrdersInfoTooltipText}
+                                    widthClass={metric.label === 'Net Profit Margin' ? 'tu-w-[320px]' : 'tu-w-[340px]'}
                                   />
                                 </div>
                               ) : null}
@@ -10063,6 +10164,14 @@ export default function App() {
             ) : (
               <TooltipRichContent text={productHeaderTooltip.text} />
             )}
+          </div>
+        ) : null}
+        {customerLtvHeaderTooltip ? (
+          <div
+            className="tu-pointer-events-none tu-fixed tu-z-[140] tu-w-[360px] tu-whitespace-normal tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-font-normal tu-leading-4 tu-text-white tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] -tu-translate-y-full"
+            style={{ left: customerLtvHeaderTooltip.left, top: customerLtvHeaderTooltip.top }}
+          >
+            <TooltipRichContent text={customerLtvHeaderTooltip.text} />
           </div>
         ) : null}
       </div>
