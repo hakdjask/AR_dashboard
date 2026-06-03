@@ -1292,7 +1292,26 @@ const salesKpiTooltips: Record<string, string | TooltipContent> = {
   }
 };
 
-const salesStoreOptions = ['Daraz-02', 'Shopify-01', 'WOO-01', 'Shopify-02', 'Shopify-03'];
+const supplementalSalesStoreOptions = [
+  { name: 'Daraz Hyderabad', region: 'Sindh' },
+  { name: 'Daraz Multan', region: 'Punjab' },
+  { name: 'Shopify Faisalabad', region: 'Punjab' },
+  { name: 'Shopify Karachi', region: 'Sindh' },
+  { name: 'WooCommerce Mardan', region: 'Khyber Pakhtunkhwa' },
+  { name: 'WooCommerce Gwadar', region: 'Balochistan' },
+  { name: 'Retail Hub Lahore', region: 'Punjab' },
+  { name: 'Retail Hub Karachi', region: 'Sindh' },
+  { name: 'Marketplace Quetta', region: 'Balochistan' },
+  { name: 'Marketplace Gilgit', region: 'Gilgit Baltistan' }
+];
+const salesStoreOptions = [
+  'Daraz Karachi',
+  'Shopify Lahore',
+  'WooCommerce Peshawar',
+  'Shopify Quetta',
+  'Shopify Gilgit',
+  ...supplementalSalesStoreOptions.map((store) => store.name)
+];
 const salesMetricOptions = ['Gross Sales', 'Order Volume', 'Units Sold', 'Order Returns'];
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const salesGroupByOptions = ['Days', 'Weeks', 'Months', 'Quarters', 'Years'];
@@ -1375,11 +1394,11 @@ const inventoryStatusFromLabel: Record<string, InventoryStatusKey> = {
 };
 
 const inventoryStoreLocations: Record<string, string> = {
-  'Daraz-02': 'Main Warehouse',
-  'Shopify-01': 'Retail Backroom',
-  'WOO-01': 'Transit Hub',
-  'Shopify-02': 'Returns Bay',
-  'Shopify-03': 'Overflow Rack'
+  'Daraz Karachi': 'Main Warehouse',
+  'Shopify Lahore': 'Retail Backroom',
+  'WooCommerce Peshawar': 'Transit Hub',
+  'Shopify Quetta': 'Returns Bay',
+  'Shopify Gilgit': 'Overflow Rack'
 };
 
 const inventoryHealthCategoryOptions = ['Apparel', 'Footwear', 'Accessories', 'Electronics', 'Home'];
@@ -1668,7 +1687,7 @@ type InventoryStoreSnapshot = {
 
 const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
   {
-    store: 'Daraz-02',
+    store: 'Daraz Karachi',
     region: 'Sindh',
     totalInventoryValue: { current: 3820000, previous: 3490000 },
     totalProducts: { current: 1150, previous: 1070 },
@@ -1678,7 +1697,7 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     outboundQuantity: { current: 2570, previous: 2410 }
   },
   {
-    store: 'Shopify-01',
+    store: 'Shopify Lahore',
     region: 'Punjab',
     totalInventoryValue: { current: 4250000, previous: 3920000 },
     totalProducts: { current: 1290, previous: 1215 },
@@ -1688,7 +1707,7 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     outboundQuantity: { current: 2890, previous: 2700 }
   },
   {
-    store: 'WOO-01',
+    store: 'WooCommerce Peshawar',
     region: 'Khyber Pakhtunkhwa',
     totalInventoryValue: { current: 2910000, previous: 2780000 },
     totalProducts: { current: 980, previous: 940 },
@@ -1698,7 +1717,7 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     outboundQuantity: { current: 2190, previous: 2080 }
   },
   {
-    store: 'Shopify-02',
+    store: 'Shopify Quetta',
     region: 'Balochistan',
     totalInventoryValue: { current: 3380000, previous: 3090000 },
     totalProducts: { current: 1085, previous: 1032 },
@@ -1708,7 +1727,7 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     outboundQuantity: { current: 2410, previous: 2260 }
   },
   {
-    store: 'Shopify-03',
+    store: 'Shopify Gilgit',
     region: 'Gilgit Baltistan',
     totalInventoryValue: { current: 3590000, previous: 3310000 },
     totalProducts: { current: 1210, previous: 1158 },
@@ -1748,11 +1767,21 @@ const inventoryDateDayCount: Record<string, number> = {
   Custom: 30
 };
 const salesStoreRegionMap: Record<string, string> = {
-  'Daraz-02': 'Sindh',
-  'Shopify-01': 'Punjab',
-  'WOO-01': 'Khyber Pakhtunkhwa',
-  'Shopify-02': 'Balochistan',
-  'Shopify-03': 'Gilgit Baltistan'
+  'Daraz Karachi': 'Sindh',
+  'Shopify Lahore': 'Punjab',
+  'WooCommerce Peshawar': 'Khyber Pakhtunkhwa',
+  'Shopify Quetta': 'Balochistan',
+  'Shopify Gilgit': 'Gilgit Baltistan',
+  'Daraz Hyderabad': 'Sindh',
+  'Daraz Multan': 'Punjab',
+  'Shopify Faisalabad': 'Punjab',
+  'Shopify Karachi': 'Sindh',
+  'WooCommerce Mardan': 'Khyber Pakhtunkhwa',
+  'WooCommerce Gwadar': 'Balochistan',
+  'Retail Hub Lahore': 'Punjab',
+  'Retail Hub Karachi': 'Sindh',
+  'Marketplace Quetta': 'Balochistan',
+  'Marketplace Gilgit': 'Gilgit Baltistan'
 };
 
 const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
@@ -2301,9 +2330,9 @@ const salesChartLabels = [
   '29 Apr'
 ];
 
-const storeSeries = [
+const baseStoreSeries = [
   {
-    name: 'Daraz-02',
+    name: 'Daraz Karachi',
     color: '#22B8C5',
     grossRevenue: [71000, 94000, 72000, 83000, 78000, 79000, 66000, 22000, 58000, 29000, 64000, 55000, 73000, 63000, 67000],
     orderReturns: [420, 860, 510, 740, 620, 790, 670, 230, 540, 310, 690, 570, 760, 640, 810],
@@ -2311,7 +2340,7 @@ const storeSeries = [
     totalOrders: [98, 84, 76, 91, 88, 95, 82, 63, 79, 71, 86, 83, 97, 89, 92]
   },
   {
-    name: 'Shopify-01',
+    name: 'Shopify Lahore',
     color: '#F97316',
     grossRevenue: [34000, 95000, 21000, 79000, 41000, 100000, 81000, 70000, 37000, 72000, 27000, 69000, 23000, 53000, 34000],
     orderReturns: [280, 910, 190, 760, 340, 980, 820, 690, 260, 720, 210, 660, 180, 470, 290],
@@ -2319,7 +2348,7 @@ const storeSeries = [
     totalOrders: [47, 42, 51, 56, 49, 58, 53, 45, 48, 54, 46, 52, 44, 50, 47]
   },
   {
-    name: 'WOO-01',
+    name: 'WooCommerce Peshawar',
     color: '#9D7AE5',
     grossRevenue: [91000, 43000, 49000, 40000, 68000, 34000, 71000, 26000, 23000, 21000, 66000, 24000, 74000, 93000, 91000],
     orderReturns: [760, 330, 420, 390, 610, 280, 670, 240, 210, 190, 640, 220, 710, 880, 790],
@@ -2327,7 +2356,7 @@ const storeSeries = [
     totalOrders: [47, 50, 45, 52, 49, 54, 51, 43, 44, 42, 53, 41, 55, 57, 56]
   },
   {
-    name: 'Shopify-02',
+    name: 'Shopify Quetta',
     color: '#4FE3D5',
     grossRevenue: [80000, 22000, 57000, 52000, 78000, 81000, 74000, 40000, 79000, 79000, 54000, 21000, 82000, 81000, 98000],
     orderReturns: [690, 170, 520, 460, 710, 760, 690, 360, 730, 720, 490, 180, 790, 770, 930],
@@ -2335,7 +2364,7 @@ const storeSeries = [
     totalOrders: [71, 68, 74, 77, 72, 80, 76, 64, 73, 75, 70, 62, 81, 78, 84]
   },
   {
-    name: 'Shopify-03',
+    name: 'Shopify Gilgit',
     color: '#D946EF',
     grossRevenue: [40000, 41000, 21000, 95000, 61000, 81000, 83000, 92000, 33000, 90000, 97000, 25000, 37000, 33000, 81000],
     orderReturns: [310, 340, 180, 900, 560, 760, 790, 870, 250, 850, 920, 210, 300, 260, 780],
@@ -2344,38 +2373,85 @@ const storeSeries = [
   }
 ];
 
-const dayBreakdown = [
+const storeSeries = [
+  ...baseStoreSeries,
+  ...supplementalSalesStoreOptions.map((store, storeIndex) => {
+    const source = baseStoreSeries[storeIndex % baseStoreSeries.length];
+    const scale = 0.72 + storeIndex * 0.045;
+    const waveOffset = storeIndex + 3;
+
+    return {
+      name: store.name,
+      color: source.color,
+      grossRevenue: source.grossRevenue.map((value, index) =>
+        Math.round(value * scale * (0.9 + deterministicNoise((index + 1) * waveOffset) * 0.24))
+      ),
+      orderReturns: source.orderReturns.map((value, index) =>
+        Math.round(value * (0.68 + storeIndex * 0.035) * (0.92 + deterministicNoise((index + 2) * waveOffset) * 0.2))
+      ),
+      unitsSold: source.unitsSold.map((value, index) =>
+        Math.round(value * (0.74 + storeIndex * 0.04) * (0.91 + deterministicNoise((index + 3) * waveOffset) * 0.2))
+      ),
+      totalOrders: source.totalOrders.map((value, index) =>
+        Math.round(value * (0.72 + storeIndex * 0.032) * (0.94 + deterministicNoise((index + 4) * waveOffset) * 0.18))
+      )
+    };
+  })
+];
+
+const baseDayBreakdown = [
   {
     date: 'May 12, 2023',
     stores: [
-      { name: 'Daraz-02', totalOrders: 98, grossRevenue: 1350000, orderReturns: 420, unitsSold: 640, color: '#22B8C5' },
-      { name: 'Shopify-01', totalOrders: 47, grossRevenue: 2410445, orderReturns: 280, unitsSold: 520, color: '#F97316' },
-      { name: 'WOO-01', totalOrders: 47, grossRevenue: 1324350, orderReturns: 760, unitsSold: 860, color: '#9D7AE5' },
-      { name: 'Shopify-02', totalOrders: 71, grossRevenue: 1311785, orderReturns: 690, unitsSold: 780, color: '#4FE3D5' },
-      { name: 'Shopify-03', totalOrders: 100, grossRevenue: 1311785, orderReturns: 310, unitsSold: 540, color: '#D946EF' }
+      { name: 'Daraz Karachi', totalOrders: 98, grossRevenue: 1350000, orderReturns: 420, unitsSold: 640, color: '#22B8C5' },
+      { name: 'Shopify Lahore', totalOrders: 47, grossRevenue: 2410445, orderReturns: 280, unitsSold: 520, color: '#F97316' },
+      { name: 'WooCommerce Peshawar', totalOrders: 47, grossRevenue: 1324350, orderReturns: 760, unitsSold: 860, color: '#9D7AE5' },
+      { name: 'Shopify Quetta', totalOrders: 71, grossRevenue: 1311785, orderReturns: 690, unitsSold: 780, color: '#4FE3D5' },
+      { name: 'Shopify Gilgit', totalOrders: 100, grossRevenue: 1311785, orderReturns: 310, unitsSold: 540, color: '#D946EF' }
     ]
   },
   {
     date: 'May 14, 2023',
     stores: [
-      { name: 'Daraz-02', totalOrders: 84, grossRevenue: 1145200, orderReturns: 740, unitsSold: 760, color: '#22B8C5' },
-      { name: 'Shopify-01', totalOrders: 42, grossRevenue: 2088410, orderReturns: 340, unitsSold: 560, color: '#F97316' },
-      { name: 'WOO-01', totalOrders: 50, grossRevenue: 1402780, orderReturns: 610, unitsSold: 760, color: '#9D7AE5' },
-      { name: 'Shopify-02', totalOrders: 68, grossRevenue: 1274300, orderReturns: 710, unitsSold: 805, color: '#4FE3D5' },
-      { name: 'Shopify-03', totalOrders: 92, grossRevenue: 1254600, orderReturns: 560, unitsSold: 700, color: '#D946EF' }
+      { name: 'Daraz Karachi', totalOrders: 84, grossRevenue: 1145200, orderReturns: 740, unitsSold: 760, color: '#22B8C5' },
+      { name: 'Shopify Lahore', totalOrders: 42, grossRevenue: 2088410, orderReturns: 340, unitsSold: 560, color: '#F97316' },
+      { name: 'WooCommerce Peshawar', totalOrders: 50, grossRevenue: 1402780, orderReturns: 610, unitsSold: 760, color: '#9D7AE5' },
+      { name: 'Shopify Quetta', totalOrders: 68, grossRevenue: 1274300, orderReturns: 710, unitsSold: 805, color: '#4FE3D5' },
+      { name: 'Shopify Gilgit', totalOrders: 92, grossRevenue: 1254600, orderReturns: 560, unitsSold: 700, color: '#D946EF' }
     ]
   },
   {
     date: 'May 16, 2023',
     stores: [
-      { name: 'Daraz-02', totalOrders: 76, grossRevenue: 1010000, orderReturns: 670, unitsSold: 720, color: '#22B8C5' },
-      { name: 'Shopify-01', totalOrders: 51, grossRevenue: 2220110, orderReturns: 820, unitsSold: 860, color: '#F97316' },
-      { name: 'WOO-01', totalOrders: 45, grossRevenue: 1280120, orderReturns: 670, unitsSold: 790, color: '#9D7AE5' },
-      { name: 'Shopify-02', totalOrders: 74, grossRevenue: 1410000, orderReturns: 690, unitsSold: 790, color: '#4FE3D5' },
-      { name: 'Shopify-03', totalOrders: 105, grossRevenue: 1522900, orderReturns: 790, unitsSold: 836, color: '#D946EF' }
+      { name: 'Daraz Karachi', totalOrders: 76, grossRevenue: 1010000, orderReturns: 670, unitsSold: 720, color: '#22B8C5' },
+      { name: 'Shopify Lahore', totalOrders: 51, grossRevenue: 2220110, orderReturns: 820, unitsSold: 860, color: '#F97316' },
+      { name: 'WooCommerce Peshawar', totalOrders: 45, grossRevenue: 1280120, orderReturns: 670, unitsSold: 790, color: '#9D7AE5' },
+      { name: 'Shopify Quetta', totalOrders: 74, grossRevenue: 1410000, orderReturns: 690, unitsSold: 790, color: '#4FE3D5' },
+      { name: 'Shopify Gilgit', totalOrders: 105, grossRevenue: 1522900, orderReturns: 790, unitsSold: 836, color: '#D946EF' }
     ]
   }
 ];
+
+const dayBreakdown = baseDayBreakdown.map((day, dayIndex) => ({
+  ...day,
+  stores: [
+    ...day.stores,
+    ...supplementalSalesStoreOptions.map((store, storeIndex) => {
+      const source = day.stores[storeIndex % day.stores.length];
+      const scale = 0.64 + storeIndex * 0.047 + dayIndex * 0.025;
+      const wave = 0.9 + deterministicNoise((dayIndex + 1) * (storeIndex + 5)) * 0.22;
+
+      return {
+        name: store.name,
+        totalOrders: Math.max(12, Math.round(source.totalOrders * scale * wave)),
+        grossRevenue: Math.max(220000, Math.round(source.grossRevenue * scale * wave)),
+        orderReturns: Math.max(35, Math.round(source.orderReturns * (0.58 + storeIndex * 0.04) * wave)),
+        unitsSold: Math.max(80, Math.round(source.unitsSold * (0.62 + storeIndex * 0.043) * wave)),
+        color: source.color
+      };
+    })
+  ]
+}));
 
 const storeChartMetricConfig: Record<
   string,
@@ -2562,6 +2638,22 @@ const getPercentDelta = (current: number, previous: number) => {
   return (Math.abs(current - previous) / previous) * 100;
 };
 
+const buildStoreLogoDataUri = (name: string, size = 36) => {
+  const logoText = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  const fontSize = size <= 32 ? 11 : 12;
+  const radius = size <= 32 ? 8 : 10;
+  const textY = Math.round(size / 2 + fontSize / 3);
+  const logoSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><rect width='${size}' height='${size}' rx='${radius}' fill='#eef3ec'/><text x='${size / 2}' y='${textY}' text-anchor='middle' font-family='Arial' font-size='${fontSize}' fill='#5f656c'>${logoText}</text></svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`;
+};
+
 const buildInventorySeries = (total: number, dayCount: number, phaseShift: number) => {
   if (dayCount <= 0) return [];
 
@@ -2594,7 +2686,7 @@ function InfoTooltip({
     <div
       className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] ${
         alignRight ? 'tu-right-0' : 'tu-left-0'
-      } tu-z-30 ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
+      } tu-z-[200] ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
     >
       {typeof text === 'string' ? text : <TooltipRichContent text={text} />}
     </div>
@@ -3167,6 +3259,7 @@ export default function App() {
   const [selectedProductTableDate, setSelectedProductTableDate] = useState('Last 30 Days');
   const [selectedProductTableView, setSelectedProductTableView] = useState(productTableViewOptions[0]);
   const [selectedProductTableRegion, setSelectedProductTableRegion] = useState<string[]>([...pakistanProvinceOptions]);
+  const [productTableRegionProvince, setProductTableRegionProvince] = useState<string | null>(null);
   const [openProductTableColumnMenu, setOpenProductTableColumnMenu] = useState(false);
   const [productTableVisibleColumns, setProductTableVisibleColumns] = useState({
     contribution: true,
@@ -3843,151 +3936,131 @@ export default function App() {
     [selectedProductTableDate]
   );
   const dynamicSalesMetricCards = useMemo(() => {
-    const currentSnapshot =
-      dayBreakdown[dayBreakdown.length - 1]?.stores.filter((store) =>
-        selectedSalesRegion.includes(salesStoreRegionMap[store.name] ?? '')
-      ) ?? [];
-    const previousSnapshot =
-      dayBreakdown[dayBreakdown.length - 2]?.stores.filter((store) =>
-        selectedSalesRegion.includes(salesStoreRegionMap[store.name] ?? '')
-      ) ?? [];
+    const currentSnapshot = dayBreakdown[dayBreakdown.length - 1]?.stores ?? [];
+    const previousSnapshot = dayBreakdown[dayBreakdown.length - 2]?.stores ?? [];
 
-    const metricKey = selectedStoreMetricConfig.key;
-    const metricLabelMap = {
-      grossRevenue: {
-        peak: 'Peak Sales Day',
-        total: 'Gross Sales',
-        top: 'Highest Store Gross Sales',
-        average: 'Gross Sales per Store'
-      },
-      totalOrders: {
-        total: 'Total Order Volume',
-        top: 'Top Store by Order Volume',
-        average: 'Average Order Volume per Store',
-        peak: 'Peak Order Volume Day'
-      },
-      orderReturns: {
-        total: 'Total Order Returns',
-        top: 'Highest Store Returns',
-        average: 'Average Returns per Store',
-        peak: 'Peak Returns Day'
-      },
-      unitsSold: {
-        total: 'Total Units Sold',
-        top: 'Top Store by Units Sold',
-        average: 'Average Units Sold per Store',
-        peak: 'Peak Units Sold Day'
-      }
-    } as const;
+    const buildPeakDayMetric = (
+      label: string,
+      metricDescription: string,
+      metricKey: StoreChartMetricKey,
+      formatter: (value: number) => string = formatCompactNumber
+    ) => {
+      const selectedSeries = activeSelectedSalesStore ?? storeSeries[0];
+      const rankedPeakDays = selectedSeries[metricKey]
+        .map((value, index) => ({ value, label: salesChartLabels[index] }))
+        .sort((a, b) => b.value - a.value);
+      const topPeakDay = rankedPeakDays[0] ?? { value: 0, label: '-' };
+      const previousPeakDay = rankedPeakDays[1] ?? topPeakDay;
+      const displayLabel = `${label} - ${selectedSalesStoreName}`;
 
-    const metricLabels = metricLabelMap[metricKey];
-    const currentMetricTotal = currentSnapshot.reduce((sum, store) => sum + store[metricKey], 0);
-    const previousMetricTotal = previousSnapshot.reduce((sum, store) => sum + store[metricKey], 0);
-    const metricDirection = getStoreMetricDirection(selectedSalesMetric, currentMetricTotal, previousMetricTotal);
-    const metricTrend = `${getPercentDelta(currentMetricTotal, previousMetricTotal).toFixed(1)}%`;
-    const selectedStoreCurrentSnapshot = currentSnapshot.find((store) => store.name === selectedSalesStoreName);
-    const selectedStorePreviousSnapshot = previousSnapshot.find((store) => store.name === selectedSalesStoreName);
-    const selectedStoreMetricCurrent = selectedStoreCurrentSnapshot?.[metricKey] ?? 0;
-    const selectedStoreMetricPrevious = selectedStorePreviousSnapshot?.[metricKey] ?? 0;
-    const selectedStoreMetricDirection = getStoreMetricDirection(selectedSalesMetric, selectedStoreMetricCurrent, selectedStoreMetricPrevious);
-    const selectedStoreMetricTrend = `${getPercentDelta(selectedStoreMetricCurrent, selectedStoreMetricPrevious).toFixed(1)}%`;
-    const selectedStoreMetricLabel =
-      selectedSalesMetric === 'Gross Sales'
-        ? `Gross Sales of ${selectedSalesStoreName}`
-        : selectedSalesMetric === 'Order Volume'
-          ? `Order Volume by ${selectedSalesStoreName}`
-        : selectedSalesMetric === 'Units Sold'
-          ? `Units Sold by ${selectedSalesStoreName}`
-          : `Order Returns by ${selectedSalesStoreName}`;
-
-    const currentAverage = currentSnapshot.length > 0 ? currentMetricTotal / currentSnapshot.length : 0;
-    const previousAverage = previousSnapshot.length > 0 ? previousMetricTotal / previousSnapshot.length : 0;
-    const averageDirection = getStoreMetricDirection(selectedSalesMetric, currentAverage, previousAverage);
-    const averageTrend = `${getPercentDelta(currentAverage, previousAverage).toFixed(1)}%`;
-
-    const sortedCurrentStores = [...currentSnapshot].sort((a, b) => b[metricKey] - a[metricKey]);
-    const sortedPreviousStores = [...previousSnapshot].sort((a, b) => b[metricKey] - a[metricKey]);
-    const topStoreCurrent = sortedCurrentStores[0];
-    const topStorePrevious = sortedPreviousStores[0];
-    const topStoreDirection = getStoreMetricDirection(
-      selectedSalesMetric,
-      topStoreCurrent?.[metricKey] ?? 0,
-      topStorePrevious?.[metricKey] ?? 0
-    );
-    const topStoreTrend = `${getPercentDelta(topStoreCurrent?.[metricKey] ?? 0, topStorePrevious?.[metricKey] ?? 0).toFixed(1)}%`;
-
-    const aggregateSeries = salesChartLabels.map((_, index) =>
-      activeSalesStoreSeries.reduce((sum, store) => sum + store[metricKey][index], 0)
-    );
-    const rankedPeakDays = aggregateSeries
-      .map((value, index) => ({ value, label: salesChartLabels[index] }))
-      .sort((a, b) => b.value - a.value);
-    const topPeakDay = rankedPeakDays[0] ?? { value: 0, label: '-' };
-    const previousPeakDay = rankedPeakDays[1] ?? topPeakDay;
-
-    const metrics = [
-      {
-        label: metricLabels.total,
-        value: formatStoreMetricValue(selectedSalesMetric, currentMetricTotal),
-        trend: metricTrend,
-        direction: metricDirection,
-        comparison: {
-          current: formatStoreMetricValue(selectedSalesMetric, currentMetricTotal),
-          previous: formatStoreMetricValue(selectedSalesMetric, previousMetricTotal),
-          change: formatStoreMetricDelta(selectedSalesMetric, currentMetricTotal - previousMetricTotal)
-        }
-      },
-      {
-        label: selectedStoreMetricLabel,
-        value: formatStoreMetricValue(selectedSalesMetric, selectedStoreMetricCurrent),
-        trend: selectedStoreMetricTrend,
-        direction: selectedStoreMetricDirection,
-        comparison: {
-          current: formatStoreMetricValue(selectedSalesMetric, selectedStoreMetricCurrent),
-          previous: formatStoreMetricValue(selectedSalesMetric, selectedStoreMetricPrevious),
-          change: formatStoreMetricDelta(selectedSalesMetric, selectedStoreMetricCurrent - selectedStoreMetricPrevious)
-        },
-        tooltipText: `${selectedSalesMetric} for ${selectedSalesStoreName} in the selected period.`
-      },
-      {
-        label: metricLabels.top,
-        value: topStoreCurrent?.name ?? 'No store selected',
-        trend: topStoreTrend,
-        direction: topStoreDirection,
-        comparison: {
-          current: topStoreCurrent?.name ?? 'No store selected',
-          previous: topStorePrevious?.name ?? 'No previous store',
-          change: topStoreTrend
-        },
-        extraStores: sortedCurrentStores.slice(1, 3).map((store) => store.name)
-      },
-      {
-        label: metricLabels.average,
-        value: formatStoreMetricValue(selectedSalesMetric, Math.round(currentAverage)),
-        trend: averageTrend,
-        direction: averageDirection,
-        comparison: {
-          current: formatStoreMetricValue(selectedSalesMetric, Math.round(currentAverage)),
-          previous: formatStoreMetricValue(selectedSalesMetric, Math.round(previousAverage)),
-          change: formatStoreMetricDelta(selectedSalesMetric, Math.round(currentAverage - previousAverage))
-        }
-      },
-      {
-        label: metricLabels.peak,
+      return {
+        label: displayLabel,
         value: topPeakDay.label,
         trend: `${getPercentDelta(topPeakDay.value, previousPeakDay.value).toFixed(1)}%`,
-        direction: getStoreMetricDirection(selectedSalesMetric, topPeakDay.value, previousPeakDay.value),
+        direction: topPeakDay.value >= previousPeakDay.value ? ('up' as const) : ('down' as const),
         comparison: {
-          current: topPeakDay.label,
-          previous: previousPeakDay.label,
-          change: `${getPercentDelta(topPeakDay.value, previousPeakDay.value).toFixed(1)}%`
+          current: formatter(topPeakDay.value),
+          previous: formatter(previousPeakDay.value),
+          change: formatter(topPeakDay.value - previousPeakDay.value)
         },
-        hideTrend: true
-      }
-    ];
+        hideTrend: true,
+        tooltipText: {
+          title: displayLabel,
+          blocks: [
+            {
+              type: 'text',
+              text: `Highest ${metricDescription} day for ${selectedSalesStoreName} in the selected date range.`
+            },
+            { type: 'spacer' },
+            { type: 'text', text: 'This peak day is calculated only for the store selected in the store dropdown.' }
+          ]
+        } as TooltipContent,
+        extraStores: []
+      };
+    };
 
-    return metrics.filter((metric) => metric.label !== 'Gross Sales');
-  }, [selectedSalesMetric, selectedSalesRegion, selectedSalesStoreName, selectedStoreMetricConfig]);
+    const currentGrossSalesTotal = currentSnapshot.reduce((sum, store) => sum + store.grossRevenue, 0);
+    const previousGrossSalesTotal = previousSnapshot.reduce((sum, store) => sum + store.grossRevenue, 0);
+    const currentAverageGrossSales = currentSnapshot.length > 0 ? currentGrossSalesTotal / currentSnapshot.length : 0;
+    const previousAverageGrossSales = previousSnapshot.length > 0 ? previousGrossSalesTotal / previousSnapshot.length : 0;
+    const averageGrossSalesTrend = `${getPercentDelta(currentAverageGrossSales, previousAverageGrossSales).toFixed(1)}%`;
+    const averageGrossSalesDirection = currentAverageGrossSales >= previousAverageGrossSales ? ('up' as const) : ('down' as const);
+
+    return [
+      {
+        label: 'Avg. Gross Sales Per Store',
+        value: formatCompactCurrency(Math.round(currentAverageGrossSales)),
+        trend: averageGrossSalesTrend,
+        direction: averageGrossSalesDirection,
+        comparison: {
+          current: formatCompactCurrency(Math.round(currentAverageGrossSales)),
+          previous: formatCompactCurrency(Math.round(previousAverageGrossSales)),
+          change: formatCompactCurrency(Math.round(currentAverageGrossSales - previousAverageGrossSales))
+        },
+        hideTrend: false,
+        tooltipText: {
+          title: 'Avg. Gross Sales Per Store',
+          blocks: [
+            { type: 'text', text: 'Average gross sales generated per store across all stores in the active period.' },
+            { type: 'spacer' },
+            { type: 'formula', text: 'Avg. Gross Sales Per Store = Total Gross Sales / Store Count' }
+          ]
+        } as TooltipContent,
+        extraStores: []
+      },
+      buildPeakDayMetric('Peak Sales Day', 'gross sales', 'grossRevenue', formatCompactCurrency),
+      buildPeakDayMetric('Peak Returns Day', 'returns', 'orderReturns'),
+      buildPeakDayMetric('Peak Orders Day', 'orders', 'totalOrders')
+    ];
+  }, [activeSelectedSalesStore, selectedSalesStoreName]);
+
+  const salesStoreTableRows = useMemo(() => {
+    const currentSnapshot = dayBreakdown[dayBreakdown.length - 1]?.stores ?? [];
+    const previousSnapshot = dayBreakdown[dayBreakdown.length - 2]?.stores ?? [];
+    const metricKey = selectedStoreMetricConfig.key;
+
+    return currentSnapshot
+      .map((store) => {
+        const previousStore = previousSnapshot.find((item) => item.name === store.name);
+        const currentValue = store[metricKey];
+        const previousValue = previousStore?.[metricKey] ?? 0;
+        const trendDirection = getStoreMetricDirection(selectedSalesMetric, currentValue, previousValue);
+
+        return {
+          name: store.name,
+          logo: buildStoreLogoDataUri(store.name),
+          previousValue,
+          currentValue,
+          changeValue: currentValue - previousValue,
+          trendPercent: getPercentDelta(currentValue, previousValue),
+          trendDirection
+        };
+      })
+      .sort((a, b) => b.currentValue - a.currentValue);
+  }, [selectedSalesMetric, selectedStoreMetricConfig]);
+
+  const salesStoreTableTotals = useMemo(() => {
+    const previousValue = salesStoreTableRows.reduce((sum, row) => sum + row.previousValue, 0);
+    const currentValue = salesStoreTableRows.reduce((sum, row) => sum + row.currentValue, 0);
+
+    return {
+      previousValue,
+      currentValue,
+      changeValue: currentValue - previousValue,
+      trendPercent: getPercentDelta(currentValue, previousValue),
+      trendDirection: getStoreMetricDirection(selectedSalesMetric, currentValue, previousValue)
+    };
+  }, [salesStoreTableRows, selectedSalesMetric]);
+
+  const salesStoreTableColumnLabels = useMemo(
+    () => [
+      'Store Name',
+      `Previous Period ${selectedSalesMetric}`,
+      `Current Period ${selectedSalesMetric}`,
+      `Change in ${selectedSalesMetric}`
+    ],
+    [selectedSalesMetric]
+  );
 
   const salesStoreSummaryLabel = selectedSalesStoreName;
 
@@ -5583,8 +5656,6 @@ export default function App() {
   const locationGrowthRanking = useMemo(() => {
     return [...locationPreparedData].sort((a, b) => b.deltaPercent - a.deltaPercent);
   }, [locationPreparedData]);
-  const mostImprovedLocationName = locationGrowthRanking[0]?.location ?? '';
-  const mostDeclinedLocationName = locationGrowthRanking[locationGrowthRanking.length - 1]?.location ?? '';
   const locationAxisMax = useMemo(() => {
     const peakValue = isLocationTopView
       ? locationRankedData.reduce((max, item) => Math.max(max, item[selectedLocationMetricConfig.currentKey]), 0)
@@ -5774,10 +5845,6 @@ export default function App() {
     const previousKey = selectedLocationMetricConfig.previousKey;
     const isProvinceView = selectedLocationShowBy === 'Province';
     const locationBarThickness = isProvinceView ? 58 : 54;
-    const rankedColors = topLocationChartRows.map((item) =>
-      item[currentKey] >= item[previousKey] ? '#34c883' : '#f3a39a'
-    );
-
     return {
       labels: topLocationChartRows.map((item) => item.location),
       datasets: [
@@ -5790,7 +5857,9 @@ export default function App() {
               : Math.round(item[currentKey]).toLocaleString('en-US')
           ),
           badgeTone: topLocationChartRows.map(() => 'positive'),
-          backgroundColor: rankedColors,
+          backgroundColor: topLocationChartRows.map((item) =>
+            item[currentKey] >= item[previousKey] ? '#10c562' : '#D5DAE0'
+          ),
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: locationBarThickness
@@ -5811,9 +5880,7 @@ export default function App() {
           data: improvedLocationChartRows.map((item) => item.currentChartValue),
           badgeLabels: improvedLocationChartRows.map((item) => `+${item.deltaPercent.toFixed(1)}%`),
           badgeTone: improvedLocationChartRows.map(() => 'positive'),
-          backgroundColor: improvedLocationChartRows.map((item) =>
-            item.location === mostImprovedLocationName ? '#11c36f' : '#34c883'
-          ),
+          backgroundColor: '#10c562',
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: locationBarThickness
@@ -5821,16 +5888,14 @@ export default function App() {
         {
           label: 'Previous Period',
           data: improvedLocationChartRows.map((item) => item.previousChartValue),
-          backgroundColor: improvedLocationChartRows.map((item) =>
-            item.location === mostImprovedLocationName ? '#d8eee0' : '#d5dae0'
-          ),
+          backgroundColor: '#D5DAE0',
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: locationBarThickness
         }
       ]
     };
-  }, [improvedLocationChartRows, mostImprovedLocationName, selectedLocationShowBy]);
+  }, [improvedLocationChartRows, selectedLocationShowBy]);
 
   const declinedLocationChartData = useMemo(() => {
     const isProvinceView = selectedLocationShowBy === 'Province';
@@ -5842,9 +5907,7 @@ export default function App() {
         {
           label: 'Previous Period',
           data: declinedLocationDisplayRows.map((item) => item.displayPreviousValue),
-          backgroundColor: declinedLocationDisplayRows.map((item) =>
-            item.location === mostDeclinedLocationName ? '#f2e2df' : '#d5dae0'
-          ),
+          backgroundColor: '#D5DAE0',
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: locationBarThickness
@@ -5854,16 +5917,14 @@ export default function App() {
           data: declinedLocationDisplayRows.map((item) => item.displayCurrentValue),
           badgeLabels: declinedLocationDisplayRows.map((item) => `${item.displayPercent.toFixed(0)}%`),
           badgeTone: declinedLocationDisplayRows.map(() => 'negative'),
-          backgroundColor: declinedLocationDisplayRows.map((item) =>
-            item.location === mostDeclinedLocationName ? '#f08074' : '#f3a39a'
-          ),
+          backgroundColor: '#10c562',
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: locationBarThickness
         }
       ]
     };
-  }, [declinedLocationDisplayRows, mostDeclinedLocationName, selectedLocationShowBy]);
+  }, [declinedLocationDisplayRows, selectedLocationShowBy]);
 
   const locationChartData =
     selectedLocationPerformanceView === 'Most Improved'
@@ -6165,7 +6226,7 @@ export default function App() {
         {
           label: 'May',
           data: productRankedData.map((item) => item.previousValue),
-          backgroundColor: '#c9c9c9',
+          backgroundColor: '#D5DAE0',
           borderRadius: 6,
           maxBarThickness: 34
         }
@@ -8661,7 +8722,7 @@ export default function App() {
                             <td className="tu-px-4 tu-py-3">
                               <div className="tu-flex tu-items-center tu-gap-2.5">
                                 <img src={row.logo} alt={`${row.name} placeholder logo`} className="tu-h-8 tu-w-8 tu-rounded-[8px] tu-border tu-border-[#e3e8e1]" />
-                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{row.name}</span>
+                                <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">{row.name}</span>
                               </div>
                             </td>
                             <td className="tu-px-4 tu-py-3 tu-text-[13px] tu-text-[#2f3133]">{formatCompactNumber(row.newCustomers)}</td>
@@ -8694,36 +8755,6 @@ export default function App() {
                 <SectionTitleWithReportLink title="Sales Performance by Store" />
 
                 <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
-                  <div className="tu-relative">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSalesMenus((current) => ({
-                          store: false,
-                          metric: false,
-                          date: false,
-                          region: false,
-                          groupBy: !current.groupBy
-                        }))
-                      }
-                      className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
-                    >
-                      <BarChart3 className="tu-h-3.5 tu-w-3.5" />
-                      <span>{`Group by: ${selectedSalesGroupBy}`}</span>
-                      <ChevronDown className="tu-h-3 tu-w-3" />
-                    </button>
-                    <SearchableDropdownMenu
-                      open={salesMenus.groupBy}
-                      options={salesGroupByOptions}
-                      selected={selectedSalesGroupBy}
-                      searchable={false}
-                      onSelect={(item) => {
-                        setSelectedSalesGroupBy(item);
-                        setSalesMenus((current) => ({ ...current, groupBy: false }));
-                      }}
-                    />
-                  </div>
-                  <span className="tu-mx-0.5 tu-inline-flex tu-h-9 tu-items-center tu-text-[#c2c8c0]">|</span>
                   {[
                     {
                       key: 'store',
@@ -8731,12 +8762,7 @@ export default function App() {
                       options: salesStoreOptions
                     },
                     { key: 'metric', value: selectedSalesMetric, options: salesMetricOptions },
-                    { key: 'date', value: selectedSalesDate, options: salesDateOptions },
-                    {
-                      key: 'region',
-                      value: formatLocationFilterLabel(selectedSalesRegion),
-                      options: []
-                    }
+                    { key: 'date', value: selectedSalesDate, options: salesDateOptions }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-relative">
                       <button
@@ -8819,7 +8845,7 @@ export default function App() {
                     return (
                       <article
                         key={metric.label}
-                        className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                        className="tu-group/card tu-relative tu-z-0 tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-[300] hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
                           <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
@@ -8827,7 +8853,7 @@ export default function App() {
                           </button>
                           <InfoTooltip
                             text={metric.tooltipText ?? salesKpiTooltips[metric.label]}
-                            widthClass={metric.label.includes('Average') ? 'tu-w-[280px]' : 'tu-w-[190px]'}
+                            widthClass="tu-w-[320px]"
                           />
                         </div>
 
@@ -8875,90 +8901,112 @@ export default function App() {
                   })}
                 </div>
 
-                <div
-                  className="tu-relative tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]"
-                  onMouseLeave={() => setHoveredSalesPoint(null)}
-                >
-                  <div className="tu-h-[420px]">
+                <div className="tu-relative tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]">
+                  <div className="tu-hidden">
                     <Line data={salesChartData} options={salesChartOptions} />
                   </div>
+                  <div className="tu-max-h-[420px] tu-overflow-auto">
+                    <table className="tu-w-full tu-table-fixed tu-border-collapse">
+                      <colgroup>
+                        <col className="tu-w-[30%]" />
+                        <col className="tu-w-[22%]" />
+                        <col className="tu-w-[22%]" />
+                        <col className="tu-w-[26%]" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          {salesStoreTableColumnLabels.map((column) => (
+                            <th
+                              key={column}
+                              className="tu-sticky tu-top-0 tu-z-20 tu-border-b tu-border-[#eceee8] tu-bg-[#f8faf7] tu-px-3.5 tu-py-2.5 tu-text-left"
+                            >
+                              <span className="tu-inline-flex tu-items-center tu-text-[12px] tu-font-semibold tu-text-[#6f747a]">
+                                {column}
+                              </span>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {salesStoreTableRows.map((row) => {
+                          const StoreTrendIcon = row.trendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
+                          const storeTrendColor = row.trendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
 
-                  {hoveredSalesPoint && salesTooltipData ? (
-                    <div
-                      className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
-                      style={{
-                        left: Math.min(Math.max(hoveredSalesPoint.x - 143, 12), 640),
-                        top: Math.max(hoveredSalesPoint.y - 150, 12)
-                      }}
-                    >
-                      <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
-                        <h4 className="tu-text-[12px] tu-font-semibold tu-leading-none tu-text-[#22302a]">{salesTooltipData.label}</h4>
-                        <span className="tu-rounded-full tu-bg-[#edf9f1] tu-px-2 tu-py-0.5 tu-text-[9px] tu-font-medium tu-text-[#17995a]">
-                          {salesTooltipData.store}
-                        </span>
-                      </div>
+                          return (
+                            <tr key={row.name} className="hover:tu-bg-[#fbfcfa]">
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <div className="tu-flex tu-items-center tu-gap-2.5">
+                                  <img
+                                    src={row.logo}
+                                    alt={`${row.name} placeholder logo`}
+                                    className="tu-h-8 tu-w-8 tu-shrink-0 tu-rounded-[8px] tu-border tu-border-[#e3e8e1]"
+                                  />
+                                  <span className="tu-truncate tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">{row.name}</span>
+                                </div>
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                  {formatStoreMetricValue(selectedSalesMetric, row.previousValue)}
+                                </span>
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                  {formatStoreMetricValue(selectedSalesMetric, row.currentValue)}
+                                </span>
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                                <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                    {formatStoreMetricDelta(selectedSalesMetric, row.changeValue)}
+                                  </span>
+                                  <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#a8b0aa]" />
+                                  <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${storeTrendColor}`}>
+                                    {row.trendPercent.toFixed(1)}%
+                                    <StoreTrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {(() => {
+                          const TotalTrendIcon = salesStoreTableTotals.trendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
+                          const totalTrendColor =
+                            salesStoreTableTotals.trendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
 
-                      <div className="tu-mt-3 tu-space-y-3">
-                        <div>
-                          <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
-                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
-                              <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#10c562]" />
-                              Current Period
-                            </span>
-                            <span className="tu-text-[10px] tu-text-[#6a7270]">{formatTooltipPeriodDate(salesTooltipData.currentDate)}</span>
-                          </div>
-                          <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#22302a]">
-                            {salesTooltipData.metric.formatValue(salesTooltipData.current)}
-                          </p>
-                          <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
-                            Orders: {formatCompactNumber(salesTooltipData.currentOrders)}
-                          </p>
-                        </div>
-
-                        <div className="tu-h-px tu-bg-[#e5eee8]" />
-
-                        <div>
-                          <div className="tu-flex tu-items-center tu-justify-between tu-gap-3">
-                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[10px] tu-font-medium tu-text-[#4f5d56]">
-                              <span className="tu-inline-flex tu-h-2.5 tu-w-2.5 tu-rounded-full tu-bg-[#9ca3af]" />
-                              Previous Period
-                            </span>
-                            <span className="tu-text-[10px] tu-text-[#6a7270]">
-                              {formatTooltipPeriodDate(salesTooltipData.previousDate)}
-                            </span>
-                          </div>
-                          <p className="tu-mt-1.5 tu-text-[14px] tu-font-medium tu-leading-none tu-text-[#2e3338]">
-                            {salesTooltipData.metric.formatValue(salesTooltipData.previous)}
-                          </p>
-                          <p className="tu-mt-1 tu-text-[10px] tu-text-[#6a7270]">
-                            Orders: {formatCompactNumber(salesTooltipData.previousOrders)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="tu-mt-3.5 tu-flex tu-items-center tu-justify-between tu-rounded-[10px] tu-bg-[#f5faf7] tu-px-2.5 tu-py-2.5">
-                        <span className="tu-text-[10px] tu-font-medium tu-text-[#54635a]">Change</span>
-                        <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
-                          <span className="tu-text-[#333538]">
-                            {formatStoreMetricDelta(selectedSalesMetric, salesTooltipData.change)}
-                          </span>
-                          <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
-                          <span
-                            className={`tu-inline-flex tu-items-center tu-gap-1 ${
-                              salesTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
-                            }`}
-                          >
-                            {salesTooltipData.change >= 0 ? (
-                              <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
-                            ) : (
-                              <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
-                            )}
-                            {salesTooltipData.changePercent}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                  ) : null}
+                          return (
+                            <tr>
+                              <td className="tu-sticky tu-bottom-0 tu-z-10 tu-border-t tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-py-3">
+                                <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">Total</span>
+                              </td>
+                              <td className="tu-sticky tu-bottom-0 tu-z-10 tu-border-t tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-py-3">
+                                <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">
+                                  {formatStoreMetricValue(selectedSalesMetric, salesStoreTableTotals.previousValue)}
+                                </span>
+                              </td>
+                              <td className="tu-sticky tu-bottom-0 tu-z-10 tu-border-t tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-py-3">
+                                <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">
+                                  {formatStoreMetricValue(selectedSalesMetric, salesStoreTableTotals.currentValue)}
+                                </span>
+                              </td>
+                              <td className="tu-sticky tu-bottom-0 tu-z-10 tu-border-t tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-py-3">
+                                <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
+                                  <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">
+                                    {formatStoreMetricDelta(selectedSalesMetric, salesStoreTableTotals.changeValue)}
+                                  </span>
+                                  <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#a8b0aa]" />
+                                  <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${totalTrendColor}`}>
+                                    {salesStoreTableTotals.trendPercent.toFixed(1)}%
+                                    <TotalTrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
               </section>
@@ -9392,7 +9440,12 @@ export default function App() {
                       options: productTableDisplayOptions
                     },
                     { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productMetricOptions },
-                    { key: 'date', value: selectedProductTableDate, options: productDateOptions }
+                    { key: 'date', value: selectedProductTableDate, options: productDateOptions },
+                    {
+                      key: 'region',
+                      value: formatLocationFilterLabel(selectedProductTableRegion),
+                      options: []
+                    }
                   ].map((menu) => (
                     <div key={menu.key} className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
                       <div className="tu-relative">
@@ -9408,6 +9461,7 @@ export default function App() {
                               [menu.key]: !current[menu.key as keyof typeof current]
                             }));
                             setProductTableMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            if (menu.key === 'region') setProductTableRegionProvince(null);
                           }}
                           className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                         >
@@ -9416,25 +9470,37 @@ export default function App() {
                           <ChevronDown className="tu-h-3 tu-w-3" />
                         </button>
 
-                        <SearchableDropdownMenu
-                          open={productTableMenus[menu.key as keyof typeof productTableMenus]}
-                          options={menu.options}
-                          selected={
-                            menu.key === 'show'
-                              ? selectedProductTableDisplayLimit
-                              : menu.key === 'metric'
-                                ? selectedProductTableMetric
-                                : selectedProductTableDate
-                          }
-                          searchable={false}
-                          widthClass={menu.key === 'show' ? 'tu-w-[170px]' : 'tu-w-[190px]'}
-                          onSelect={(item) => {
-                            if (menu.key === 'show') setSelectedProductTableDisplayLimit(item);
-                            if (menu.key === 'metric') setSelectedProductTableMetric(item);
-                            if (menu.key === 'date') setSelectedProductTableDate(item);
-                            setProductTableMenus({ show: false, metric: false, date: false, region: false });
-                          }}
-                        />
+                        {menu.key === 'region' ? (
+                          <HierarchicalLocationDropdown
+                            open={productTableMenus.region}
+                            selected={selectedProductTableRegion}
+                            onChange={setSelectedProductTableRegion}
+                            searchValue={productTableMenuSearch.region}
+                            onSearchChange={(value) => setProductTableMenuSearch((current) => ({ ...current, region: value }))}
+                            activeProvince={productTableRegionProvince}
+                            onProvinceChange={setProductTableRegionProvince}
+                          />
+                        ) : (
+                          <SearchableDropdownMenu
+                            open={productTableMenus[menu.key as keyof typeof productTableMenus]}
+                            options={menu.options}
+                            selected={
+                              menu.key === 'show'
+                                ? selectedProductTableDisplayLimit
+                                : menu.key === 'metric'
+                                  ? selectedProductTableMetric
+                                  : selectedProductTableDate
+                            }
+                            searchable={false}
+                            widthClass={menu.key === 'show' ? 'tu-w-[170px]' : 'tu-w-[190px]'}
+                            onSelect={(item) => {
+                              if (menu.key === 'show') setSelectedProductTableDisplayLimit(item);
+                              if (menu.key === 'metric') setSelectedProductTableMetric(item);
+                              if (menu.key === 'date') setSelectedProductTableDate(item);
+                              setProductTableMenus({ show: false, metric: false, date: false, region: false });
+                            }}
+                          />
+                        )}
                       </div>
                     </div>
                   ))}
@@ -9454,7 +9520,7 @@ export default function App() {
                     return (
                       <article
                         key={`${metric.label}-table`}
-                        className="tu-group/card tu-relative tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                        className="tu-group/card tu-relative tu-z-0 tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-[300] hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
                           <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
