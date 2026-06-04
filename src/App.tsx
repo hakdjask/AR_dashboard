@@ -26,6 +26,8 @@ import {
   Package2,
   PanelLeftClose,
   PanelLeftOpen,
+  Pause,
+  Play,
   GripVertical,
   Search,
   Settings,
@@ -3128,6 +3130,8 @@ export default function App() {
   const [selectedInventoryDate, setSelectedInventoryDate] = useState('Last 30 Days');
   const [selectedInventoryRegion, setSelectedInventoryRegion] = useState<string[]>([...inventoryLocationOptions]);
   const [inventoryMenuSearch, setInventoryMenuSearch] = useState({ date: '', region: '' });
+  const [activeInventoryRibbonIndex, setActiveInventoryRibbonIndex] = useState(0);
+  const [inventoryRibbonPaused, setInventoryRibbonPaused] = useState(false);
   const [inventorySnapshotMenus, setInventorySnapshotMenus] = useState<{ location: boolean; stockoutDate: boolean }>({
     location: false,
     stockoutDate: false
@@ -4291,6 +4295,77 @@ export default function App() {
       { label: 'Products in Reorder Threshold', value: formatCompactNumber(reorderThresholdProducts) }
     ];
   }, [activeInventorySnapshotHealthProducts, activeInventorySnapshotStores, selectedInventorySnapshotStockoutDate]);
+
+  const inventoryRibbonItems = useMemo(() => {
+    const stockoutCard = inventorySnapshotCards.find((card) => card.label === 'Stockout Percentage');
+    const thresholdCard = inventorySnapshotCards.find((card) => card.label === 'Products in Reorder Threshold');
+
+    return [
+      {
+        strongText: `${stockoutCard?.meta ?? '0 products'} stocked out`,
+        text: `need replenishment across ${inventorySnapshotLocationSummaryLabel}.`,
+        linkLabel: 'Review stockouts',
+        href: '#inventory-snapshot'
+      },
+      {
+        strongText: `${thresholdCard?.value ?? '0'} below threshold`,
+        text: 'need reorder review.',
+        linkLabel: 'Open reorder list',
+        href: '#inventory-snapshot'
+      },
+      {
+        strongText: '18 dead-stock SKUs',
+        text: 'have no sales movement in the selected period.',
+        linkLabel: 'Inspect SKUs',
+        href: '#inventory-health-tracking'
+      },
+      {
+        strongText: '12 delayed POs',
+        text: 'are past expected receiving dates.',
+        linkLabel: 'Fix purchase orders',
+        href: '#inventory-movements'
+      },
+      {
+        strongText: '27 stock transfers',
+        text: 'await dispatch or receiving confirmation.',
+        linkLabel: 'Resolve transfers',
+        href: '#inventory-movements'
+      },
+      {
+        strongText: '9 SKU conversions',
+        text: 'need approval before stock updates.',
+        linkLabel: 'Review conversions',
+        href: '#inventory-health-tracking'
+      },
+      {
+        strongText: '6 stock counts',
+        text: 'remain open for reconciliation.',
+        linkLabel: 'Complete counts',
+        href: '#inventory-health-tracking'
+      }
+    ];
+  }, [inventorySnapshotCards, inventorySnapshotLocationSummaryLabel]);
+
+  useEffect(() => {
+    if (inventoryRibbonPaused || inventoryRibbonItems.length === 0) return;
+
+    const timer = window.setInterval(() => {
+      setActiveInventoryRibbonIndex((current) => (current + 1) % inventoryRibbonItems.length);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [inventoryRibbonItems.length, inventoryRibbonPaused]);
+
+  const activeInventoryRibbonItem =
+    inventoryRibbonItems[activeInventoryRibbonIndex % inventoryRibbonItems.length] ?? inventoryRibbonItems[0];
+
+  const goToPriorInventoryRibbonItem = () => {
+    setActiveInventoryRibbonIndex((current) => (current - 1 + inventoryRibbonItems.length) % inventoryRibbonItems.length);
+  };
+
+  const goToNextInventoryRibbonItem = () => {
+    setActiveInventoryRibbonIndex((current) => (current + 1) % inventoryRibbonItems.length);
+  };
 
   const inventoryValueTrend = useMemo(() => {
     const multiplier = inventoryDateMultipliers[selectedInventoryDate] ?? inventoryDateMultipliers['Last 30 Days'];
@@ -6625,6 +6700,62 @@ export default function App() {
             <div className="tu-flex tu-flex-col">
               {activeTab === 'inventory' ? (
                 <>
+                {activeInventoryRibbonItem ? (
+                  <div className="tu-mb-4 tu-rounded-[14px] tu-border tu-border-[#cfe8d6] tu-bg-[linear-gradient(90deg,#f4fbf6_0%,#ffffff_58%,#eff9f2_100%)] tu-px-4 tu-py-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.07)]">
+                    <div className="tu-flex tu-flex-col tu-gap-3 lg:tu-flex-row lg:tu-items-center lg:tu-justify-between">
+                      <div className="tu-flex tu-min-w-0 tu-items-center tu-gap-3">
+                        <div className="tu-inline-flex tu-h-9 tu-w-9 tu-shrink-0 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#bee6ca] tu-bg-white tu-text-[#10c562]">
+                          <Bell className="tu-h-4 tu-w-4" />
+                        </div>
+                        <div className="tu-min-w-0">
+                          <div
+                            key={activeInventoryRibbonIndex}
+                            className="inventory-ribbon-message tu-flex tu-flex-wrap tu-items-baseline tu-gap-x-2 tu-gap-y-1"
+                          >
+                            <span className="tu-text-[14px] tu-font-semibold tu-text-[#2a2c2f]">
+                              {activeInventoryRibbonItem.strongText}
+                            </span>
+                            <span className="tu-text-[13px] tu-text-[#69707a]">{activeInventoryRibbonItem.text}</span>
+                            <a
+                              href={activeInventoryRibbonItem.href}
+                              className="tu-inline-flex tu-items-center tu-gap-1 tu-text-[13px] tu-font-semibold tu-text-[#10a957] hover:tu-text-[#0b8e49]"
+                            >
+                              {activeInventoryRibbonItem.linkLabel}
+                              <ChevronRight className="tu-h-3.5 tu-w-3.5" />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="tu-flex tu-shrink-0 tu-items-center tu-gap-2">
+                        <button
+                          type="button"
+                          onClick={goToPriorInventoryRibbonItem}
+                          aria-label="Show previous inventory alert"
+                          className="tu-inline-flex tu-h-8 tu-w-8 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#dfe8de] tu-bg-white tu-text-[#5f656c] tu-transition-colors hover:tu-border-[#cfe8d6] hover:tu-text-[#10a957]"
+                        >
+                          <ChevronLeft className="tu-h-4 tu-w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInventoryRibbonPaused((current) => !current)}
+                          aria-label={inventoryRibbonPaused ? 'Resume inventory alert rotation' : 'Pause inventory alert rotation'}
+                          className="tu-inline-flex tu-h-8 tu-w-8 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#dfe8de] tu-bg-white tu-text-[#5f656c] tu-transition-colors hover:tu-border-[#cfe8d6] hover:tu-text-[#10a957]"
+                        >
+                          {inventoryRibbonPaused ? <Play className="tu-h-4 tu-w-4" /> : <Pause className="tu-h-4 tu-w-4" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={goToNextInventoryRibbonItem}
+                          aria-label="Show next inventory alert"
+                          className="tu-inline-flex tu-h-8 tu-w-8 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#dfe8de] tu-bg-white tu-text-[#5f656c] tu-transition-colors hover:tu-border-[#cfe8d6] hover:tu-text-[#10a957]"
+                        >
+                          <ChevronRight className="tu-h-4 tu-w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                 <section className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Insights</h2>
@@ -6895,7 +7026,7 @@ export default function App() {
                   </article>
                 </section>
                 {true ? (
-                <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                <section id="inventory-snapshot" className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Snapshot</h2>
 
@@ -7001,7 +7132,7 @@ export default function App() {
                 </section>
                 ) : null}
                 {false ? (
-                <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                <section id="inventory-movements" className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Movements</h2>
 
@@ -7260,7 +7391,7 @@ export default function App() {
                   </div>
                 </section>
                 ) : null}
-                <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                <section id="inventory-health-tracking" className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <div className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-2">
                       <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Health Tracking</h2>
