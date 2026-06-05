@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarElement,
   CategoryScale,
@@ -356,7 +356,7 @@ const metricTooltips: Record<MetricKey | 'netProfitMargin', string | TooltipCont
     blocks: [
       { type: 'text', text: 'Direct costs tied to products sold during the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'COGS = ∑ (Unit Price of the Product + Landed Cost)' }
+      { type: 'formula', text: 'COGS = Sum of (Unit Price of the Product + Landed Cost)' }
     ]
   },
   expenses: {
@@ -1543,6 +1543,20 @@ const inventoryHealthHeaderTooltips: Record<string, string | TooltipContent> = {
     ]
   }
 };
+const skuMovementTurnoverTooltip: TooltipContent = {
+  title: 'Inventory Turnover Ratio',
+  blocks: [
+    {
+      type: 'text',
+      text: 'Ranks SKUs by how often inventory is sold and replaced in the selected period.'
+    },
+    { type: 'spacer' },
+    {
+      type: 'formula',
+      text: 'Inventory Turnover Ratio = COGS / Average Inventory Value'
+    }
+  ]
+};
 
 const inventoryHealthColumnBlueprint: Omit<InventoryHealthColumnConfig, 'visible'>[] = [
   { key: 'name', label: 'Products', tooltipKey: 'product' },
@@ -1899,18 +1913,30 @@ const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
   }
 };
 const inventorySnapshotKpiTooltips: Record<string, string | TooltipContent> = {
-  'On-hand': 'Total stock physically present in selected inventory locations.',
-  Committed: 'Stock reserved for placed orders and unavailable for new allocation.',
-  'Available for Sale': {
-    title: 'Available for Sale',
+  'On-hand Quantity': {
+    title: 'On-hand Quantity',
+    blocks: [
+      { type: 'text', text: 'Total stock physically present in the selected inventory locations for the selected date range.' }
+    ]
+  },
+  'Committed Quantity': {
+    title: 'Committed Quantity',
+    blocks: [
+      { type: 'text', text: 'Stock reserved for active orders and unavailable for new allocation.' },
+      { type: 'spacer' },
+      { type: 'text', text: 'This is a current-only operational number, so the date range filter does not change it.' }
+    ]
+  },
+  'Available Quantity': {
+    title: 'Available Quantity',
     blocks: [
       { type: 'text', text: 'Sellable stock after deducting committed inventory.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Available for Sale = On-hand - Committed' }
+      { type: 'formula', text: 'Available Quantity = On-hand Quantity - Committed Quantity' }
     ]
   },
-  'Inbound (Incoming Inventory)': 'Inventory expected to be received from purchase orders or transfers.',
-  'Unfulfilled or Damaged': 'Units blocked from fulfillment due to stock constraints or damaged condition.',
+  'Inbound Quantity': 'Inventory expected to be received from purchase orders or transfers in the selected date range.',
+  'Unfulfillable / Damaged Quantity': 'Units blocked from fulfillment due to stock constraints, damage, or quality hold.',
   'Stockout Percentage':
     'Share and count of products that stocked out in the selected date range and inventory locations.',
   'Out of Stock Products': 'Total products currently out of stock in selected inventory locations.',
@@ -3201,6 +3227,26 @@ export default function App() {
   ]);
   const [selectedInventorySnapshotStockoutDate, setSelectedInventorySnapshotStockoutDate] = useState('Last 30 Days');
   const [inventorySnapshotMenuSearch, setInventorySnapshotMenuSearch] = useState({ location: '' });
+  const [skuMovementMenus, setSkuMovementMenus] = useState<{
+    fastDate: boolean;
+    fastLocation: boolean;
+    slowDate: boolean;
+    slowLocation: boolean;
+  }>({
+    fastDate: false,
+    fastLocation: false,
+    slowDate: false,
+    slowLocation: false
+  });
+  const [selectedFastSkuMovementDate, setSelectedFastSkuMovementDate] = useState('Last 30 Days');
+  const [selectedSlowSkuMovementDate, setSelectedSlowSkuMovementDate] = useState('Last 30 Days');
+  const [selectedFastSkuMovementLocation, setSelectedFastSkuMovementLocation] = useState<string[]>([
+    ...inventoryLocationOptions
+  ]);
+  const [selectedSlowSkuMovementLocation, setSelectedSlowSkuMovementLocation] = useState<string[]>([
+    ...inventoryLocationOptions
+  ]);
+  const [skuMovementMenuSearch, setSkuMovementMenuSearch] = useState({ fastLocation: '', slowLocation: '' });
   const [inventoryMovementMenus, setInventoryMovementMenus] = useState<{
     date: boolean;
     region: boolean;
@@ -4417,6 +4463,8 @@ export default function App() {
   );
 
   const inventorySnapshotCards = useMemo(() => {
+    const dateMultiplier =
+      inventoryDateMultipliers[selectedInventorySnapshotStockoutDate] ?? inventoryDateMultipliers['Last 30 Days'];
     const sumHealthMetric = (
       metricKey: keyof Pick<
         InventoryHealthProduct,
@@ -4424,70 +4472,57 @@ export default function App() {
       >
     ) => activeInventorySnapshotHealthProducts.reduce((sum, product) => sum + product[metricKey], 0);
 
-    const onHand = Math.round(sumHealthMetric('onHandQuantity'));
+    const onHand = Math.round(sumHealthMetric('onHandQuantity') * dateMultiplier.current);
     const committed = Math.round(sumHealthMetric('committedQuantity'));
-    const availableForSale = Math.round(sumHealthMetric('availableQuantity'));
-    const deadStocks = Math.round(sumHealthMetric('deadStocks'));
-    const agingRiskUnits = Math.round(sumHealthMetric('inventoryAging') * 0.1);
-
-    const stockoutMultiplier =
-      inventoryDateMultipliers[selectedInventorySnapshotStockoutDate] ?? inventoryDateMultipliers['Last 30 Days'];
-    const stockoutProducts = Math.round(
-      activeInventorySnapshotStores.reduce(
-        (sum, snapshot) => sum + snapshot.stockoutProducts.current * stockoutMultiplier.current,
-        0
-      )
-    );
-    const stockoutTotalProducts = Math.round(
-      activeInventorySnapshotStores.reduce(
-        (sum, snapshot) => sum + snapshot.totalProducts.current * stockoutMultiplier.current,
-        0
-      )
-    );
-    const stockoutPercent = stockoutTotalProducts === 0 ? 0 : (stockoutProducts / stockoutTotalProducts) * 100;
-
-    const baseMultiplier = inventoryDateMultipliers['Last 30 Days'].current;
+    const availableForSale = Math.round(sumHealthMetric('availableQuantity') * dateMultiplier.current);
+    const deadStocks = Math.round(sumHealthMetric('deadStocks') * dateMultiplier.current);
+    const agingRiskUnits = Math.round(sumHealthMetric('inventoryAging') * 0.1 * dateMultiplier.current);
     const inbound = Math.round(
-      activeInventorySnapshotStores.reduce((sum, snapshot) => sum + snapshot.inboundQuantity.current * baseMultiplier, 0)
+      activeInventorySnapshotStores.reduce(
+        (sum, snapshot) => sum + snapshot.inboundQuantity.current * dateMultiplier.current,
+        0
+      )
     );
     const unfulfilled = Math.round(deadStocks + agingRiskUnits);
-    const outOfStockProducts = Math.round(
-      activeInventorySnapshotStores.reduce((sum, snapshot) => sum + snapshot.stockoutProducts.current * baseMultiplier, 0)
-    );
-    const reorderThresholdProducts = Math.round(
-      activeInventorySnapshotStores.reduce((sum, snapshot) => sum + snapshot.reorderProducts.current * baseMultiplier, 0)
-    );
 
     return [
-      { label: 'On-hand', value: formatCompactNumber(onHand) },
-      { label: 'Committed', value: formatCompactNumber(committed) },
-      { label: 'Available for Sale', value: formatCompactNumber(availableForSale) },
-      { label: 'Inbound (Incoming Inventory)', value: formatCompactNumber(inbound) },
-      { label: 'Unfulfilled or Damaged', value: formatCompactNumber(unfulfilled) },
-      {
-        label: 'Stockout Percentage',
-        value: `${stockoutPercent.toFixed(1)}%`,
-        meta: `${formatCompactNumber(stockoutProducts)} products`,
-        hasDateFilter: true
-      },
-      { label: 'Out of Stock Products', value: formatCompactNumber(outOfStockProducts) },
-      { label: 'Products in Reorder Threshold', value: formatCompactNumber(reorderThresholdProducts) }
+      { label: 'On-hand Quantity', value: formatCompactNumber(onHand) },
+      { label: 'Committed Quantity', value: formatCompactNumber(committed), currentOnly: true },
+      { label: 'Available Quantity', value: formatCompactNumber(availableForSale) },
+      { label: 'Inbound Quantity', value: formatCompactNumber(inbound) },
+      { label: 'Unfulfillable / Damaged Quantity', value: formatCompactNumber(unfulfilled) }
     ];
   }, [activeInventorySnapshotHealthProducts, activeInventorySnapshotStores, selectedInventorySnapshotStockoutDate]);
 
-  const inventoryRibbonItems = useMemo(() => {
-    const stockoutCard = inventorySnapshotCards.find((card) => card.label === 'Stockout Percentage');
-    const thresholdCard = inventorySnapshotCards.find((card) => card.label === 'Products in Reorder Threshold');
+  const inventorySnapshotAlertMetrics = useMemo(() => {
+    const dateMultiplier =
+      inventoryDateMultipliers[selectedInventorySnapshotStockoutDate] ?? inventoryDateMultipliers['Last 30 Days'];
+    const stockoutProducts = Math.round(
+      activeInventorySnapshotStores.reduce(
+        (sum, snapshot) => sum + snapshot.stockoutProducts.current * dateMultiplier.current,
+        0
+      )
+    );
+    const reorderThresholdProducts = Math.round(
+      activeInventorySnapshotStores.reduce(
+        (sum, snapshot) => sum + snapshot.reorderProducts.current * dateMultiplier.current,
+        0
+      )
+    );
 
+    return { stockoutProducts, reorderThresholdProducts };
+  }, [activeInventorySnapshotStores, selectedInventorySnapshotStockoutDate]);
+
+  const inventoryRibbonItems = useMemo(() => {
     return [
       {
-        strongText: `${stockoutCard?.meta ?? '0 products'} stocked out`,
+        strongText: `${formatCompactNumber(inventorySnapshotAlertMetrics.stockoutProducts)} products stocked out`,
         text: `need replenishment across ${inventorySnapshotLocationSummaryLabel}.`,
         linkLabel: 'Review stockouts',
         href: '#inventory-snapshot'
       },
       {
-        strongText: `${thresholdCard?.value ?? '0'} below threshold`,
+        strongText: `${formatCompactNumber(inventorySnapshotAlertMetrics.reorderThresholdProducts)} below threshold`,
         text: 'need reorder review.',
         linkLabel: 'Open reorder list',
         href: '#inventory-snapshot'
@@ -4523,7 +4558,47 @@ export default function App() {
         href: '#inventory-health-tracking'
       }
     ];
-  }, [inventorySnapshotCards, inventorySnapshotLocationSummaryLabel]);
+  }, [inventorySnapshotAlertMetrics, inventorySnapshotLocationSummaryLabel]);
+
+  const fastSkuMovementLocationSummaryLabel =
+    selectedFastSkuMovementLocation.length === inventoryLocationOptions.length
+      ? 'Inventory Locations'
+      : formatMultiSelectLabel(selectedFastSkuMovementLocation, 'Inventory Locations', 'location', 'locations');
+
+  const slowSkuMovementLocationSummaryLabel =
+    selectedSlowSkuMovementLocation.length === inventoryLocationOptions.length
+      ? 'Inventory Locations'
+      : formatMultiSelectLabel(selectedSlowSkuMovementLocation, 'Inventory Locations', 'location', 'locations');
+
+  const getSkuMovementRows = useCallback(
+    (locations: string[], dateRange: string, direction: 'fast' | 'slow') => {
+      const multiplier = inventoryDateMultipliers[dateRange] ?? inventoryDateMultipliers['Last 30 Days'];
+
+      return inventoryHealthProducts
+        .filter((product) => locations.includes(product.location))
+        .map((product) => ({
+          ...product,
+          periodInventoryTurnoverRatio: Number((product.inventoryTurnoverRatio * multiplier.current).toFixed(2))
+        }))
+        .sort((a, b) =>
+          direction === 'fast'
+            ? b.periodInventoryTurnoverRatio - a.periodInventoryTurnoverRatio
+            : a.periodInventoryTurnoverRatio - b.periodInventoryTurnoverRatio
+        )
+        .slice(0, 5);
+    },
+    []
+  );
+
+  const topFastMovingSkuRows = useMemo(
+    () => getSkuMovementRows(selectedFastSkuMovementLocation, selectedFastSkuMovementDate, 'fast'),
+    [getSkuMovementRows, selectedFastSkuMovementDate, selectedFastSkuMovementLocation]
+  );
+
+  const topSlowMovingSkuRows = useMemo(
+    () => getSkuMovementRows(selectedSlowSkuMovementLocation, selectedSlowSkuMovementDate, 'slow'),
+    [getSkuMovementRows, selectedSlowSkuMovementDate, selectedSlowSkuMovementLocation]
+  );
 
   useEffect(() => {
     if (inventoryRibbonPaused || inventoryRibbonItems.length === 0) return;
@@ -7173,6 +7248,33 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             setInventorySnapshotMenus((current) => ({
+                              location: false,
+                              stockoutDate: !current.stockoutDate
+                            }));
+                          }}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          <span>{selectedInventorySnapshotStockoutDate}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+                        <SearchableDropdownMenu
+                          open={inventorySnapshotMenus.stockoutDate}
+                          options={inventoryDateOptions}
+                          selected={selectedInventorySnapshotStockoutDate}
+                          searchable={false}
+                          widthClass="tu-w-[170px]"
+                          onSelect={(item) => {
+                            setSelectedInventorySnapshotStockoutDate(item);
+                            setInventorySnapshotMenus((current) => ({ ...current, stockoutDate: false }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInventorySnapshotMenus((current) => ({
                               location: !current.location,
                               stockoutDate: false
                             }));
@@ -7202,14 +7304,16 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
+                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
                     {inventorySnapshotCards.map((card) => {
-                      const isStockoutCard = Boolean(card.hasDateFilter);
+                      const isCommittedCard = Boolean(card.currentOnly);
                       return (
                       <article
                         key={card.label}
-                        className={`tu-group/card tu-relative tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] ${
-                          isStockoutCard ? 'tu-p-2.5' : 'tu-p-3'
+                        className={`tu-group/card tu-relative tu-rounded-[12px] tu-border tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-3 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] ${
+                          isCommittedCard
+                            ? 'tu-border-[#dfe5dc] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)]'
+                            : 'tu-border-[#e9ece5] hover:tu-border-[#d8e8db]'
                         }`}
                       >
                         <div className="tu-flex tu-items-start tu-justify-between tu-gap-2">
@@ -7221,53 +7325,187 @@ export default function App() {
                             />
                           </div>
 
-                          {card.hasDateFilter ? (
-                            <div className="tu-relative">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setInventorySnapshotMenus((current) => ({
-                                    location: false,
-                                    stockoutDate: !current.stockoutDate
-                                  }))
-                                }
-                                className="tu-inline-flex tu-items-center tu-gap-1 tu-rounded-[8px] tu-px-1.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c] transition-colors hover:tu-bg-[#f3f5f1] hover:tu-text-[#2a2c2f]"
-                              >
-                                <span>{selectedInventorySnapshotStockoutDate}</span>
-                                <ChevronDown className="tu-h-3 tu-w-3" />
-                              </button>
-                              <SearchableDropdownMenu
-                                open={inventorySnapshotMenus.stockoutDate}
-                                options={inventoryDateOptions}
-                                selected={selectedInventorySnapshotStockoutDate}
-                                searchable={false}
-                                widthClass="tu-w-[170px]"
-                                onSelect={(item) => {
-                                  setSelectedInventorySnapshotStockoutDate(item);
-                                  setInventorySnapshotMenus((current) => ({ ...current, stockoutDate: false }));
-                                }}
-                              />
-                            </div>
-                          ) : null}
                         </div>
 
-                        <div className={`${card.hasDateFilter ? 'tu-mt-1.5' : 'tu-mt-2'} tu-flex tu-items-center tu-gap-2.5`}>
+                        <div className="tu-mt-2 tu-flex tu-items-center tu-gap-2.5">
                           <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{card.value}</p>
-                          {card.meta && isStockoutCard ? (
-                            <>
-                              <span className="tu-h-7 tu-w-px tu-bg-[#dfe6de]" />
-                              <span className="tu-text-[16px] tu-font-medium tu-leading-none tu-text-[#5f656c]">{card.meta}</span>
-                            </>
+                          {isCommittedCard ? (
+                            <span className="tu-group/current-only tu-relative tu-inline-flex tu-rounded-full tu-border tu-border-[#e2e7df] tu-bg-white tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#7b827a]">
+                              Current only
+                              <span className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-1/2 tu-z-30 tu-w-[180px] -tu-translate-x-1/2 tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-center tu-text-[11px] tu-font-medium tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/current-only:tu-opacity-100">
+                                Unaffected by date range
+                              </span>
+                            </span>
                           ) : null}
                         </div>
-                        {card.meta && !isStockoutCard ? (
-                          <p className="tu-mt-1 tu-text-[12px] tu-font-medium tu-text-[#8e9299]">{card.meta}</p>
-                        ) : null}
                       </article>
                     )})}
                   </div>
                 </section>
                 ) : null}
+                <div className="tu-mt-5 tu-grid tu-gap-4 xl:tu-grid-cols-2">
+                  {[
+                    {
+                      key: 'fast',
+                      title: 'Top Fast Moving SKUs',
+                      rows: topFastMovingSkuRows,
+                      selectedDate: selectedFastSkuMovementDate,
+                      selectedLocation: selectedFastSkuMovementLocation,
+                      locationLabel: fastSkuMovementLocationSummaryLabel,
+                      dateMenuKey: 'fastDate' as const,
+                      locationMenuKey: 'fastLocation' as const,
+                      locationSearchKey: 'fastLocation' as const,
+                      onDateSelect: setSelectedFastSkuMovementDate,
+                      onLocationSelect: setSelectedFastSkuMovementLocation
+                    },
+                    {
+                      key: 'slow',
+                      title: 'Top Slow Moving SKUs',
+                      rows: topSlowMovingSkuRows,
+                      selectedDate: selectedSlowSkuMovementDate,
+                      selectedLocation: selectedSlowSkuMovementLocation,
+                      locationLabel: slowSkuMovementLocationSummaryLabel,
+                      dateMenuKey: 'slowDate' as const,
+                      locationMenuKey: 'slowLocation' as const,
+                      locationSearchKey: 'slowLocation' as const,
+                      onDateSelect: setSelectedSlowSkuMovementDate,
+                      onLocationSelect: setSelectedSlowSkuMovementLocation
+                    }
+                  ].map((card) => (
+                    <article
+                      key={card.key}
+                      className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5"
+                    >
+                      <div className="tu-flex tu-flex-col tu-gap-3 lg:tu-flex-row lg:tu-items-center lg:tu-justify-between">
+                        <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">{card.title}</h3>
+                        <div className="tu-flex tu-flex-wrap tu-gap-2.5">
+                          <div className="tu-relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSkuMovementMenus((current) => ({
+                                  fastDate: false,
+                                  fastLocation: false,
+                                  slowDate: false,
+                                  slowLocation: false,
+                                  [card.dateMenuKey]: !current[card.dateMenuKey]
+                                }))
+                              }
+                              className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                            >
+                              <span>{card.selectedDate}</span>
+                              <ChevronDown className="tu-h-3 tu-w-3" />
+                            </button>
+                            <SearchableDropdownMenu
+                              open={skuMovementMenus[card.dateMenuKey]}
+                              options={inventoryDateOptions}
+                              selected={card.selectedDate}
+                              searchable={false}
+                              widthClass="tu-w-[170px]"
+                              onSelect={(item) => {
+                                card.onDateSelect(item);
+                                setSkuMovementMenus((current) => ({ ...current, [card.dateMenuKey]: false }));
+                              }}
+                            />
+                          </div>
+
+                          <div className="tu-relative">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSkuMovementMenus((current) => ({
+                                  fastDate: false,
+                                  fastLocation: false,
+                                  slowDate: false,
+                                  slowLocation: false,
+                                  [card.locationMenuKey]: !current[card.locationMenuKey]
+                                }));
+                                setSkuMovementMenuSearch((current) => ({ ...current, [card.locationSearchKey]: '' }));
+                              }}
+                              className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                            >
+                              <span>{card.locationLabel}</span>
+                              <ChevronDown className="tu-h-3 tu-w-3" />
+                            </button>
+                            <SearchableDropdownMenu
+                              open={skuMovementMenus[card.locationMenuKey]}
+                              options={inventoryLocationOptions}
+                              selected={card.selectedLocation}
+                              multiSelect
+                              onToggleAll={(values) => card.onLocationSelect((current) => setMultiSelectGroup(current, values))}
+                              searchable
+                              searchValue={skuMovementMenuSearch[card.locationSearchKey]}
+                              onSearchChange={(value) =>
+                                setSkuMovementMenuSearch((current) => ({ ...current, [card.locationSearchKey]: value }))
+                              }
+                              widthClass="tu-w-[230px]"
+                              onSelect={(item) => card.onLocationSelect((current) => toggleMultiSelectValue(current, item))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8]">
+                        <table className="tu-w-full tu-border-collapse">
+                          <thead className="tu-bg-[#f8faf7]">
+                            <tr className="tu-border-b tu-border-[#e8ece5]">
+                              <th className="tu-w-[68%] tu-px-3 tu-py-2.5 tu-text-left">
+                                <span className="tu-text-[12px] tu-font-semibold tu-text-[#5f656c]">Product Name</span>
+                              </th>
+                              <th className="tu-px-3 tu-py-2.5 tu-text-right">
+                                <div className="tu-flex tu-items-center tu-justify-end tu-gap-1.5">
+                                  <span className="tu-text-[12px] tu-font-semibold tu-text-[#5f656c]">Inventory Turnover Ratio</span>
+                                  <span className="tu-group/tooltip tu-relative tu-inline-flex">
+                                    <span className="tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d5dacd] tu-text-[10px] tu-font-semibold tu-text-[#7f838a]">
+                                      ?
+                                    </span>
+                                    <InfoTooltip text={skuMovementTurnoverTooltip} widthClass="tu-w-[300px]" />
+                                  </span>
+                                  <span className="tu-group/turnover-guide tu-relative tu-inline-flex tu-cursor-help tu-rounded-full tu-border tu-border-[#e0e6dc] tu-bg-white tu-px-2 tu-py-0.5 tu-text-[10px] tu-font-medium tu-text-[#7b827a]">
+                                    Guide
+                                    <span className="tu-pointer-events-none tu-absolute tu-right-0 tu-top-[calc(100%+8px)] tu-z-40 tu-w-[280px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-left tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/turnover-guide:tu-opacity-100">
+                                      <span className="tu-block tu-font-semibold">How to read this table</span>
+                                      <span className="tu-mt-2 tu-block">Higher ratio means the SKU sells and replenishes faster in the selected period.</span>
+                                      <span className="tu-mt-2 tu-block">Lower ratio means slower movement and may indicate aging inventory or excess stock.</span>
+                                    </span>
+                                  </span>
+                                </div>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {card.rows.map((product) => (
+                              <tr key={`${card.key}-${product.id}`} className="tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
+                                <td className="tu-px-3 tu-py-2.5">
+                                  <div className="tu-flex tu-items-center tu-gap-3">
+                                    <img
+                                      src={product.image}
+                                      alt={product.name}
+                                      className="tu-h-10 tu-w-10 tu-rounded-[10px] tu-border tu-border-[#e5e9e2] tu-object-cover"
+                                    />
+                                    <div className="tu-min-w-0">
+                                      <p className="tu-truncate tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{product.name}</p>
+                                      <div className="tu-inline-flex tu-items-center tu-gap-1.5">
+                                        <p className="tu-text-[11px] tu-text-[#8f949b]">{product.sku}</p>
+                                        <span className="tu-inline-flex tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-[#a3a8af]" />
+                                        <span className="tu-text-[11px] tu-text-[#8f949b]">{product.productType}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="tu-px-3 tu-py-2.5 tu-text-right">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                                    {product.periodInventoryTurnoverRatio.toFixed(2)} times
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </article>
+                  ))}
+                </div>
                 {false ? (
                 <section id="inventory-movements" className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
@@ -10422,6 +10660,7 @@ export default function App() {
     </div>
   );
 } 
+
 
 
 
