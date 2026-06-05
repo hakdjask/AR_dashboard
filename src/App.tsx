@@ -1557,6 +1557,16 @@ const skuMovementTurnoverTooltip: TooltipContent = {
     }
   ]
 };
+const skuMovementProductLimitOptions = ['5', '10', '15', '20'];
+const inventoryAgingProductLimitOptions = ['10', '20', '30'];
+const inventoryAgingBucketLabels = ['0-30 days', '31-60 days', '61-90 days', '90+ days'];
+const inventoryAgingLocationColors: Record<string, string> = {
+  'Main Warehouse': '#8fc9a5',
+  'Retail Backroom': '#8fb3df',
+  'Transit Hub': '#d9b26b',
+  'Returns Bay': '#d98a87',
+  'Overflow Rack': '#a99adb'
+};
 
 const inventoryHealthColumnBlueprint: Omit<InventoryHealthColumnConfig, 'visible'>[] = [
   { key: 'name', label: 'Products', tooltipKey: 'product' },
@@ -3230,16 +3240,22 @@ export default function App() {
   const [skuMovementMenus, setSkuMovementMenus] = useState<{
     fastDate: boolean;
     fastLocation: boolean;
+    fastLimit: boolean;
     slowDate: boolean;
     slowLocation: boolean;
+    slowLimit: boolean;
   }>({
     fastDate: false,
     fastLocation: false,
+    fastLimit: false,
     slowDate: false,
-    slowLocation: false
+    slowLocation: false,
+    slowLimit: false
   });
   const [selectedFastSkuMovementDate, setSelectedFastSkuMovementDate] = useState('Last 30 Days');
   const [selectedSlowSkuMovementDate, setSelectedSlowSkuMovementDate] = useState('Last 30 Days');
+  const [selectedFastSkuMovementLimit, setSelectedFastSkuMovementLimit] = useState('5');
+  const [selectedSlowSkuMovementLimit, setSelectedSlowSkuMovementLimit] = useState('5');
   const [selectedFastSkuMovementLocation, setSelectedFastSkuMovementLocation] = useState<string[]>([
     ...inventoryLocationOptions
   ]);
@@ -3247,6 +3263,13 @@ export default function App() {
     ...inventoryLocationOptions
   ]);
   const [skuMovementMenuSearch, setSkuMovementMenuSearch] = useState({ fastLocation: '', slowLocation: '' });
+  const [inventoryAgingMenuOpen, setInventoryAgingMenuOpen] = useState(false);
+  const [inventoryAgingLimitMenuOpen, setInventoryAgingLimitMenuOpen] = useState(false);
+  const [selectedInventoryAgingLocations, setSelectedInventoryAgingLocations] = useState<string[]>([
+    ...inventoryLocationOptions
+  ]);
+  const [selectedInventoryAgingProductLimit, setSelectedInventoryAgingProductLimit] = useState('10');
+  const [inventoryAgingMenuSearch, setInventoryAgingMenuSearch] = useState('');
   const [inventoryMovementMenus, setInventoryMovementMenus] = useState<{
     date: boolean;
     region: boolean;
@@ -4571,8 +4594,9 @@ export default function App() {
       : formatMultiSelectLabel(selectedSlowSkuMovementLocation, 'Inventory Locations', 'location', 'locations');
 
   const getSkuMovementRows = useCallback(
-    (locations: string[], dateRange: string, direction: 'fast' | 'slow') => {
+    (locations: string[], dateRange: string, direction: 'fast' | 'slow', limit: string) => {
       const multiplier = inventoryDateMultipliers[dateRange] ?? inventoryDateMultipliers['Last 30 Days'];
+      const rowLimit = Number(limit) || 5;
 
       return inventoryHealthProducts
         .filter((product) => locations.includes(product.location))
@@ -4585,19 +4609,179 @@ export default function App() {
             ? b.periodInventoryTurnoverRatio - a.periodInventoryTurnoverRatio
             : a.periodInventoryTurnoverRatio - b.periodInventoryTurnoverRatio
         )
-        .slice(0, 5);
+        .slice(0, rowLimit);
     },
     []
   );
 
   const topFastMovingSkuRows = useMemo(
-    () => getSkuMovementRows(selectedFastSkuMovementLocation, selectedFastSkuMovementDate, 'fast'),
-    [getSkuMovementRows, selectedFastSkuMovementDate, selectedFastSkuMovementLocation]
+    () =>
+      getSkuMovementRows(
+        selectedFastSkuMovementLocation,
+        selectedFastSkuMovementDate,
+        'fast',
+        selectedFastSkuMovementLimit
+      ),
+    [getSkuMovementRows, selectedFastSkuMovementDate, selectedFastSkuMovementLimit, selectedFastSkuMovementLocation]
   );
 
   const topSlowMovingSkuRows = useMemo(
-    () => getSkuMovementRows(selectedSlowSkuMovementLocation, selectedSlowSkuMovementDate, 'slow'),
-    [getSkuMovementRows, selectedSlowSkuMovementDate, selectedSlowSkuMovementLocation]
+    () =>
+      getSkuMovementRows(
+        selectedSlowSkuMovementLocation,
+        selectedSlowSkuMovementDate,
+        'slow',
+        selectedSlowSkuMovementLimit
+      ),
+    [getSkuMovementRows, selectedSlowSkuMovementDate, selectedSlowSkuMovementLimit, selectedSlowSkuMovementLocation]
+  );
+
+  const inventoryAgingLocationSummaryLabel =
+    selectedInventoryAgingLocations.length === inventoryLocationOptions.length
+      ? 'Inventory Locations'
+      : formatMultiSelectLabel(selectedInventoryAgingLocations, 'Inventory Locations', 'location', 'locations');
+
+  const getInventoryAgingUnitCost = useCallback((product: InventoryHealthProduct) => {
+    const skuSeed = Number(product.sku.replace(/\D/g, '')) || 1;
+    return 850 + (skuSeed % 9) * 175;
+  }, []);
+
+  const inventoryAgingProductsInScope = useMemo(
+    () => inventoryHealthProducts.filter((product) => selectedInventoryAgingLocations.includes(product.location)),
+    [selectedInventoryAgingLocations]
+  );
+
+  const inventoryAgingChartData = useMemo(() => {
+    const bucketValueByLocation = selectedInventoryAgingLocations.map((location) => {
+      const products = inventoryAgingProductsInScope.filter((product) => product.location === location);
+      const bucketValues = products.reduce(
+        (totals, product) => {
+          const unitCost = getInventoryAgingUnitCost(product);
+          const deadStockUnits = product.deadStocks;
+          const agingUnits = Math.max(0, product.inventoryAging);
+          const zeroToThirtyUnits = Math.max(0, product.onHandQuantity - agingUnits - deadStockUnits);
+          const thirtyOneToSixtyUnits = Math.round(agingUnits * 0.52);
+          const sixtyOneToNinetyUnits = Math.max(0, agingUnits - thirtyOneToSixtyUnits);
+
+          totals[0] += zeroToThirtyUnits * unitCost;
+          totals[1] += thirtyOneToSixtyUnits * unitCost;
+          totals[2] += sixtyOneToNinetyUnits * unitCost;
+          totals[3] += deadStockUnits * unitCost;
+          return totals;
+        },
+        [0, 0, 0, 0]
+      );
+
+      return {
+        label: location,
+        data: bucketValues.map((value) => Math.round(value)),
+        backgroundColor: inventoryAgingLocationColors[location] ?? '#64748b',
+        borderRadius: 0,
+        borderSkipped: false,
+        barPercentage: 0.88,
+        categoryPercentage: 0.84,
+        stack: 'aging'
+      };
+    });
+
+    return {
+      labels: inventoryAgingBucketLabels,
+      datasets: bucketValueByLocation
+    };
+  }, [getInventoryAgingUnitCost, inventoryAgingProductsInScope, selectedInventoryAgingLocations]);
+
+  const inventoryAgingChartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y' as const,
+      interaction: { mode: 'index' as const, intersect: false },
+      scales: {
+        x: {
+          stacked: true,
+          beginAtZero: true,
+          grid: { color: '#edf0ea' },
+          ticks: {
+            color: '#7c838c',
+            font: { size: 11, family: 'Poppins' },
+            callback: (value: string | number) => formatCompactCurrency(Number(value))
+          }
+        },
+        y: {
+          stacked: true,
+          grid: { display: false },
+          ticks: { color: '#6d737b', font: { size: 11, family: 'Poppins' } }
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(32, 34, 36, 0.92)',
+          titleColor: '#ffffff',
+          bodyColor: '#f5f6f3',
+          borderColor: 'rgba(255,255,255,0.10)',
+          borderWidth: 1,
+          cornerRadius: 10,
+          padding: 10,
+          displayColors: true,
+          boxWidth: 8,
+          boxHeight: 8,
+          boxPadding: 4,
+          titleFont: { family: 'Poppins', size: 12, weight: 'bold' as const },
+          bodyFont: { family: 'Poppins', size: 11, weight: 'normal' as const },
+          footerFont: { family: 'Poppins', size: 11, weight: 'bold' as const },
+          callbacks: {
+            title: (items: Array<{ label: string }>) => items[0]?.label ?? '',
+            label: (context: { dataset: { label?: string }; parsed: { x: number | null } }) =>
+              ` ${context.dataset.label ?? 'Location'}: ${formatCompactCurrency(context.parsed.x ?? 0)}`,
+            footer: (items: Array<{ parsed: { x: number | null } }>) =>
+              `Total: ${formatCompactCurrency(items.reduce((sum, item) => sum + (item.parsed.x ?? 0), 0))}`
+          }
+        }
+      }
+    }),
+    []
+  );
+
+  const inventoryAgingDeadStockKpis = useMemo(() => {
+    const deadStockProducts = inventoryAgingProductsInScope.filter((product) => product.deadStocks > 0);
+    const deadStockUnitsValue = deadStockProducts.reduce(
+      (sum, product) => sum + product.deadStocks * getInventoryAgingUnitCost(product),
+      0
+    );
+
+    return {
+      deadStockSkuCount: deadStockProducts.length,
+      deadStockUnitsValue
+    };
+  }, [getInventoryAgingUnitCost, inventoryAgingProductsInScope]);
+
+  const inventoryAgingDeadStockRows = useMemo(
+    () =>
+      inventoryAgingProductsInScope
+        .filter((product) => product.deadStocks > 0)
+        .map((product) => {
+          const unitCost = getInventoryAgingUnitCost(product);
+          const agingUnits = Math.max(0, product.inventoryAging);
+          const zeroToThirtyUnits = Math.max(0, product.onHandQuantity - agingUnits - product.deadStocks);
+          const thirtyOneToSixtyUnits = Math.round(agingUnits * 0.52);
+          const sixtyOneToNinetyUnits = Math.max(0, agingUnits - thirtyOneToSixtyUnits);
+          return {
+            ...product,
+            zeroToThirtyUnits,
+            thirtyOneToSixtyUnits,
+            sixtyOneToNinetyUnits,
+            totalUnits: product.onHandQuantity,
+            totalInventoryValue: product.onHandQuantity * unitCost,
+            deadStockInventoryValue: product.deadStocks * unitCost
+          };
+        })
+        .sort((a, b) => b.deadStocks - a.deadStocks)
+        .slice(0, Number(selectedInventoryAgingProductLimit) || 10),
+    [getInventoryAgingUnitCost, inventoryAgingProductsInScope, selectedInventoryAgingProductLimit]
   );
 
   useEffect(() => {
@@ -7352,11 +7536,14 @@ export default function App() {
                       selectedDate: selectedFastSkuMovementDate,
                       selectedLocation: selectedFastSkuMovementLocation,
                       locationLabel: fastSkuMovementLocationSummaryLabel,
+                      selectedLimit: selectedFastSkuMovementLimit,
                       dateMenuKey: 'fastDate' as const,
                       locationMenuKey: 'fastLocation' as const,
+                      limitMenuKey: 'fastLimit' as const,
                       locationSearchKey: 'fastLocation' as const,
                       onDateSelect: setSelectedFastSkuMovementDate,
-                      onLocationSelect: setSelectedFastSkuMovementLocation
+                      onLocationSelect: setSelectedFastSkuMovementLocation,
+                      onLimitSelect: setSelectedFastSkuMovementLimit
                     },
                     {
                       key: 'slow',
@@ -7365,11 +7552,14 @@ export default function App() {
                       selectedDate: selectedSlowSkuMovementDate,
                       selectedLocation: selectedSlowSkuMovementLocation,
                       locationLabel: slowSkuMovementLocationSummaryLabel,
+                      selectedLimit: selectedSlowSkuMovementLimit,
                       dateMenuKey: 'slowDate' as const,
                       locationMenuKey: 'slowLocation' as const,
+                      limitMenuKey: 'slowLimit' as const,
                       locationSearchKey: 'slowLocation' as const,
                       onDateSelect: setSelectedSlowSkuMovementDate,
-                      onLocationSelect: setSelectedSlowSkuMovementLocation
+                      onLocationSelect: setSelectedSlowSkuMovementLocation,
+                      onLimitSelect: setSelectedSlowSkuMovementLimit
                     }
                   ].map((card) => (
                     <article
@@ -7377,7 +7567,17 @@ export default function App() {
                       className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5"
                     >
                       <div className="tu-flex tu-flex-col tu-gap-3 lg:tu-flex-row lg:tu-items-center lg:tu-justify-between">
-                        <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">{card.title}</h3>
+                        <div className="tu-flex tu-items-center tu-gap-2">
+                          <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">{card.title}</h3>
+                          <span className="tu-group/turnover-guide tu-relative tu-inline-flex tu-cursor-help tu-rounded-full tu-border tu-border-[#e0e6dc] tu-bg-white tu-px-2 tu-py-0.5 tu-text-[10px] tu-font-medium tu-text-[#7b827a]">
+                            Guide
+                            <span className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-0 tu-z-[300] tu-w-[320px] tu-rounded-md tu-bg-[#111111] tu-px-3 tu-py-2.5 tu-text-left tu-text-[11px] tu-leading-5 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/turnover-guide:tu-opacity-100">
+                              <span className="tu-block tu-font-semibold">How to read this table</span>
+                              <span className="tu-mt-2 tu-block">Higher ratio means the SKU sells and replenishes faster in the selected period.</span>
+                              <span className="tu-mt-2 tu-block">Lower ratio means slower movement and may indicate aging inventory or excess stock.</span>
+                            </span>
+                          </span>
+                        </div>
                         <div className="tu-flex tu-flex-wrap tu-gap-2.5">
                           <div className="tu-relative">
                             <button
@@ -7386,8 +7586,10 @@ export default function App() {
                                 setSkuMovementMenus((current) => ({
                                   fastDate: false,
                                   fastLocation: false,
+                                  fastLimit: false,
                                   slowDate: false,
                                   slowLocation: false,
+                                  slowLimit: false,
                                   [card.dateMenuKey]: !current[card.dateMenuKey]
                                 }))
                               }
@@ -7416,8 +7618,10 @@ export default function App() {
                                 setSkuMovementMenus((current) => ({
                                   fastDate: false,
                                   fastLocation: false,
+                                  fastLimit: false,
                                   slowDate: false,
                                   slowLocation: false,
+                                  slowLimit: false,
                                   [card.locationMenuKey]: !current[card.locationMenuKey]
                                 }));
                                 setSkuMovementMenuSearch((current) => ({ ...current, [card.locationSearchKey]: '' }));
@@ -7445,38 +7649,67 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="tu-mt-4 tu-overflow-hidden tu-rounded-[12px] tu-border tu-border-[#eceee8]">
-                        <table className="tu-w-full tu-border-collapse">
-                          <thead className="tu-bg-[#f8faf7]">
+                      <div className="tu-relative tu-mt-4 tu-rounded-[12px] tu-border tu-border-[#eceee8]">
+                        <table className="tu-w-full tu-table-fixed tu-border-collapse">
+                          <thead className="tu-table tu-w-full tu-table-fixed tu-bg-[#f8faf7]">
                             <tr className="tu-border-b tu-border-[#e8ece5]">
-                              <th className="tu-w-[68%] tu-px-3 tu-py-2.5 tu-text-left">
-                                <span className="tu-text-[12px] tu-font-semibold tu-text-[#5f656c]">Product Name</span>
-                              </th>
-                              <th className="tu-px-3 tu-py-2.5 tu-text-right">
-                                <div className="tu-flex tu-items-center tu-justify-end tu-gap-1.5">
-                                  <span className="tu-text-[12px] tu-font-semibold tu-text-[#5f656c]">Inventory Turnover Ratio</span>
-                                  <span className="tu-group/tooltip tu-relative tu-inline-flex">
-                                    <span className="tu-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d5dacd] tu-text-[10px] tu-font-semibold tu-text-[#7f838a]">
-                                      ?
-                                    </span>
-                                    <InfoTooltip text={skuMovementTurnoverTooltip} widthClass="tu-w-[300px]" />
+                              <th className="tu-w-[52%] tu-px-3 tu-py-2.5 tu-text-left">
+                                <div className="tu-flex tu-min-h-9 tu-items-center tu-gap-2">
+                                  <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">
+                                    Product<br />Name
                                   </span>
-                                  <span className="tu-group/turnover-guide tu-relative tu-inline-flex tu-cursor-help tu-rounded-full tu-border tu-border-[#e0e6dc] tu-bg-white tu-px-2 tu-py-0.5 tu-text-[10px] tu-font-medium tu-text-[#7b827a]">
-                                    Guide
-                                    <span className="tu-pointer-events-none tu-absolute tu-right-0 tu-top-[calc(100%+8px)] tu-z-40 tu-w-[280px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-left tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/turnover-guide:tu-opacity-100">
-                                      <span className="tu-block tu-font-semibold">How to read this table</span>
-                                      <span className="tu-mt-2 tu-block">Higher ratio means the SKU sells and replenishes faster in the selected period.</span>
-                                      <span className="tu-mt-2 tu-block">Lower ratio means slower movement and may indicate aging inventory or excess stock.</span>
-                                    </span>
+                                  <div className="tu-relative tu-inline-flex tu-items-center">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSkuMovementMenus((current) => ({
+                                          fastDate: false,
+                                          fastLocation: false,
+                                          fastLimit: false,
+                                          slowDate: false,
+                                          slowLocation: false,
+                                          slowLimit: false,
+                                          [card.limitMenuKey]: !current[card.limitMenuKey]
+                                        }))
+                                      }
+                                      className="tu-inline-flex tu-h-6 tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-border-[#e0e6dc] tu-bg-white tu-px-2 tu-text-[10px] tu-font-normal tu-leading-none tu-text-[#7b827a] hover:tu-border-[#cbd6c8] hover:tu-text-[#2a2c2f]"
+                                      style={{ fontFamily: 'Poppins, sans-serif' }}
+                                    >
+                                      <span>Show {card.selectedLimit}</span>
+                                      <ChevronDown className="tu-h-2.5 tu-w-2.5" />
+                                    </button>
+                                    <SearchableDropdownMenu
+                                      open={skuMovementMenus[card.limitMenuKey]}
+                                      options={skuMovementProductLimitOptions}
+                                      selected={card.selectedLimit}
+                                      searchable={false}
+                                      widthClass="tu-w-[76px] [&_button]:tu-h-7 [&_button]:tu-text-[11px] [&_button]:tu-font-normal [&_button]:tu-leading-none"
+                                      onSelect={(item) => {
+                                        card.onLimitSelect(item);
+                                        setSkuMovementMenus((current) => ({ ...current, [card.limitMenuKey]: false }));
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </th>
+                              <th className="tu-w-[22%] tu-px-3 tu-py-2.5 tu-text-right">
+                                <span className="tu-block tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">
+                                  Sales<br />Velocity
+                                </span>
+                              </th>
+                              <th className="tu-w-[26%] tu-px-3 tu-py-2.5 tu-text-right">
+                                <div className="tu-flex tu-min-h-9 tu-items-center tu-justify-end tu-gap-1.5">
+                                  <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">
+                                    Inventory Turnover<br />Ratio
                                   </span>
                                 </div>
                               </th>
                             </tr>
                           </thead>
-                          <tbody>
+                          <tbody className="tu-block tu-max-h-[400px] tu-overflow-y-auto">
                             {card.rows.map((product) => (
-                              <tr key={`${card.key}-${product.id}`} className="tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
-                                <td className="tu-px-3 tu-py-2.5">
+                              <tr key={`${card.key}-${product.id}`} className="tu-table tu-w-full tu-table-fixed tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
+                                <td className="tu-w-[52%] tu-px-3 tu-py-2.5">
                                   <div className="tu-flex tu-items-center tu-gap-3">
                                     <img
                                       src={product.image}
@@ -7493,8 +7726,13 @@ export default function App() {
                                     </div>
                                   </div>
                                 </td>
-                                <td className="tu-px-3 tu-py-2.5 tu-text-right">
-                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                                <td className="tu-w-[22%] tu-px-3 tu-py-2.5 tu-text-right">
+                                  <span className="tu-whitespace-nowrap tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                                    {product.salesVelocity.toFixed(1)} units/day
+                                  </span>
+                                </td>
+                                <td className="tu-w-[26%] tu-px-3 tu-py-2.5 tu-text-right">
+                                  <span className="tu-whitespace-nowrap tu-text-[13px] tu-font-medium tu-text-[#333538]">
                                     {product.periodInventoryTurnoverRatio.toFixed(2)} times
                                   </span>
                                 </td>
@@ -7506,6 +7744,181 @@ export default function App() {
                     </article>
                   ))}
                 </div>
+                <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                  <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
+                    <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Aging</h2>
+
+                    <div className="tu-relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInventoryAgingMenuOpen((current) => !current);
+                          setInventoryAgingMenuSearch('');
+                        }}
+                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                      >
+                        <span>{inventoryAgingLocationSummaryLabel}</span>
+                        <ChevronDown className="tu-h-3 tu-w-3" />
+                      </button>
+                      <SearchableDropdownMenu
+                        open={inventoryAgingMenuOpen}
+                        options={inventoryLocationOptions}
+                        selected={selectedInventoryAgingLocations}
+                        multiSelect
+                        onToggleAll={(values) =>
+                          setSelectedInventoryAgingLocations((current) => setMultiSelectGroup(current, values))
+                        }
+                        searchable
+                        searchValue={inventoryAgingMenuSearch}
+                        onSearchChange={setInventoryAgingMenuSearch}
+                        widthClass="tu-w-[230px]"
+                        onSelect={(item) =>
+                          setSelectedInventoryAgingLocations((current) => toggleMultiSelectValue(current, item))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="tu-mt-5 tu-grid tu-gap-3 md:tu-grid-cols-2">
+                    <article className="tu-group/card tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-3 tu-shadow-[0_10px_24px_rgba(31,41,55,0.05)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
+                      <p className="tu-text-[13px] tu-text-[#8f949b]">Dead Stock SKUs</p>
+                      <p className="tu-mt-3 tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                        {formatCompactNumber(inventoryAgingDeadStockKpis.deadStockSkuCount)}
+                      </p>
+                    </article>
+                    <article className="tu-group/card tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-3 tu-shadow-[0_10px_24px_rgba(31,41,55,0.05)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
+                      <p className="tu-text-[13px] tu-text-[#8f949b]">Accumulated Units Value</p>
+                      <p className="tu-mt-3 tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                        {formatCompactCurrency(inventoryAgingDeadStockKpis.deadStockUnitsValue)}
+                      </p>
+                    </article>
+                  </div>
+
+                  <div className="tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
+                    <div>
+                      <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#333538]">Inventory Valuation by Aging Bucket</h3>
+                    </div>
+                    <div className="tu-mt-4 tu-h-[300px]">
+                      <Bar data={inventoryAgingChartData} options={inventoryAgingChartOptions} />
+                    </div>
+                  </div>
+
+                  <div className="tu-mt-5 tu-flex tu-items-center tu-justify-between">
+                    <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#333538]">Dead Stock Inventory Aging</h3>
+                  </div>
+                  <div className="tu-mt-3 tu-overflow-auto tu-rounded-[12px] tu-border tu-border-[#eceee8]">
+                    <table className="tu-w-full tu-min-w-[1180px] tu-border-collapse">
+                      <thead className="tu-table tu-w-full tu-table-fixed tu-bg-[#f8faf7]">
+                        <tr className="tu-border-b tu-border-[#e8ece5]">
+                          <th className="tu-w-[24%] tu-px-3 tu-py-2.5 tu-text-left">
+                            <div className="tu-flex tu-items-center tu-gap-2">
+                              <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Product Name</span>
+                              <div className="tu-relative tu-inline-flex tu-items-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setInventoryAgingLimitMenuOpen((current) => !current)}
+                                  className="tu-inline-flex tu-h-6 tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-border-[#e0e6dc] tu-bg-white tu-px-2 tu-text-[10px] tu-font-normal tu-leading-none tu-text-[#7b827a] hover:tu-border-[#cbd6c8] hover:tu-text-[#2a2c2f]"
+                                  style={{ fontFamily: 'Poppins, sans-serif' }}
+                                >
+                                  <span>Show {selectedInventoryAgingProductLimit}</span>
+                                  <ChevronDown className="tu-h-2.5 tu-w-2.5" />
+                                </button>
+                                <SearchableDropdownMenu
+                                  open={inventoryAgingLimitMenuOpen}
+                                  options={inventoryAgingProductLimitOptions}
+                                  selected={selectedInventoryAgingProductLimit}
+                                  searchable={false}
+                                  widthClass="tu-w-[76px] [&_button]:tu-h-7 [&_button]:tu-text-[11px] [&_button]:tu-font-normal [&_button]:tu-leading-none"
+                                  onSelect={(item) => {
+                                    setSelectedInventoryAgingProductLimit(item);
+                                    setInventoryAgingLimitMenuOpen(false);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </th>
+                          <th className="tu-w-[9%] tu-px-3 tu-py-2.5 tu-text-right">
+                            <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Total Units</span>
+                          </th>
+                          <th className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-right">
+                            <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Total Inventory Value</span>
+                          </th>
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                            <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">0-30 Days</span>
+                          </th>
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                            <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">31-60 Days</span>
+                          </th>
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                            <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">61-90 Days</span>
+                          </th>
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                            <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">90+ Days</span>
+                          </th>
+                          <th className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-pr-8 tu-text-right">
+                            <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Dead Stock Value</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="tu-block tu-max-h-[480px] tu-overflow-y-auto">
+                        {inventoryAgingDeadStockRows.map((product) => (
+                          <tr key={`aging-${product.id}`} className="tu-table tu-w-full tu-table-fixed tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
+                            <td className="tu-w-[24%] tu-px-3 tu-py-2.5">
+                              <div className="tu-flex tu-items-center tu-gap-3">
+                                <img
+                                  src={product.image}
+                                  alt={product.name}
+                                  className="tu-h-10 tu-w-10 tu-rounded-[10px] tu-border tu-border-[#e5e9e2] tu-object-cover"
+                                />
+                                <div className="tu-min-w-0">
+                                  <p className="tu-truncate tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{product.name}</p>
+                                  <div className="tu-inline-flex tu-items-center tu-gap-1.5">
+                                    <p className="tu-text-[11px] tu-text-[#8f949b]">{product.sku}</p>
+                                    <span className="tu-inline-flex tu-h-1.5 tu-w-1.5 tu-rounded-full tu-bg-[#a3a8af]" />
+                                    <span className="tu-text-[11px] tu-text-[#8f949b]">{product.productType}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="tu-w-[9%] tu-px-3 tu-py-2.5 tu-text-right">
+                              <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{formatCompactNumber(product.totalUnits)}</span>
+                            </td>
+                            <td className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-right">
+                              <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                                {formatCompactCurrency(product.totalInventoryValue)}
+                              </span>
+                            </td>
+                            {[
+                              { value: product.zeroToThirtyUnits, className: 'tu-bg-[#e8f6ef] tu-text-[#167348]' },
+                              { value: product.thirtyOneToSixtyUnits, className: 'tu-bg-[#fff4dc] tu-text-[#8a5b05]' },
+                              { value: product.sixtyOneToNinetyUnits, className: 'tu-bg-[#fff0df] tu-text-[#8d4a08]' },
+                              { value: product.deadStocks, className: 'tu-bg-[#ece9e2] tu-text-[#55514b]', suffix: ' units' }
+                            ].map((bucket, index) => (
+                              <td
+                                key={`${product.id}-aging-bucket-${index}`}
+                                className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right"
+                              >
+                                {bucket.value > 0 ? (
+                                  <span className={`tu-inline-flex tu-rounded-[7px] tu-px-2.5 tu-py-1 tu-text-[12px] tu-font-semibold ${bucket.className}`}>
+                                    {formatCompactNumber(bucket.value)}
+                                    {bucket.suffix ?? ''}
+                                  </span>
+                                ) : (
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#7b8078]">-</span>
+                                )}
+                              </td>
+                            ))}
+                            <td className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-pr-8 tu-text-right">
+                              <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                                {formatCompactCurrency(product.deadStockInventoryValue)}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
                 {false ? (
                 <section id="inventory-movements" className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
