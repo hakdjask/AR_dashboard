@@ -1825,8 +1825,48 @@ const salesStoreRegionMap: Record<string, string> = {
 };
 
 const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
-  'Total Inventory Value':
-    'Total monetary value of available inventory in the selected period and filters, with the contributing product count shown below.',
+  'Total Active SKUs': {
+    title: 'Total Active SKUs',
+    blocks: [
+      { type: 'text', text: 'Count of SKUs currently active across the selected inventory locations.' }
+    ]
+  },
+  'Total Inventory Value': {
+    title: 'Total Inventory Value',
+    blocks: [
+      { type: 'text', text: 'Estimated monetary value of inventory available in the selected period and locations.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Inventory Value = Sum of (On-hand Quantity x Unit Cost)' }
+    ]
+  },
+  'Quantity In': {
+    title: 'Quantity In',
+    blocks: [
+      { type: 'text', text: 'Total inbound inventory received through purchase orders, returns to stock, or transfers.' }
+    ]
+  },
+  'Quantity Out': {
+    title: 'Quantity Out',
+    blocks: [
+      { type: 'text', text: 'Total outbound inventory moved out through fulfilled orders, transfers, or adjustments.' }
+    ]
+  },
+  'Inventory Turnover Ratio': {
+    title: 'Inventory Turnover Ratio',
+    blocks: [
+      { type: 'text', text: 'How often inventory is sold and replenished during the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Inventory Turnover Ratio = COGS / Average Inventory Value' }
+    ]
+  },
+  'Sell Through Rate': {
+    title: 'Sell Through Rate',
+    blocks: [
+      { type: 'text', text: 'Share of available supply that sold during the selected period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Sell Through Rate (%) = Quantity Out / (Quantity Out + Ending On-hand Quantity) x 100' }
+    ]
+  },
   'Average Fulfillment Rate': {
     title: 'Average Fulfillment Rate',
     blocks: [
@@ -1835,8 +1875,28 @@ const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Fulfillment Rate (%) = (Quantity Out / Quantity In) x 100' }
     ]
   },
-  'Quantity In': 'Total inbound inventory quantity received during the selected period and locations.',
-  'Quantity Out': 'Total outbound inventory quantity fulfilled during the selected period and locations.'
+  'Out of Stock Rate': {
+    title: 'Out of Stock Rate',
+    blocks: [
+      { type: 'text', text: 'Snapshot view of SKUs that are currently at zero inventory and unavailable right now.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'OOS Rate (%) = SKUs with 0 inventory now / Total SKUs x 100' }
+    ]
+  },
+  'Products Under Reorder Point': {
+    title: 'Products Under Reorder Point',
+    blocks: [
+      { type: 'text', text: 'Products that are at or below their reorder point and should be reviewed for replenishment.' }
+    ]
+  },
+  'Stockout Percentage': {
+    title: 'Stockout Percentage',
+    blocks: [
+      { type: 'text', text: 'Historical view of customer demand that could not be fulfilled because inventory was unavailable during the period.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Stockout % = Unfulfilled order lines due to zero stock / Total order lines x 100' }
+    ]
+  }
 };
 const inventorySnapshotKpiTooltips: Record<string, string | TooltipContent> = {
   'On-hand': 'Total stock physically present in selected inventory locations.',
@@ -1854,7 +1914,7 @@ const inventorySnapshotKpiTooltips: Record<string, string | TooltipContent> = {
   'Stockout Percentage':
     'Share and count of products that stocked out in the selected date range and inventory locations.',
   'Out of Stock Products': 'Total products currently out of stock in selected inventory locations.',
-  'Products in Reorder Threshold':
+  'Products in Reorder Point':
     'Products currently at or below defined reorder threshold in selected inventory locations.'
 };
 const pakistanLocationHierarchy = [
@@ -4138,13 +4198,18 @@ export default function App() {
     [selectedInventoryRegion]
   );
 
+  const activeInventoryInsightProducts = useMemo(
+    () => inventoryHealthProducts.filter((product) => selectedInventoryRegion.includes(product.location)),
+    [selectedInventoryRegion]
+  );
+
   const dynamicInventoryMetricCards = useMemo(() => {
     const multiplier = inventoryDateMultipliers[selectedInventoryDate] ?? inventoryDateMultipliers['Last 30 Days'];
 
     const aggregate = (
       metricKey: keyof Pick<
         InventoryStoreSnapshot,
-        'totalInventoryValue' | 'totalProducts' | 'inboundQuantity' | 'outboundQuantity'
+        'totalInventoryValue' | 'inboundQuantity' | 'outboundQuantity'
       >
     ) => {
       const current = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].current * multiplier.current, 0);
@@ -4152,40 +4217,70 @@ export default function App() {
       return { current: Math.round(current), previous: Math.round(previous) };
     };
 
+    const aggregateCount = (
+      metricKey: keyof Pick<InventoryStoreSnapshot, 'totalProducts' | 'stockoutProducts' | 'reorderProducts'>
+    ) => {
+      const current = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].current, 0);
+      const previous = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].previous, 0);
+      return { current, previous };
+    };
+
+    const getRate = (value: number, denominator: number) => (denominator === 0 ? 0 : (value / denominator) * 100);
+
     const inventoryValue = aggregate('totalInventoryValue');
-    const totalProducts = aggregate('totalProducts');
+    const totalProducts = aggregateCount('totalProducts');
+    const stockoutProducts = aggregateCount('stockoutProducts');
+    const reorderProducts = aggregateCount('reorderProducts');
     const quantityIn = aggregate('inboundQuantity');
     const quantityOut = aggregate('outboundQuantity');
+    const onHandQuantity = activeInventoryInsightProducts.reduce((sum, product) => sum + product.onHandQuantity, 0);
+    const previousOnHandQuantity = Math.round(onHandQuantity * 1.04);
+    const activeProductCount = Math.max(activeInventoryInsightProducts.length, 1);
+    const inventoryTurnoverCurrent =
+      activeInventoryInsightProducts.reduce((sum, product) => sum + product.inventoryTurnoverRatio, 0) /
+      activeProductCount;
+    const inventoryTurnoverPrevious = inventoryTurnoverCurrent * 0.94;
+    const sellThroughCurrent = getRate(quantityOut.current, quantityOut.current + onHandQuantity);
+    const sellThroughPrevious = getRate(quantityOut.previous, quantityOut.previous + previousOnHandQuantity);
     const fulfillmentRateCurrent = quantityIn.current === 0 ? 0 : (quantityOut.current / quantityIn.current) * 100;
     const fulfillmentRatePrevious = quantityIn.previous === 0 ? 0 : (quantityOut.previous / quantityIn.previous) * 100;
+    const outOfStockRateCurrent = getRate(stockoutProducts.current, totalProducts.current);
+    const outOfStockRatePrevious = getRate(stockoutProducts.previous, totalProducts.previous);
+    const unfulfilledOrderLinesDueToZeroStock = stockoutProducts;
+    const totalOrderLines = {
+      current: quantityOut.current + unfulfilledOrderLinesDueToZeroStock.current,
+      previous: quantityOut.previous + unfulfilledOrderLinesDueToZeroStock.previous
+    };
+    const stockoutPercentageCurrent = getRate(unfulfilledOrderLinesDueToZeroStock.current, totalOrderLines.current);
+    const stockoutPercentagePrevious = getRate(unfulfilledOrderLinesDueToZeroStock.previous, totalOrderLines.previous);
 
     return [
+      {
+        label: 'Total Active SKUs',
+        value: formatCompactNumber(totalProducts.current),
+        trend: `${getPercentDelta(totalProducts.current, totalProducts.previous).toFixed(1)}%`,
+        sublabel: 'vs previous period',
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: totalProducts.current >= totalProducts.previous ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: formatCompactNumber(totalProducts.current),
+          previous: formatCompactNumber(totalProducts.previous),
+          change: formatCompactNumber(Math.abs(totalProducts.current - totalProducts.previous))
+        }
+      },
       {
         label: 'Total Inventory Value',
         value: formatCompactCurrency(inventoryValue.current),
         trend: `${getPercentDelta(inventoryValue.current, inventoryValue.previous).toFixed(1)}%`,
         sublabel: 'vs previous period',
-        secondaryLabel: 'Total Products',
-        secondaryValue: formatCompactNumber(totalProducts.current),
+        secondaryLabel: '',
+        secondaryValue: '',
         direction: inventoryValue.current >= inventoryValue.previous ? ('up' as const) : ('down' as const),
         comparison: {
           current: formatCompactCurrency(inventoryValue.current),
           previous: formatCompactCurrency(inventoryValue.previous),
           change: formatCompactCurrency(Math.abs(inventoryValue.current - inventoryValue.previous))
-        }
-      },
-      {
-        label: 'Average Fulfillment Rate',
-        value: `${fulfillmentRateCurrent.toFixed(1)}%`,
-        trend: `${getPercentDelta(fulfillmentRateCurrent, fulfillmentRatePrevious).toFixed(1)}%`,
-        sublabel: 'vs previous period',
-        secondaryLabel: '',
-        secondaryValue: '',
-        direction: fulfillmentRateCurrent >= fulfillmentRatePrevious ? ('up' as const) : ('down' as const),
-        comparison: {
-          current: `${fulfillmentRateCurrent.toFixed(1)}%`,
-          previous: `${fulfillmentRatePrevious.toFixed(1)}%`,
-          change: `${Math.abs(fulfillmentRateCurrent - fulfillmentRatePrevious).toFixed(1)} pp`
         }
       },
       {
@@ -4216,8 +4311,92 @@ export default function App() {
           change: formatCompactNumber(Math.abs(quantityOut.current - quantityOut.previous))
         }
       },
+      {
+        label: 'Inventory Turnover Ratio',
+        value: `${inventoryTurnoverCurrent.toFixed(2)}x`,
+        trend: `${getPercentDelta(inventoryTurnoverCurrent, inventoryTurnoverPrevious).toFixed(1)}%`,
+        sublabel: 'vs previous period',
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: inventoryTurnoverCurrent >= inventoryTurnoverPrevious ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: `${inventoryTurnoverCurrent.toFixed(2)}x`,
+          previous: `${inventoryTurnoverPrevious.toFixed(2)}x`,
+          change: `${Math.abs(inventoryTurnoverCurrent - inventoryTurnoverPrevious).toFixed(2)}x`
+        }
+      },
+      {
+        label: 'Sell Through Rate',
+        value: `${sellThroughCurrent.toFixed(1)}%`,
+        trend: `${getPercentDelta(sellThroughCurrent, sellThroughPrevious).toFixed(1)}%`,
+        sublabel: 'vs previous period',
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: sellThroughCurrent >= sellThroughPrevious ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: `${sellThroughCurrent.toFixed(1)}%`,
+          previous: `${sellThroughPrevious.toFixed(1)}%`,
+          change: `${Math.abs(sellThroughCurrent - sellThroughPrevious).toFixed(1)} pp`
+        }
+      },
+      {
+        label: 'Average Fulfillment Rate',
+        value: `${fulfillmentRateCurrent.toFixed(1)}%`,
+        trend: `${getPercentDelta(fulfillmentRateCurrent, fulfillmentRatePrevious).toFixed(1)}%`,
+        sublabel: 'vs previous period',
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: fulfillmentRateCurrent >= fulfillmentRatePrevious ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: `${fulfillmentRateCurrent.toFixed(1)}%`,
+          previous: `${fulfillmentRatePrevious.toFixed(1)}%`,
+          change: `${Math.abs(fulfillmentRateCurrent - fulfillmentRatePrevious).toFixed(1)} pp`
+        }
+      },
+      {
+        label: 'Out of Stock Rate',
+        value: `${outOfStockRateCurrent.toFixed(1)}%`,
+        trend: `${getPercentDelta(outOfStockRateCurrent, outOfStockRatePrevious).toFixed(1)}%`,
+        sublabel: 'vs previous period',
+        secondaryLabel: 'Products',
+        secondaryValue: formatCompactNumber(stockoutProducts.current),
+        direction: outOfStockRateCurrent >= outOfStockRatePrevious ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: `${outOfStockRateCurrent.toFixed(1)}%`,
+          previous: `${outOfStockRatePrevious.toFixed(1)}%`,
+          change: `${Math.abs(outOfStockRateCurrent - outOfStockRatePrevious).toFixed(1)} pp`
+        }
+      },
+      {
+        label: 'Products Under Reorder Point',
+        value: formatCompactNumber(reorderProducts.current),
+        trend: `${getPercentDelta(reorderProducts.current, reorderProducts.previous).toFixed(1)}%`,
+        sublabel: 'vs previous period',
+        secondaryLabel: 'Threshold',
+        secondaryValue: 'At/below',
+        direction: reorderProducts.current >= reorderProducts.previous ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: formatCompactNumber(reorderProducts.current),
+          previous: formatCompactNumber(reorderProducts.previous),
+          change: formatCompactNumber(Math.abs(reorderProducts.current - reorderProducts.previous))
+        }
+      },
+      {
+        label: 'Stockout Percentage',
+        value: `${stockoutPercentageCurrent.toFixed(1)}%`,
+        trend: `${getPercentDelta(stockoutPercentageCurrent, stockoutPercentagePrevious).toFixed(1)}%`,
+        sublabel: 'vs previous period',
+        secondaryLabel: '',
+        secondaryValue: '',
+        direction: stockoutPercentageCurrent >= stockoutPercentagePrevious ? ('up' as const) : ('down' as const),
+        comparison: {
+          current: `${stockoutPercentageCurrent.toFixed(1)}%`,
+          previous: `${stockoutPercentagePrevious.toFixed(1)}%`,
+          change: `${Math.abs(stockoutPercentageCurrent - stockoutPercentagePrevious).toFixed(1)} pp`
+        }
+      },
     ];
-  }, [activeInventorySnapshots, selectedInventoryDate]);
+  }, [activeInventoryInsightProducts, activeInventorySnapshots, selectedInventoryDate]);
 
   const inventorySnapshotLocationSummaryLabel =
     selectedInventorySnapshotLocation.length === inventoryLocationOptions.length
@@ -6819,119 +6998,77 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-4">
-                        {dynamicInventoryMetricCards.map((metric, index) => {
-                          const isPrimaryInventoryValueCard = index === 0;
+                  <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
+                        {dynamicInventoryMetricCards.map((metric) => {
                           const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                           const trendPillClass =
                             metric.direction === 'up'
                               ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
                               : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
+                          const hasSupportingPill = Boolean(metric.secondaryLabel && metric.secondaryValue);
+                          const isReorderThresholdPill = metric.label === 'Products Under Reorder Point';
 
                           return (
                             <article
                               key={metric.label}
                               role="button"
                               tabIndex={0}
-                              className={`tu-group tu-relative tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] ${
-                                isPrimaryInventoryValueCard
-                                  ? 'tu-p-3 xl:tu-col-span-1'
-                                  : 'tu-p-2.5 xl:tu-col-span-1'
-                              }`}
+                              className="tu-group tu-relative tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-2.5 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] xl:tu-col-span-1"
                             >
                               <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
-                                <div className="tu-min-w-0">
-                                  {isPrimaryInventoryValueCard ? (
-                                    <div className="tu-min-w-0">
-                                      <div className="tu-group/tooltip tu-relative tu-inline-block">
-                                        <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
-                                        <InfoTooltip text={inventoryKpiTooltips[metric.label]} widthClass="tu-w-[240px]" />
-                                      </div>
-                                      <div className="tu-group/tooltip tu-absolute tu-right-3 tu-top-3 tu-inline-flex">
-                                        <span className="tu-inline-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d8ddd5] tu-text-[10px] tu-font-medium tu-text-[#7f858d]">
-                                          ?
-                                        </span>
-                                        <div className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-right-0 tu-z-30 tu-w-[240px] tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100">
-                                          <p className="tu-leading-5">Products involved in inventory value calculation</p>
-                                          <div className="tu-mt-2">
-                                            <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-bg-white/10 tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#f2f4f1]">
-                                              <span>{metric.secondaryValue ?? '0'}</span>
-                                              <span>Products</span>
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <p className="tu-mt-1 tu-text-[26px] tu-font-semibold tu-text-[#333538]">{metric.value}</p>
-
-                                      <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                                        <div className="tu-relative">
-                                          <button
-                                            type="button"
-                                            onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
-                                            onMouseLeave={() => setHoveredInventoryKpi(null)}
-                                            className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
-                                          >
-                                            {metric.trend}
-                                            <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                          </button>
-                                          {hoveredInventoryKpi === metric.label ? (
-                                            <ComparisonPopover
-                                              comparison={{ ...metric.comparison, ...inventoryComparisonLabels }}
-                                              trend={metric.trend}
-                                              direction={metric.direction}
-                                            />
-                                          ) : null}
-                                        </div>
-                                        <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="tu-flex tu-items-center tu-justify-between tu-gap-2">
-                                        <div className="tu-group/tooltip tu-relative tu-inline-block">
-                                          <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
-                                          <InfoTooltip
-                                            text={inventoryKpiTooltips[metric.label]}
-                                            widthClass={
-                                              metric.label.includes('Quantity') || metric.label.includes('Fulfillment')
-                                                ? 'tu-w-[280px]'
-                                                : 'tu-w-[240px]'
-                                            }
-                                          />
-                                        </div>
-                                      </div>
-                                      <div className="tu-mt-1">
-                                        <p className="tu-font-semibold tu-text-[#333538] tu-text-[26px]">
-                                          {metric.value}
-                                        </p>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                              {!isPrimaryInventoryValueCard ? (
-                                <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                                  <div className="tu-relative">
-                                    <button
-                                      type="button"
-                                      onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
-                                      onMouseLeave={() => setHoveredInventoryKpi(null)}
-                                      className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
-                                    >
-                                      {metric.trend}
-                                      <TrendIcon className="tu-h-3.5 tu-w-3.5" />
-                                    </button>
-                                    {hoveredInventoryKpi === metric.label ? (
-                                      <ComparisonPopover
-                                        comparison={{ ...metric.comparison, ...inventoryComparisonLabels }}
-                                        trend={metric.trend}
-                                        direction={metric.direction}
+                                <div className="tu-min-w-0 tu-flex-1">
+                                  <div className="tu-flex tu-items-center tu-justify-between tu-gap-2">
+                                    <div className="tu-group/tooltip tu-relative tu-inline-block">
+                                      <span className="tu-text-[13px] tu-text-[#9a9ca2]">{metric.label}</span>
+                                      <InfoTooltip
+                                        text={inventoryKpiTooltips[metric.label]}
+                                        widthClass={
+                                          metric.label.includes('Threshold') || metric.label.includes('Fulfillment')
+                                            ? 'tu-w-[320px]'
+                                            : 'tu-w-[280px]'
+                                        }
                                       />
+                                    </div>
+                                  </div>
+                                  <div className="tu-mt-1 tu-flex tu-min-h-[34px] tu-flex-wrap tu-items-center tu-gap-2">
+                                    <p className="tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                                      {metric.value}
+                                    </p>
+                                    {hasSupportingPill ? (
+                                      <span className="tu-group/reorder-criteria tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-border tu-border-[#dfe8dd] tu-bg-white tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
+                                        <span className="tu-font-semibold tu-text-[#333538]">{metric.secondaryValue}</span>
+                                        <span>{metric.secondaryLabel}</span>
+                                        {isReorderThresholdPill ? (
+                                          <span className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-1/2 tu-z-30 tu-w-[260px] -tu-translate-x-1/2 tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-font-medium tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/reorder-criteria:tu-opacity-100">
+                                            Criteria: SKU available quantity is at or below its configured reorder threshold for the selected location.
+                                          </span>
+                                        ) : null}
+                                      </span>
                                     ) : null}
                                   </div>
-                                  <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                                 </div>
-                              ) : null}
+                              </div>
+                              <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                                <div className="tu-relative">
+                                  <button
+                                    type="button"
+                                    onMouseEnter={() => setHoveredInventoryKpi(metric.label)}
+                                    onMouseLeave={() => setHoveredInventoryKpi(null)}
+                                    className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                                  >
+                                    {metric.trend}
+                                    <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                  </button>
+                                  {hoveredInventoryKpi === metric.label ? (
+                                    <ComparisonPopover
+                                      comparison={{ ...metric.comparison, ...inventoryComparisonLabels }}
+                                      trend={metric.trend}
+                                      direction={metric.direction}
+                                    />
+                                  ) : null}
+                                </div>
+                                <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                              </div>
                             </article>
                           );
                         })}
