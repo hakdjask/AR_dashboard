@@ -3269,6 +3269,7 @@ export default function App() {
     ...inventoryLocationOptions
   ]);
   const [selectedInventoryAgingProductLimit, setSelectedInventoryAgingProductLimit] = useState('10');
+  const [selectedInventoryAgingChartMetric, setSelectedInventoryAgingChartMetric] = useState<'value' | 'quantity'>('value');
   const [inventoryAgingMenuSearch, setInventoryAgingMenuSearch] = useState('');
   const [inventoryMovementMenus, setInventoryMovementMenus] = useState<{
     date: boolean;
@@ -4652,6 +4653,8 @@ export default function App() {
   );
 
   const inventoryAgingChartData = useMemo(() => {
+    const shouldShowValue = selectedInventoryAgingChartMetric === 'value';
+
     const bucketValueByLocation = selectedInventoryAgingLocations.map((location) => {
       const products = inventoryAgingProductsInScope.filter((product) => product.location === location);
       const bucketValues = products.reduce(
@@ -4663,10 +4666,10 @@ export default function App() {
           const thirtyOneToSixtyUnits = Math.round(agingUnits * 0.52);
           const sixtyOneToNinetyUnits = Math.max(0, agingUnits - thirtyOneToSixtyUnits);
 
-          totals[0] += zeroToThirtyUnits * unitCost;
-          totals[1] += thirtyOneToSixtyUnits * unitCost;
-          totals[2] += sixtyOneToNinetyUnits * unitCost;
-          totals[3] += deadStockUnits * unitCost;
+          totals[0] += shouldShowValue ? zeroToThirtyUnits * unitCost : zeroToThirtyUnits;
+          totals[1] += shouldShowValue ? thirtyOneToSixtyUnits * unitCost : thirtyOneToSixtyUnits;
+          totals[2] += shouldShowValue ? sixtyOneToNinetyUnits * unitCost : sixtyOneToNinetyUnits;
+          totals[3] += shouldShowValue ? deadStockUnits * unitCost : deadStockUnits;
           return totals;
         },
         [0, 0, 0, 0]
@@ -4688,7 +4691,15 @@ export default function App() {
       labels: inventoryAgingBucketLabels,
       datasets: bucketValueByLocation
     };
-  }, [getInventoryAgingUnitCost, inventoryAgingProductsInScope, selectedInventoryAgingLocations]);
+  }, [getInventoryAgingUnitCost, inventoryAgingProductsInScope, selectedInventoryAgingChartMetric, selectedInventoryAgingLocations]);
+
+  const formatInventoryAgingChartMetric = useCallback(
+    (value: number) =>
+      selectedInventoryAgingChartMetric === 'value'
+        ? formatCompactCurrency(value)
+        : `${formatCompactNumber(value)} units`,
+    [selectedInventoryAgingChartMetric]
+  );
 
   const inventoryAgingChartOptions = useMemo(
     () => ({
@@ -4704,7 +4715,7 @@ export default function App() {
           ticks: {
             color: '#7c838c',
             font: { size: 11, family: 'Poppins' },
-            callback: (value: string | number) => formatCompactCurrency(Number(value))
+            callback: (value: string | number) => formatInventoryAgingChartMetric(Number(value))
           }
         },
         y: {
@@ -4736,14 +4747,14 @@ export default function App() {
           callbacks: {
             title: (items: Array<{ label: string }>) => items[0]?.label ?? '',
             label: (context: { dataset: { label?: string }; parsed: { x: number | null } }) =>
-              ` ${context.dataset.label ?? 'Location'}: ${formatCompactCurrency(context.parsed.x ?? 0)}`,
+              ` ${context.dataset.label ?? 'Location'}: ${formatInventoryAgingChartMetric(context.parsed.x ?? 0)}`,
             footer: (items: Array<{ parsed: { x: number | null } }>) =>
-              `Total: ${formatCompactCurrency(items.reduce((sum, item) => sum + (item.parsed.x ?? 0), 0))}`
+              `Total: ${formatInventoryAgingChartMetric(items.reduce((sum, item) => sum + (item.parsed.x ?? 0), 0))}`
           }
         }
       }
     }),
-    []
+    [formatInventoryAgingChartMetric]
   );
 
   const inventoryAgingDeadStockKpis = useMemo(() => {
@@ -7795,18 +7806,47 @@ export default function App() {
                   </div>
 
                   <div className="tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4">
-                    <div>
-                      <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#333538]">Inventory Valuation by Aging Bucket</h3>
+                    <div className="tu-flex tu-flex-col tu-gap-3 sm:tu-flex-row sm:tu-items-center sm:tu-justify-between">
+                      <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#333538]">
+                        {selectedInventoryAgingChartMetric === 'value'
+                          ? 'Inventory Valuation by Aging Bucket'
+                          : 'Inventory Quantity by Aging Bucket'}
+                      </h3>
+                      <div className="tu-inline-flex tu-w-fit tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-p-1">
+                        {[
+                          { label: 'Value', value: 'value' as const },
+                          { label: 'Quantity', value: 'quantity' as const }
+                        ].map((option) => {
+                          const isSelected = selectedInventoryAgingChartMetric === option.value;
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setSelectedInventoryAgingChartMetric(option.value)}
+                              className={`tu-h-7 tu-rounded-[7px] tu-px-3 tu-text-[11px] tu-font-semibold tu-transition-colors ${
+                                isSelected
+                                  ? 'tu-bg-white tu-text-[#2a2c2f] tu-shadow-[0_1px_3px_rgba(15,23,42,0.08)]'
+                                  : 'tu-text-[#7a8087] hover:tu-text-[#2a2c2f]'
+                              }`}
+                              aria-pressed={isSelected}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div className="tu-mt-4 tu-h-[300px]">
                       <Bar data={inventoryAgingChartData} options={inventoryAgingChartOptions} />
                     </div>
                   </div>
 
-                  <div className="tu-mt-5 tu-flex tu-items-center tu-justify-between">
-                    <h3 className="tu-text-[15px] tu-font-semibold tu-text-[#333538]">Dead Stock Inventory Aging</h3>
-                  </div>
-                  <div className="tu-mt-3 tu-overflow-auto tu-rounded-[12px] tu-border tu-border-[#eceee8]">
+                  <div className="tu-mt-5 tu-overflow-hidden tu-rounded-[14px] tu-border tu-border-[#e8ede6]">
+                    <div className="tu-border-b tu-border-[#e8ede6] tu-bg-[#fafcf9] tu-px-4 tu-py-3">
+                      <h3 className="tu-text-[14px] tu-font-semibold tu-text-[#2a2c2f]">Dead Stock Inventory Aging</h3>
+                    </div>
+                    <div className="tu-overflow-auto">
                     <table className="tu-w-full tu-min-w-[1180px] tu-border-collapse">
                       <thead className="tu-table tu-w-full tu-table-fixed tu-bg-[#f8faf7]">
                         <tr className="tu-border-b tu-border-[#e8ece5]">
@@ -7843,16 +7883,16 @@ export default function App() {
                           <th className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-right">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Total Inventory Value</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">0-30 Days</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">31-60 Days</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">61-90 Days</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">90+ Days</span>
                           </th>
                           <th className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-pr-8 tu-text-right">
@@ -7860,7 +7900,7 @@ export default function App() {
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="tu-block tu-max-h-[480px] tu-overflow-y-auto">
+                      <tbody className="tu-block tu-max-h-[425px] tu-overflow-y-auto">
                         {inventoryAgingDeadStockRows.map((product) => (
                           <tr key={`aging-${product.id}`} className="tu-table tu-w-full tu-table-fixed tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
                             <td className="tu-w-[24%] tu-px-3 tu-py-2.5">
@@ -7881,12 +7921,16 @@ export default function App() {
                               </div>
                             </td>
                             <td className="tu-w-[9%] tu-px-3 tu-py-2.5 tu-text-right">
-                              <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{formatCompactNumber(product.totalUnits)}</span>
+                              <div className="tu-flex tu-w-full tu-justify-end">
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{formatCompactNumber(product.totalUnits)}</span>
+                              </div>
                             </td>
                             <td className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-right">
-                              <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
-                                {formatCompactCurrency(product.totalInventoryValue)}
-                              </span>
+                              <div className="tu-flex tu-w-full tu-justify-end">
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                                  {formatCompactCurrency(product.totalInventoryValue)}
+                                </span>
+                              </div>
                             </td>
                             {[
                               { value: product.zeroToThirtyUnits, className: 'tu-bg-[#e8f6ef] tu-text-[#167348]' },
@@ -7898,25 +7942,30 @@ export default function App() {
                                 key={`${product.id}-aging-bucket-${index}`}
                                 className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right"
                               >
-                                {bucket.value > 0 ? (
-                                  <span className={`tu-inline-flex tu-rounded-[7px] tu-px-2.5 tu-py-1 tu-text-[12px] tu-font-semibold ${bucket.className}`}>
-                                    {formatCompactNumber(bucket.value)}
-                                    {bucket.suffix ?? ''}
-                                  </span>
-                                ) : (
-                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#7b8078]">-</span>
-                                )}
+                                <div className="tu-flex tu-w-full tu-justify-end">
+                                  {bucket.value > 0 ? (
+                                    <span className={`tu-ml-auto tu-inline-flex tu-justify-end tu-rounded-[7px] tu-px-2.5 tu-py-1 tu-text-right tu-text-[12px] tu-font-semibold ${bucket.className}`}>
+                                      {formatCompactNumber(bucket.value)}
+                                      {bucket.suffix ?? ''}
+                                    </span>
+                                  ) : (
+                                    <span className="tu-text-[13px] tu-font-medium tu-text-[#7b8078]">-</span>
+                                  )}
+                                </div>
                               </td>
                             ))}
                             <td className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-pr-8 tu-text-right">
-                              <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
-                                {formatCompactCurrency(product.deadStockInventoryValue)}
-                              </span>
+                              <div className="tu-flex tu-w-full tu-justify-end">
+                                <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
+                                  {formatCompactCurrency(product.deadStockInventoryValue)}
+                                </span>
+                              </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </section>
                 {false ? (
