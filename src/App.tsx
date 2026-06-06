@@ -1561,11 +1561,11 @@ const skuMovementProductLimitOptions = ['5', '10', '15', '20'];
 const inventoryAgingProductLimitOptions = ['10', '20', '30'];
 const inventoryAgingBucketLabels = ['0-30 days', '31-60 days', '61-90 days', '90+ days'];
 const inventoryAgingLocationColors: Record<string, string> = {
-  'Main Warehouse': '#8fc9a5',
-  'Retail Backroom': '#8fb3df',
-  'Transit Hub': '#d9b26b',
-  'Returns Bay': '#d98a87',
-  'Overflow Rack': '#a99adb'
+  'Main Warehouse': '#0EA857',
+  'Retail Backroom': '#10C562',
+  'Transit Hub': '#57D990',
+  'Returns Bay': '#95E8B9',
+  'Overflow Rack': '#D0F6DF'
 };
 
 const inventoryHealthColumnBlueprint: Omit<InventoryHealthColumnConfig, 'visible'>[] = [
