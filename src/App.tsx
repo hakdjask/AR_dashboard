@@ -2908,6 +2908,51 @@ function SectionTitleWithReportLink({ title }: { title: string }) {
   );
 }
 
+function EmptyDataNotice({
+  title = 'No data available',
+  reason,
+  className = ''
+}: {
+  title?: string;
+  reason: string;
+  className?: string;
+}) {
+  return (
+    <div className={`tu-flex tu-h-full tu-min-h-[150px] tu-w-full tu-items-center tu-justify-center tu-p-4 tu-text-center ${className}`}>
+      <div className="tu-mx-auto tu-w-full tu-max-w-[620px]">
+        <p className="tu-text-[14px] tu-font-semibold tu-text-[#2f3133]">{title}</p>
+        <p className="tu-mt-1.5 tu-whitespace-normal tu-break-words tu-text-[12px] tu-leading-5 tu-text-[#7d858e]">{reason}</p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyMetricValue({ reason, accent = false }: { reason: string; accent?: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="tu-min-w-0">
+      <p className={`tu-text-[22px] tu-font-semibold tu-leading-none ${accent ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'}`}>--</p>
+      <div className="tu-relative tu-mt-2">
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          className="tu-text-left tu-text-[11px] tu-font-medium tu-leading-4 tu-text-[#10c562] hover:tu-text-[#0b9d4d]"
+          style={{ fontFamily: 'Poppins, sans-serif' }}
+        >
+          Click to see why the data is missing.
+        </button>
+        {open ? (
+          <div className="tu-absolute tu-left-0 tu-top-[calc(100%+8px)] tu-z-[240] tu-w-[280px] tu-rounded-md tu-bg-[#111111] tu-px-3 tu-py-2.5 tu-text-[11px] tu-font-medium tu-leading-5 tu-text-white tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+            {reason}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function ComparisonPopover({
   comparison,
   trend,
@@ -3507,6 +3552,7 @@ export default function App() {
   const [hoveredLocationPoint, setHoveredLocationPoint] = useState<{ x: number; y: number; dataIndex: number } | null>(null);
   const [hoveredProductKpi, setHoveredProductKpi] = useState<string | null>(null);
   const [dashboardLastUpdatedAt] = useState(() => new Date());
+  const [emptyDataPreview, setEmptyDataPreview] = useState(false);
   const [cardDates, setCardDates] = useState<
     Record<PeriodKey, { title: string; dateLabel: string; from: string; to: string }>
   >({
@@ -3525,6 +3571,157 @@ export default function App() {
     { label: 'Catalog', icon: Package2 },
     { label: 'Settings', icon: Settings }
   ];
+
+  const emptyPreviewActive = emptyDataPreview && (activeTab === 'sales' || activeTab === 'inventory');
+  const emptyDataReasons = {
+    inventoryKpi: 'Inventory data is missing because no inventory was imported.',
+    inventorySnapshotKpi: 'Snapshot data is missing because no inventory was imported.',
+    skuMovementKpi:
+      'SKU movement data is missing because sales velocity, inventory turnover, or stock movement history was not imported for the selected SKUs. Check SKU activity, stock movement sync, and whether the selected SKUs are active.',
+    inventoryValue:
+      'Total inventory value cannot be calculated because on-hand quantities, product cost price, or active SKU data is missing for the selected locations. Check imported SKUs, cost price, and inactive product settings.',
+    inventoryStockout:
+      'Stockout risk is unavailable because sales velocity and available quantity are not both present for these SKUs. Check sales history, available inventory, and whether the SKUs are active.',
+    inventoryAbc:
+      'ABC classification needs product revenue contribution and active SKU data. Check product-level sales import, SKU status, and whether revenue is mapped to products.',
+    inventoryAging:
+      'Inventory aging cannot be shown because received dates, stock age buckets, dead-stock status, or active SKU data is missing for the selected products.',
+    inventoryMovement:
+      'Inventory movement data is unavailable because quantity-in and quantity-out events are not synced for this period. Check purchase receipts, sales issues, transfers, returns, and stock adjustments.',
+    inventoryHealth:
+      'Product health rows are unavailable because SKU-level quantity, velocity, cost, barcode, or product status fields are missing. Check product import, inventory sync, and active SKU settings.',
+    salesOrderKpi: 'Orders volume data is missing because no orders were imported.',
+    salesOrderChart:
+      'The order trend cannot be drawn because daily order snapshots, order statuses, or payment/courier status data is missing for the selected date range.',
+    salesStoreKpi: 'Sales data is missing because no sales have been made.',
+    salesStoreTable:
+      'Store comparison rows are unavailable because current or previous period store totals have not synced. Check store mapping, sales import, returns import, and selected store filters.',
+    salesLocation:
+      'Location performance cannot be shown because province, city, or order location attribution is missing from the selected orders. Check customer addresses, shipping locations, and region mapping.',
+    salesProduct:
+      'Product performance is unavailable because product-level sales, units sold, product cost price, or product mapping is missing. Check product sales import, SKU mapping, and active product settings.',
+    salesGlance: 'Sales data is missing because no sales have been made.',
+    customerKpi: 'Customer data is missing because no customers were imported.',
+    customerSplit:
+      'New and returning customer split cannot be shown because customer identities, first order dates, or repeat purchase history are missing from imported orders.',
+    customerTable:
+      'Customer overview rows are unavailable because store-level customer history, order counts, lifetime value, or retention data has not been imported.'
+  };
+  const inventoryKpiMissingReasons: Record<string, string> = {
+    'Total Active SKUs':
+      'Total Active SKUs is missing because no SKUs were imported, or all imported SKUs are marked inactive.',
+    'Total Inventory Value':
+      'Total Inventory Value is missing because product cost price is zero, product data is missing, or SKUs are marked inactive.',
+    'Quantity In':
+      'Quantity In is missing because no purchase receipts, returns, transfers, or stock adjustments were imported.',
+    'Quantity Out':
+      'Quantity Out is missing because no sales, transfers, write-offs, or outbound stock movements were imported.',
+    'Inventory Turnover Ratio':
+      'Inventory Turnover Ratio is missing because COGS is missing, average inventory value is missing, or active SKU data is unavailable.',
+    'Sell Through Rate':
+      'Sell Through Rate is missing because units sold are missing, inventory received is missing, or active SKU data is unavailable.',
+    'Average Fulfillment Rate':
+      'Average Fulfillment Rate is missing because fulfilled order lines or total order line data has not been imported.',
+    'Out of Stock Rate':
+      'Out of Stock Rate is missing because active SKU count is missing or stockout status was not imported.',
+    'Products Under Reorder Point':
+      'Products Under Reorder Point is missing because reorder thresholds are not configured or active SKU inventory is unavailable.',
+    'Stockout Percentage':
+      'Stockout Percentage is missing because active SKU count is missing or zero-stock SKU data was not imported.'
+  };
+  const inventorySnapshotMissingReasons: Record<string, string> = {
+    'On-hand Quantity':
+      'On-hand Quantity is missing because no inventory balance was imported for the selected locations.',
+    'Committed Quantity':
+      'Committed Quantity is missing because open orders or reservations have not been imported.',
+    'Available Quantity':
+      'Available Quantity is missing because on-hand quantity or committed quantity is unavailable.',
+    'Inbound Quantity':
+      'Inbound Quantity is missing because purchase orders, transfers, or expected receipts have not been imported.',
+    'Unfulfillable / Damaged Quantity':
+      'Unfulfillable or damaged quantity is missing because damaged stock or quality status was not imported.'
+  };
+  const salesOrderMissingReasons: Record<string, string> = {
+    'Total Orders': 'Total Orders is missing because no orders were imported for the selected period.',
+    Pending: 'Pending Orders is missing because order status data was not imported.',
+    'Ready to Ship': 'Ready to Ship is missing because fulfillment status data was not imported.',
+    Shipped: 'Shipped Orders is missing because shipment status data was not imported.',
+    Delivered: 'Delivered Orders is missing because delivery status data was not imported.',
+    'Delivery Failed': 'Delivery Failed is missing because courier delivery outcomes were not imported.',
+    Returned: 'Returned Orders is missing because return records were not imported.',
+    Voided: 'Voided Orders is missing because cancellation or void status data was not imported.',
+    'Returned + Return Initiated': 'Return data is missing because return initiated and returned statuses were not imported.'
+  };
+  const salesStoreMissingReasons: Record<string, string> = {
+    'Gross Sales':
+      'Gross Sales is missing because no sales have been made or sales orders were not imported.',
+    'Order Returns':
+      'Order Returns is missing because return orders were not imported or no returns were recorded.',
+    'Units Sold':
+      'Units Sold is missing because item-level sales quantities were not imported.',
+    'Total Orders':
+      'Total Orders is missing because no orders were imported for the selected store.',
+    'Avg. Gross Sales Per Store':
+      'Average Gross Sales Per Store is missing because gross sales or active store data is unavailable.',
+    'Highest Store Gross Sales':
+      'Highest Store Gross Sales is missing because store-level gross sales were not imported.',
+    'Peak Sales Day':
+      'Peak Sales Day is missing because daily store sales history was not imported.',
+    'Peak Returns Day':
+      'Peak Returns Day is missing because daily return history was not imported.',
+    'Peak Orders Day':
+      'Peak Orders Day is missing because daily order history was not imported.'
+  };
+  const productMissingReasons: Record<string, string> = {
+    'Units Sold': 'Units Sold is missing because product-level sales quantities were not imported.',
+    'Total Units Sold': 'Total Units Sold is missing because product-level sales quantities were not imported.',
+    'Gross Profit per Product':
+      'Gross Profit per Product is missing because product sales or product cost price is missing.',
+    'Avg. Gross Profit Margin per Product':
+      'Average Gross Profit Margin per Product is missing because gross profit or gross sales is missing.',
+    'Average Selling Price':
+      'Average Selling Price is missing because product gross sales or units sold are missing.',
+    'Units Sold per Order':
+      'Units Sold per Order is missing because product quantities or order counts were not imported.',
+    'Top Gross Sales Product':
+      'Top Gross Sales Product is missing because product-level gross sales were not imported.',
+    'Most Improved Gross Sales Product':
+      'Most Improved Product is missing because current or previous product sales history is unavailable.',
+    'Most Declined Gross Sales Product':
+      'Most Declined Product is missing because current or previous product sales history is unavailable.',
+    'Avg. Gross Sales Per Product':
+      'Average Gross Sales Per Product is missing because product sales or active product count is unavailable.'
+  };
+  const salesOverviewMissingReasons: Record<string, string> = {
+    "Today's Sales": "Today's Sales is missing because no sales were imported for today.",
+    'Gross Sales': 'Gross Sales is missing because no sales have been made or sales orders were not imported.',
+    'Net Sales': 'Net Sales is missing because gross sales, discounts, taxes, or returns are missing.',
+    'Gross Sales (Shipped Orders)': 'Gross Sales for shipped orders is missing because shipped order data was not imported.',
+    COGS: 'COGS is missing because product cost price or shipped item data is missing.',
+    'Gross Profit': 'Gross Profit is missing because gross sales or COGS is missing.',
+    'Gross Profit Margin': 'Gross Profit Margin is missing because gross profit or gross sales is missing.',
+    Expenses: 'Expenses is missing because expense data was not imported.',
+    'Net Profit': 'Net Profit is missing because net sales, COGS, or expenses are missing.',
+    'Net Profit Margin': 'Net Profit Margin is missing because net sales or net profit is missing.'
+  };
+  const customerMissingReasons: Record<string, string> = {
+    'Total Customers': 'Total Customers is missing because customer records were not imported.',
+    'New Customers Revenue': 'New Customers Revenue is missing because customer identity or sales data is missing.',
+    'Returning Customers Revenue': 'Returning Customers Revenue is missing because repeat customer history or sales data is missing.',
+    'AOV New Customers': 'AOV for New Customers is missing because new customer orders or revenue are missing.',
+    'AOV Returning Customers': 'AOV for Returning Customers is missing because returning customer orders or revenue are missing.'
+  };
+  const getInventoryKpiMissingReason = (label: string) => inventoryKpiMissingReasons[label] ?? emptyDataReasons.inventoryKpi;
+  const getInventorySnapshotMissingReason = (label: string) =>
+    inventorySnapshotMissingReasons[label] ?? emptyDataReasons.inventorySnapshotKpi;
+  const getSalesOrderMissingReason = (label: string) => salesOrderMissingReasons[label] ?? emptyDataReasons.salesOrderKpi;
+  const getSalesStoreMissingReason = (label: string) => {
+    const normalizedLabel = label.replace(/\s[-–]\s.+$/, '');
+    return salesStoreMissingReasons[normalizedLabel] ?? emptyDataReasons.salesStoreKpi;
+  };
+  const getProductMissingReason = (label: string) => productMissingReasons[label] ?? emptyDataReasons.salesProduct;
+  const getSalesOverviewMissingReason = (label: string) => salesOverviewMissingReasons[label] ?? emptyDataReasons.salesGlance;
+  const getCustomerMissingReason = (label: string) => customerMissingReasons[label] ?? emptyDataReasons.customerKpi;
 
   const applyDatePreset = (periodKey: PeriodKey, presetKey: keyof typeof datePresets) => {
     const preset = datePresets[presetKey];
@@ -7300,9 +7497,31 @@ export default function App() {
                     );
                   })}
                 </div>
-                <p className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
-                  Last updated: {dashboardLastUpdatedLabel}
-                </p>
+                <div className="tu-flex tu-items-center tu-gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEmptyDataPreview((current) => !current)}
+                    aria-pressed={emptyDataPreview}
+                    className="tu-inline-flex tu-items-center tu-gap-2 tu-rounded-full tu-border tu-border-[#dfe6dd] tu-bg-[#f8faf7] tu-py-1 tu-pl-2.5 tu-pr-1.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-transition-colors hover:tu-border-[#cbd8c8] hover:tu-bg-white"
+                  >
+                    <span>No data</span>
+                    <span
+                      className={`tu-relative tu-inline-flex tu-h-5 tu-w-9 tu-items-center tu-rounded-full tu-transition-colors ${
+                        emptyDataPreview ? 'tu-bg-[#10c562]' : 'tu-bg-[#d9dfd6]'
+                      }`}
+                    >
+                      <span
+                        className={`tu-inline-flex tu-h-4 tu-w-4 tu-rounded-full tu-bg-white tu-shadow-[0_1px_4px_rgba(31,41,55,0.18)] tu-transition-transform ${
+                          emptyDataPreview ? 'tu-translate-x-4' : 'tu-translate-x-0.5'
+                        }`}
+                      />
+                    </span>
+                  </button>
+                  <span className="tu-hidden tu-h-6 tu-w-px tu-bg-[#dfe5dc] sm:tu-inline-flex" />
+                  <p className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
+                    Last updated: {dashboardLastUpdatedLabel}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -7461,10 +7680,14 @@ export default function App() {
                                     </div>
                                   </div>
                                   <div className="tu-mt-1 tu-flex tu-min-h-[34px] tu-flex-wrap tu-items-center tu-gap-2">
-                                    <p className="tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                      {metric.value}
-                                    </p>
-                                    {hasSupportingPill ? (
+                                    {emptyPreviewActive ? (
+                                      <EmptyMetricValue reason={getInventoryKpiMissingReason(metric.label)} />
+                                    ) : (
+                                      <p className="tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                                        {metric.value}
+                                      </p>
+                                    )}
+                                    {!emptyPreviewActive && hasSupportingPill ? (
                                       <span className="tu-group/reorder-criteria tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-border tu-border-[#dfe8dd] tu-bg-white tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
                                         <span className="tu-font-semibold tu-text-[#333538]">{metric.secondaryValue}</span>
                                         <span>{metric.secondaryLabel}</span>
@@ -7479,6 +7702,7 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                                {!emptyPreviewActive ? (
                                 <div className="tu-relative">
                                   <button
                                     type="button"
@@ -7497,7 +7721,10 @@ export default function App() {
                                     />
                                   ) : null}
                                 </div>
-                                <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                                ) : null}
+                                {!emptyPreviewActive ? (
+                                  <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                                ) : null}
                               </div>
                             </article>
                           );
@@ -7513,9 +7740,13 @@ export default function App() {
                       className="tu-relative tu-mt-3.5 tu-h-[300px]"
                       onMouseLeave={() => setHoveredInventoryValuePoint(null)}
                     >
-                      <Line data={inventoryValueChartData} options={inventoryValueChartOptions} />
+                      {emptyPreviewActive ? (
+                        <EmptyDataNotice reason={emptyDataReasons.inventoryValue} />
+                      ) : (
+                        <Line data={inventoryValueChartData} options={inventoryValueChartOptions} />
+                      )}
 
-                      {hoveredInventoryValuePoint && inventoryValueTooltipData ? (
+                      {!emptyPreviewActive && hoveredInventoryValuePoint && inventoryValueTooltipData ? (
                         <div
                           className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[268px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
                           style={{
@@ -7683,8 +7914,12 @@ export default function App() {
                         </div>
 
                         <div className="tu-mt-2 tu-flex tu-items-center tu-gap-2.5">
-                          <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{card.value}</p>
-                          {isCommittedCard ? (
+                          {emptyPreviewActive ? (
+                            <EmptyMetricValue reason={getInventorySnapshotMissingReason(card.label)} />
+                          ) : (
+                            <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{card.value}</p>
+                          )}
+                          {!emptyPreviewActive && isCommittedCard ? (
                             <span className="tu-group/current-only tu-relative tu-inline-flex tu-rounded-full tu-border tu-border-[#e2e7df] tu-bg-white tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#7b827a]">
                               Current only
                               <span className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-1/2 tu-z-30 tu-w-[180px] -tu-translate-x-1/2 tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-center tu-text-[11px] tu-font-medium tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/current-only:tu-opacity-100">
@@ -7882,7 +8117,14 @@ export default function App() {
                               Number(card.selectedLimit) > 5 ? 'tu-h-[320px] tu-overflow-y-auto' : 'tu-overflow-visible'
                             }`}
                           >
-                            {card.rows.map((product) => (
+                            {emptyPreviewActive ? (
+                              <tr className="tu-table tu-w-full tu-table-fixed">
+                                <td colSpan={3} className="tu-w-full tu-align-middle">
+                                  <EmptyDataNotice reason={emptyDataReasons.skuMovementKpi} className="tu-min-h-[300px]" />
+                                </td>
+                              </tr>
+                            ) : (
+                            card.rows.map((product) => (
                               <tr key={`${card.key}-${product.id}`} className="tu-table tu-w-full tu-table-fixed tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
                                 <td className="tu-w-[52%] tu-px-3 tu-py-2.5">
                                   <div className="tu-flex tu-items-center tu-gap-3">
@@ -7912,7 +8154,8 @@ export default function App() {
                                   </span>
                                 </td>
                               </tr>
-                            ))}
+                            ))
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -7958,11 +8201,15 @@ export default function App() {
                     </div>
 
                     <div className="tu-mt-5 tu-h-[260px]">
-                      <Bar
-                        data={daysUntilStockoutChartData}
-                        options={daysUntilStockoutChartOptions}
-                        plugins={[daysUntilStockoutValueLabelPlugin]}
-                      />
+                      {emptyPreviewActive ? (
+                        <EmptyDataNotice reason={emptyDataReasons.inventoryStockout} />
+                      ) : (
+                        <Bar
+                          data={daysUntilStockoutChartData}
+                          options={daysUntilStockoutChartOptions}
+                          plugins={[daysUntilStockoutValueLabelPlugin]}
+                        />
+                      )}
                     </div>
                   </article>
 
@@ -8001,6 +8248,10 @@ export default function App() {
                     </div>
 
                     <div className="tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#edf0ea] tu-bg-white tu-p-4">
+                      {emptyPreviewActive ? (
+                        <EmptyDataNotice reason={emptyDataReasons.inventoryAbc} />
+                      ) : (
+                      <>
                       <div className="tu-space-y-4">
                         {abcSkuTierRows.map((tier, tierIndex) => (
                           <div key={tier.label} className="tu-grid tu-grid-cols-[86px_minmax(0,1fr)_72px] tu-items-center tu-gap-3">
@@ -8031,6 +8282,8 @@ export default function App() {
                           and is a strong candidate for liquidation or range reduction.
                         </p>
                       </div>
+                      </>
+                      )}
                     </div>
                   </article>
                 </div>
@@ -8072,15 +8325,23 @@ export default function App() {
                   <div className="tu-mt-5 tu-grid tu-gap-3 md:tu-grid-cols-2">
                     <article className="tu-group/card tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-3 tu-shadow-[0_10px_24px_rgba(31,41,55,0.05)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
                       <p className="tu-text-[13px] tu-text-[#8f949b]">Dead Stock SKUs</p>
-                      <p className="tu-mt-3 tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                        {formatCompactNumber(inventoryAgingDeadStockKpis.deadStockSkuCount)}
-                      </p>
+                      {emptyPreviewActive ? (
+                        <EmptyMetricValue reason="Dead Stock SKUs is missing because stock age, dead-stock status, or active SKU data is unavailable." />
+                      ) : (
+                        <p className="tu-mt-3 tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                          {formatCompactNumber(inventoryAgingDeadStockKpis.deadStockSkuCount)}
+                        </p>
+                      )}
                     </article>
                     <article className="tu-group/card tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-3 tu-shadow-[0_10px_24px_rgba(31,41,55,0.05)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)]">
                       <p className="tu-text-[13px] tu-text-[#8f949b]">Accumulated Units Value</p>
-                      <p className="tu-mt-3 tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                        {formatCompactCurrency(inventoryAgingDeadStockKpis.deadStockUnitsValue)}
-                      </p>
+                      {emptyPreviewActive ? (
+                        <EmptyMetricValue reason="Accumulated Units Value is missing because dead-stock quantity or product cost price is unavailable." />
+                      ) : (
+                        <p className="tu-mt-3 tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
+                          {formatCompactCurrency(inventoryAgingDeadStockKpis.deadStockUnitsValue)}
+                        </p>
+                      )}
                     </article>
                   </div>
 
@@ -8117,7 +8378,11 @@ export default function App() {
                       </div>
                     </div>
                     <div className="tu-mt-4 tu-h-[300px]">
-                      <Bar data={inventoryAgingChartData} options={inventoryAgingChartOptions} />
+                      {emptyPreviewActive ? (
+                        <EmptyDataNotice reason={emptyDataReasons.inventoryAging} />
+                      ) : (
+                        <Bar data={inventoryAgingChartData} options={inventoryAgingChartOptions} />
+                      )}
                     </div>
                   </div>
 
@@ -8180,7 +8445,14 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody className="tu-block tu-max-h-[425px] tu-overflow-y-auto">
-                        {inventoryAgingDeadStockRows.map((product) => (
+                        {emptyPreviewActive ? (
+                          <tr className="tu-table tu-w-full tu-table-fixed">
+                            <td colSpan={7} className="tu-w-full tu-align-middle">
+                              <EmptyDataNotice reason={emptyDataReasons.inventoryAging} className="tu-min-h-[360px]" />
+                            </td>
+                          </tr>
+                        ) : (
+                        inventoryAgingDeadStockRows.map((product) => (
                           <tr key={`aging-${product.id}`} className="tu-table tu-w-full tu-table-fixed tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
                             <td className="tu-w-[24%] tu-px-3 tu-py-2.5">
                               <div className="tu-flex tu-items-center tu-gap-3">
@@ -8241,7 +8513,8 @@ export default function App() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        ))
+                        )}
                       </tbody>
                     </table>
                     </div>
@@ -8394,6 +8667,11 @@ export default function App() {
 
                               <div className={`tu-flex tu-items-end tu-gap-2 ${primaryMetric ? 'tu-mt-2' : 'tu-mt-1.5'}`}>
                                 <div className="tu-flex tu-items-end tu-gap-2">
+                                  {emptyPreviewActive ? (
+                                    <EmptyMetricValue
+                                      reason={`${metric.label} is missing because inventory movement events were not imported for the selected period.`}
+                                    />
+                                  ) : (
                                   <p
                                     className={`tu-text-[#333538] ${
                                       primaryMetric
@@ -8403,7 +8681,8 @@ export default function App() {
                                   >
                                     {metric.value}
                                   </p>
-                                  {showTrendArrow ? (
+                                  )}
+                                  {!emptyPreviewActive && showTrendArrow ? (
                                     <div className="tu-relative">
                                       <button
                                         type="button"
@@ -8436,10 +8715,14 @@ export default function App() {
                       onMouseLeave={() => setHoveredInventoryMovementPoint(null)}
                     >
                       <div className="tu-h-[420px]">
-                        <Line data={inventoryMovementChartData} options={inventoryMovementChartOptions} />
+                          {emptyPreviewActive ? (
+                            <EmptyDataNotice reason={emptyDataReasons.inventoryMovement} />
+                          ) : (
+                            <Line data={inventoryMovementChartData} options={inventoryMovementChartOptions} />
+                          )}
                       </div>
 
-                      {hoveredInventoryMovementPoint && inventoryMovementTooltipData ? (
+                      {!emptyPreviewActive && hoveredInventoryMovementPoint && inventoryMovementTooltipData ? (
                         <div
                           className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#e5e9e2] tu-bg-white tu-p-4 tu-shadow-[0_18px_40px_rgba(31,41,55,0.16)]"
                           style={{
@@ -8834,7 +9117,14 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {inventoryHealthVisibleProducts.map((product, productIndex) => (
+                          {emptyPreviewActive ? (
+                            <tr>
+                              <td colSpan={inventoryHealthVisibleColumns.length}>
+                                <EmptyDataNotice reason={emptyDataReasons.inventoryHealth} className="tu-min-h-[320px]" />
+                              </td>
+                            </tr>
+                          ) : (
+                          inventoryHealthVisibleProducts.map((product, productIndex) => (
                             <tr key={product.id} className="tu-border-b tu-border-[#edf0ea] hover:tu-bg-[#fbfcfa]">
                               {inventoryHealthVisibleColumns.map((column) => (
                                 <td
@@ -8913,7 +9203,8 @@ export default function App() {
                                 </td>
                               ))}
                             </tr>
-                          ))}
+                          ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -9415,7 +9706,9 @@ export default function App() {
                             />
                           ) : null}
                         </div>
-                        <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                        {!emptyPreviewActive ? (
+                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                        ) : null}
                       </div>
                     </article>
                   );
@@ -9571,13 +9864,25 @@ export default function App() {
                         <div className="tu-mt-2 tu-grid tu-gap-2 sm:tu-grid-cols-2">
                           <div className="tu-flex tu-min-h-[106px] tu-flex-col tu-justify-center tu-rounded-[10px] tu-border tu-border-[#dbeee1] tu-bg-[#f3fcf6] tu-px-3 tu-py-2">
                             <p className="tu-text-[11px] tu-font-medium tu-text-[#7e868f]">COD Orders</p>
-                            <p className="tu-mt-2 tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.codCount)}</p>
-                            <p className="tu-mt-1.5 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.codShare.toFixed(1)}% of total orders`}</p>
+                            {emptyPreviewActive ? (
+                              <EmptyMetricValue reason="COD Orders is missing because payment method or order data was not imported." />
+                            ) : (
+                              <>
+                                <p className="tu-mt-2 tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.codCount)}</p>
+                                <p className="tu-mt-1.5 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.codShare.toFixed(1)}% of total orders`}</p>
+                              </>
+                            )}
                           </div>
                           <div className="tu-flex tu-min-h-[106px] tu-flex-col tu-justify-center tu-rounded-[10px] tu-border tu-border-[#f2e3ce] tu-bg-[#fffaf3] tu-px-3 tu-py-2">
                             <p className="tu-text-[11px] tu-font-medium tu-text-[#7e868f]">Non COD Orders</p>
-                            <p className="tu-mt-2 tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.nonCodCount)}</p>
-                            <p className="tu-mt-1.5 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.nonCodShare.toFixed(1)}% of total orders`}</p>
+                            {emptyPreviewActive ? (
+                              <EmptyMetricValue reason="Non COD Orders is missing because payment method or order data was not imported." />
+                            ) : (
+                              <>
+                                <p className="tu-mt-2 tu-text-[24px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.nonCodCount)}</p>
+                                <p className="tu-mt-1.5 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.nonCodShare.toFixed(1)}% of total orders`}</p>
+                              </>
+                            )}
                           </div>
                         </div>
                       </article>
@@ -9626,27 +9931,37 @@ export default function App() {
                           </div>
 
                           <div className="tu-mt-1">
-                            <p
-                              className={`tu-text-[26px] tu-font-semibold ${
-                                metric.label === 'Total Orders' ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
-                              }`}
-                            >
-                              {metric.value}
-                            </p>
-                            <p className="tu-mt-0.5 tu-inline-block tu-min-w-[170px] tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#7e868f]">
-                              {metric.label === 'Total Orders'
-                                ? selectedSalesOrderShowBy === 'Gross Sales'
-                                  ? '100% of gross sales in scope'
-                                  : '100% of orders in scope'
-                                : `${(metric.orderShare ?? 0).toFixed(1)}% of total ${
-                                    selectedSalesOrderShowBy === 'Gross Sales' ? 'Gross Sales' : 'Orders'
-                                  }`}
-                            </p>
+                            {emptyPreviewActive ? (
+                              <EmptyMetricValue
+                                reason={getSalesOrderMissingReason(metric.label)}
+                                accent={metric.label === 'Total Orders'}
+                              />
+                            ) : (
+                              <>
+                              <p
+                                className={`tu-text-[26px] tu-font-semibold ${
+                                  metric.label === 'Total Orders' ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
+                                }`}
+                              >
+                                {metric.value}
+                              </p>
+                              <p className="tu-mt-0.5 tu-inline-block tu-min-w-[170px] tu-text-[12px] tu-font-medium tu-leading-4 tu-text-[#7e868f]">
+                                {metric.label === 'Total Orders'
+                                  ? selectedSalesOrderShowBy === 'Gross Sales'
+                                    ? '100% of gross sales in scope'
+                                    : '100% of orders in scope'
+                                  : `${(metric.orderShare ?? 0).toFixed(1)}% of total ${
+                                      selectedSalesOrderShowBy === 'Gross Sales' ? 'Gross Sales' : 'Orders'
+                                    }`}
+                              </p>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
 
                       <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                        {!emptyPreviewActive ? (
                         <div className="tu-relative">
                           <button
                             type="button"
@@ -9665,7 +9980,10 @@ export default function App() {
                             />
                           ) : null}
                         </div>
-                        <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                        ) : null}
+                        {!emptyPreviewActive ? (
+                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                        ) : null}
                       </div>
                     </article>
                   );
@@ -9690,10 +10008,14 @@ export default function App() {
                 </div>
 
                 <div className="tu-h-[360px]">
-                  <Line data={salesOrderChartData} options={salesOrderChartOptions} />
+                  {emptyPreviewActive ? (
+                    <EmptyDataNotice reason={emptyDataReasons.salesOrderChart} />
+                  ) : (
+                    <Line data={salesOrderChartData} options={salesOrderChartOptions} />
+                  )}
                 </div>
 
-                {hoveredSalesOrderPoint && salesOrderTooltipData ? (
+                {!emptyPreviewActive && hoveredSalesOrderPoint && salesOrderTooltipData ? (
                   <div
                     className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
                     style={{
@@ -9849,6 +10171,10 @@ export default function App() {
               <div className="tu-mt-4">
                 <div className="tu-rounded-[14px] tu-border tu-border-[#e8ede6] tu-bg-[#fafcf9] tu-p-4">
                   <p className="tu-text-[14px] tu-font-medium tu-text-[#5f656c]">New vs Returning Customers</p>
+                  {emptyPreviewActive ? (
+                    <EmptyDataNotice reason={emptyDataReasons.customerSplit} className="tu-min-h-[120px]" />
+                  ) : (
+                  <>
                   <div className="tu-mt-3 tu-h-3 tu-overflow-hidden tu-rounded-full tu-bg-[#e7efe7]">
                     <div className="tu-flex tu-h-full tu-w-full">
                       <div
@@ -9892,6 +10218,8 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                  </>
+                  )}
                 </div>
 
                 <div className="tu-mt-4 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
@@ -9919,16 +10247,23 @@ export default function App() {
                           />
                         </div>
                         <div className="tu-mt-1">
-                          <p
-                            className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold tu-transition-all hover:tu-scale-[1.01] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
-                              metric.label === 'Total Customers'
-                                ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]'
-                                : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'
-                            }`}
-                          >
-                            {metric.value}
-                          </p>
-                          {metric.secondaryText ? (
+                          {emptyPreviewActive ? (
+                            <EmptyMetricValue
+                              reason={getCustomerMissingReason(metric.label)}
+                              accent={metric.label === 'Total Customers'}
+                            />
+                          ) : (
+                            <p
+                              className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold tu-transition-all hover:tu-scale-[1.01] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${
+                                metric.label === 'Total Customers'
+                                  ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]'
+                                  : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'
+                              }`}
+                            >
+                              {metric.value}
+                            </p>
+                          )}
+                          {!emptyPreviewActive && metric.secondaryText ? (
                             <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
                               <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
                               <InfoTooltip text={metric.secondaryTooltip ?? ''} widthClass="tu-w-[320px]" />
@@ -9937,6 +10272,7 @@ export default function App() {
                         </div>
 
                         <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                          {!emptyPreviewActive ? (
                           <div className="tu-relative">
                             <button
                               type="button"
@@ -9955,7 +10291,10 @@ export default function App() {
                               />
                             ) : null}
                           </div>
-                          <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                          ) : null}
+                          {!emptyPreviewActive ? (
+                            <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                          ) : null}
                         </div>
                       </article>
                     );
@@ -10029,7 +10368,14 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {customerOverviewTableRows.map((row) => (
+                        {emptyPreviewActive ? (
+                          <tr>
+                            <td colSpan={7}>
+                              <EmptyDataNotice reason={emptyDataReasons.customerTable} className="tu-min-h-[260px]" />
+                            </td>
+                          </tr>
+                        ) : (
+                        customerOverviewTableRows.map((row) => (
                           <tr key={row.name} className="tu-border-b tu-border-[#f1f4ef] last:tu-border-b-0">
                             <td className="tu-px-2.5 tu-py-3">
                               <div className="tu-flex tu-items-center tu-gap-2.5">
@@ -10054,7 +10400,8 @@ export default function App() {
                             </td>
                             <td className="tu-px-2.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{`${row.repeatPurchasePercent.toFixed(1)}%`}</td>
                           </tr>
-                        ))}
+                        ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -10172,8 +10519,12 @@ export default function App() {
 
                         <div className="tu-mt-1.5 tu-flex tu-items-end tu-gap-2.5">
                           <div className="tu-flex tu-items-end tu-gap-2">
-                            <p className={`tu-text-[20px] tu-font-semibold tu-leading-none ${index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'}`}>{metric.value}</p>
-                            {metric.extraStores?.length ? (
+                            {emptyPreviewActive ? (
+                              <EmptyMetricValue reason={getSalesStoreMissingReason(metric.label)} accent={index === 0} />
+                            ) : (
+                              <p className={`tu-text-[20px] tu-font-semibold tu-leading-none ${index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'}`}>{metric.value}</p>
+                            )}
+                            {!emptyPreviewActive && metric.extraStores?.length ? (
                               <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                 <button
                                   type="button"
@@ -10187,7 +10538,7 @@ export default function App() {
                               </div>
                             ) : null}
                           </div>
-                          {!metric.hideTrend ? (
+                          {!emptyPreviewActive && !metric.hideTrend ? (
                             <div className="tu-relative">
                               <button
                                 type="button"
@@ -10241,7 +10592,14 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {salesStoreTableRows.map((row) => {
+                        {emptyPreviewActive ? (
+                          <tr>
+                            <td colSpan={4}>
+                              <EmptyDataNotice reason={emptyDataReasons.salesStoreTable} className="tu-min-h-[260px]" />
+                            </td>
+                          </tr>
+                        ) : (
+                        salesStoreTableRows.map((row) => {
                           const StoreTrendIcon = row.trendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
                           const storeTrendColor = row.trendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
 
@@ -10281,8 +10639,9 @@ export default function App() {
                               </td>
                             </tr>
                           );
-                        })}
-                        {(() => {
+                        })
+                        )}
+                        {!emptyPreviewActive ? (() => {
                           const TotalTrendIcon = salesStoreTableTotals.trendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
                           const totalTrendColor =
                             salesStoreTableTotals.trendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
@@ -10316,7 +10675,7 @@ export default function App() {
                               </td>
                             </tr>
                           );
-                        })()}
+                        })() : null}
                       </tbody>
                     </table>
                   </div>
@@ -10436,14 +10795,18 @@ export default function App() {
                   onMouseLeave={() => setHoveredLocationPoint(null)}
                 >
                   <div className="tu-h-[420px]">
-                    <Bar
-                      key={`${selectedLocationPerformanceView}-${selectedLocationMetric}-${selectedLocationShowBy}-${selectedLocationDate}`}
-                      data={locationChartData}
-                      options={locationChartOptions}
-                      plugins={[locationChartDecorPlugin]}
-                    />
+                    {emptyPreviewActive ? (
+                      <EmptyDataNotice reason={emptyDataReasons.salesLocation} />
+                    ) : (
+                      <Bar
+                        key={`${selectedLocationPerformanceView}-${selectedLocationMetric}-${selectedLocationShowBy}-${selectedLocationDate}`}
+                        data={locationChartData}
+                        options={locationChartOptions}
+                        plugins={[locationChartDecorPlugin]}
+                      />
+                    )}
                   </div>
-                  {!isLocationTopView && hoveredLocationPoint && locationTooltipData ? (
+                  {!emptyPreviewActive && !isLocationTopView && hoveredLocationPoint && locationTooltipData ? (
                     <div
                       className="tu-pointer-events-none tu-absolute tu-z-30 tu-w-[286px] tu-rounded-[14px] tu-border tu-border-[#d9efe2] tu-bg-[rgba(255,255,255,0.98)] tu-p-4 tu-shadow-[0_20px_36px_rgba(16,36,27,0.18)]"
                       style={{
@@ -10632,8 +10995,12 @@ export default function App() {
 
                         <div className="tu-mt-1.5 tu-flex tu-items-end tu-gap-2.5">
                           <div className="tu-flex tu-items-end tu-gap-2">
-                            <p className={`tu-text-[22px] tu-font-semibold tu-leading-none ${index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'}`}>{metric.value}</p>
-                            {'extraItems' in metric && metric.extraItems?.length ? (
+                            {emptyPreviewActive ? (
+                              <EmptyMetricValue reason={getProductMissingReason(metric.label)} accent={index === 0} />
+                            ) : (
+                              <p className={`tu-text-[22px] tu-font-semibold tu-leading-none ${index === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'}`}>{metric.value}</p>
+                            )}
+                            {!emptyPreviewActive && 'extraItems' in metric && metric.extraItems?.length ? (
                               <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                 <button
                                   type="button"
@@ -10645,7 +11012,7 @@ export default function App() {
                               </div>
                             ) : null}
                           </div>
-                          {hasTrend ? (
+                          {!emptyPreviewActive && hasTrend ? (
                             <div className="tu-relative">
                               <button
                                 type="button"
@@ -10674,7 +11041,11 @@ export default function App() {
 
                 <div className="tu-rounded-[14px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)]">
                   <div className="tu-h-[420px]">
-                    <Bar data={productChartData} options={productChartOptions} />
+                    {emptyPreviewActive ? (
+                      <EmptyDataNotice reason={emptyDataReasons.salesProduct} />
+                    ) : (
+                      <Bar data={productChartData} options={productChartOptions} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -10847,8 +11218,12 @@ export default function App() {
 
                         <div className="tu-mt-1.5 tu-flex tu-items-end tu-gap-2.5">
                           <div className="tu-flex tu-items-end tu-gap-2">
-                            <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
-                            {'extraItems' in metric && metric.extraItems?.length ? (
+                            {emptyPreviewActive ? (
+                              <EmptyMetricValue reason={getProductMissingReason(metric.label)} />
+                            ) : (
+                              <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
+                            )}
+                            {!emptyPreviewActive && 'extraItems' in metric && metric.extraItems?.length ? (
                               <div className="tu-group tu-relative tu-inline-flex tu-items-center">
                                 <button
                                   type="button"
@@ -10860,7 +11235,7 @@ export default function App() {
                               </div>
                             ) : null}
                           </div>
-                          {hasTrend ? (
+                          {!emptyPreviewActive && hasTrend ? (
                             <div className="tu-relative">
                               <button
                                 type="button"
@@ -10972,7 +11347,14 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {productTableVisibleRows.map((row) => {
+                        {emptyPreviewActive ? (
+                          <tr>
+                            <td colSpan={4 + (productTableVisibleColumns.contribution ? 1 : 0) + (productTableVisibleColumns.grossProfit ? 1 : 0)}>
+                              <EmptyDataNotice reason={emptyDataReasons.salesProduct} className="tu-min-h-[320px]" />
+                            </td>
+                          </tr>
+                        ) : (
+                        productTableVisibleRows.map((row) => {
                           const CurrentPeriodTrendIcon = row.currentPeriodTrendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
                           const currentPeriodTrendColor =
                             row.currentPeriodTrendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
@@ -11035,7 +11417,8 @@ export default function App() {
                               ) : null}
                             </tr>
                           );
-                        })}
+                        })
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -11233,7 +11616,12 @@ export default function App() {
                                 <div className="tu-mt-1">
                                   {metricSection.title === 'Sales' ? (
                                     <div className="tu-relative">
-                                      {isSalesMetricWithoutValueHover ? (
+                                      {emptyPreviewActive ? (
+                                        <EmptyMetricValue
+                                          reason={getSalesOverviewMissingReason(metric.label)}
+                                          accent={metricIndex === 0}
+                                        />
+                                      ) : isSalesMetricWithoutValueHover ? (
                                         <p
                                           className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold ${
                                             metricIndex === 0 ? 'tu-text-[#10c562]' : 'tu-text-[#333538]'
@@ -11244,7 +11632,9 @@ export default function App() {
                                       ) : (
                                         <button
                                           type="button"
-                                          onMouseEnter={() => setHoveredSectionSixValue(hoverKey)}
+                                          onMouseEnter={() => {
+                                            if (!emptyPreviewActive) setHoveredSectionSixValue(hoverKey);
+                                          }}
                                           onMouseLeave={() => setHoveredSectionSixValue(null)}
                                           className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold ${
                                             metricIndex === 0 ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]' : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'
@@ -11262,7 +11652,7 @@ export default function App() {
                                           {metric.value}
                                         </button>
                                       )}
-                                      {showBreakdownPopover ? (
+                                      {!emptyPreviewActive && showBreakdownPopover ? (
                                         <div className="tu-absolute tu-left-0 tu-top-[calc(100%+10px)] tu-z-[140] tu-w-[264px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]">
                                           <div className="tu-space-y-1.5">
                                             {breakdownRows.map((item) => (
@@ -11314,7 +11704,7 @@ export default function App() {
                                         : `${(metric.orderShare ?? 0).toFixed(1)}% of total orders`}
                                     </p>
                                   ) : null}
-                                  {metric.secondaryText ? (
+                                  {!emptyPreviewActive && metric.secondaryText ? (
                                     <div className="tu-group/tooltip tu-relative tu-mt-1.5 tu-inline-block">
                                       <p className="tu-text-[11px] tu-font-medium tu-text-[#8f9197]">{metric.secondaryText}</p>
                                       <InfoTooltip text={metric.secondaryTooltip ?? ''} widthClass="tu-w-[320px]" />
@@ -11339,6 +11729,7 @@ export default function App() {
                               ) : null}
                             </div>
                             <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                              {!emptyPreviewActive ? (
                               <div className="tu-relative">
                                 <button
                                   type="button"
@@ -11362,7 +11753,10 @@ export default function App() {
                                   />
                                 ) : null}
                               </div>
-                              <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                              ) : null}
+                              {!emptyPreviewActive ? (
+                                <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
+                              ) : null}
                             </div>
                           </article>
                         );
