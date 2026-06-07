@@ -4705,7 +4705,7 @@ export default function App() {
         {
           label: 'Number of SKUs',
           data: daysUntilStockoutRows.map((bucket) => bucket.skuCount),
-          backgroundColor: ['#0EA857', '#10C562', '#57D990', '#95E8B9', '#D0F6DF'],
+          backgroundColor: ['#FF4D4F', '#FF7172', '#FF9495', '#FFB8B9', '#FFD8D8'],
           borderRadius: 6,
           borderSkipped: false,
           barPercentage: 0.72,
@@ -7877,7 +7877,11 @@ export default function App() {
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="tu-block tu-max-h-[400px] tu-overflow-y-auto">
+                          <tbody
+                            className={`tu-block ${
+                              Number(card.selectedLimit) > 5 ? 'tu-h-[320px] tu-overflow-y-auto' : 'tu-overflow-visible'
+                            }`}
+                          >
                             {card.rows.map((product) => (
                               <tr key={`${card.key}-${product.id}`} className="tu-table tu-w-full tu-table-fixed tu-border-b tu-border-[#edf0ea] last:tu-border-b-0 hover:tu-bg-[#fbfcfa]">
                                 <td className="tu-w-[52%] tu-px-3 tu-py-2.5">
@@ -7919,22 +7923,30 @@ export default function App() {
                   <article className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                     <div className="tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row sm:tu-items-start sm:tu-justify-between">
                       <div>
-                        <div className="tu-group/tooltip tu-relative tu-inline-block">
-                          <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">Days Until Stockout</h3>
-                          <InfoTooltip
-                            text={{
-                              title: 'Days Until Stockout',
-                              blocks: [
-                                {
-                                  type: 'text',
-                                  text: 'Groups SKUs by how soon available inventory is expected to run out based on current sales velocity.'
-                                },
-                                { type: 'spacer' },
-                                { type: 'formula', text: 'Days Until Stockout = Available Quantity / Sales Velocity' }
-                              ]
-                            }}
-                            widthClass="tu-w-[320px]"
-                          />
+                        <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2">
+                          <div className="tu-group/tooltip tu-relative tu-inline-block">
+                            <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">Days Until Stockout</h3>
+                            <InfoTooltip
+                              text={{
+                                title: 'Days Until Stockout',
+                                blocks: [
+                                  {
+                                    type: 'text',
+                                    text: 'Groups SKUs by how soon available inventory is expected to run out based on current sales velocity.'
+                                  },
+                                  { type: 'spacer' },
+                                  { type: 'formula', text: 'Days Until Stockout = Available Quantity / Sales Velocity' }
+                                ]
+                              }}
+                              widthClass="tu-w-[320px]"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="tu-inline-flex tu-h-7 tu-items-center tu-rounded-full tu-border tu-border-transparent tu-bg-transparent tu-px-2.5 tu-text-[11px] tu-font-semibold tu-text-[#7c838c] transition-colors hover:tu-border-[#e5e9e2] hover:tu-bg-[#fafbf8] hover:tu-text-[#2a2c2f]"
+                          >
+                            Show SKUs
+                          </button>
                         </div>
                         <p className="tu-mt-1 tu-text-[12px] tu-text-[#8f949b]">
                           SKU count by stockout-risk window
