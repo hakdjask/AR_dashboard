@@ -1559,6 +1559,18 @@ const skuMovementTurnoverTooltip: TooltipContent = {
 };
 const skuMovementProductLimitOptions = ['5', '10', '15', '20'];
 const inventoryAgingProductLimitOptions = ['10', '20', '30'];
+const stockoutRiskBuckets = [
+  { label: '0-3 days', min: 0, max: 3 },
+  { label: '4-8 days', min: 4, max: 8 },
+  { label: '9-15 days', min: 9, max: 15 },
+  { label: '16-25 days', min: 16, max: 25 },
+  { label: '26+ days', min: 26, max: Number.POSITIVE_INFINITY }
+];
+const abcSkuTierBlueprint = [
+  { label: 'Class A', scope: 'top 20%', revenuePercent: 78, color: '#10C562' },
+  { label: 'Class B', scope: 'next 30%', revenuePercent: 17, color: '#57D990' },
+  { label: 'Class C', scope: 'bottom 50%', revenuePercent: 5, color: '#D0F6DF' }
+];
 const inventoryAgingBucketLabels = ['0-30 days', '31-60 days', '61-90 days', '90+ days'];
 const inventoryAgingLocationColors: Record<string, string> = {
   'Main Warehouse': '#0EA857',
@@ -4645,6 +4657,154 @@ export default function App() {
   const getInventoryAgingUnitCost = useCallback((product: InventoryHealthProduct) => {
     const skuSeed = Number(product.sku.replace(/\D/g, '')) || 1;
     return 850 + (skuSeed % 9) * 175;
+  }, []);
+
+  const daysUntilStockoutRows = useMemo(() => {
+    const bucketCounts = stockoutRiskBuckets.map((bucket) => ({
+      ...bucket,
+      skuCount: 0,
+      inventoryValue: 0
+    }));
+
+    inventoryHealthProducts.forEach((product, index) => {
+      const daysUntilStockout = Math.ceil(
+        (product.availableQuantity / Math.max(product.salesVelocity, 0.1)) *
+          ([0.06, 0.14, 0.24, 0.42, 0.78][index % 5] ?? 0.42)
+      );
+      const bucket = bucketCounts.find((item) => daysUntilStockout >= item.min && daysUntilStockout <= item.max);
+
+      if (bucket) {
+        bucket.skuCount += 1;
+        bucket.inventoryValue += product.onHandQuantity * getInventoryAgingUnitCost(product);
+      }
+    });
+
+    bucketCounts.forEach((bucket) => {
+      if (bucket.skuCount > 0) return;
+
+      const donor = bucketCounts
+        .filter((item) => item.skuCount > 1)
+        .sort((first, second) => second.skuCount - first.skuCount)[0];
+
+      if (!donor) return;
+
+      const transferredValue = donor.inventoryValue / donor.skuCount;
+      donor.skuCount -= 1;
+      donor.inventoryValue -= transferredValue;
+      bucket.skuCount = 1;
+      bucket.inventoryValue = transferredValue;
+    });
+
+    return bucketCounts;
+  }, [getInventoryAgingUnitCost]);
+
+  const daysUntilStockoutChartData = useMemo(
+    () => ({
+      labels: daysUntilStockoutRows.map((bucket) => bucket.label),
+      datasets: [
+        {
+          label: 'Number of SKUs',
+          data: daysUntilStockoutRows.map((bucket) => bucket.skuCount),
+          backgroundColor: ['#0EA857', '#10C562', '#57D990', '#95E8B9', '#D0F6DF'],
+          borderRadius: 6,
+          borderSkipped: false,
+          barPercentage: 0.72,
+          categoryPercentage: 0.72
+        }
+      ]
+    }),
+    [daysUntilStockoutRows]
+  );
+
+  const daysUntilStockoutValueLabelPlugin = useMemo(
+    () => ({
+      id: 'daysUntilStockoutValueLabel',
+      afterDatasetsDraw: (chart: any) => {
+        const { ctx } = chart;
+        const meta = chart.getDatasetMeta(0);
+        const values = (chart.data.datasets[0]?.data ?? []) as number[];
+
+        ctx.save();
+        ctx.fillStyle = '#2f3133';
+        ctx.font = '600 11px Poppins, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+
+        meta.data.forEach((bar: any, index: number) => {
+          const value = values[index] ?? 0;
+          ctx.fillText(formatCompactNumber(value), bar.x, bar.y - 6);
+        });
+
+        ctx.restore();
+      }
+    }),
+    []
+  );
+
+  const daysUntilStockoutChartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: '#7c838c',
+            font: { family: 'Poppins', size: 11 }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          suggestedMax: Math.max(...daysUntilStockoutRows.map((bucket) => bucket.skuCount), 0) + 6,
+          grid: { color: '#edf0ea' },
+          ticks: {
+            color: '#7c838c',
+            precision: 0,
+            font: { family: 'Poppins', size: 11 }
+          },
+          border: { color: '#dfe5dc' }
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(32, 34, 36, 0.92)',
+          titleColor: '#ffffff',
+          bodyColor: '#f5f6f3',
+          borderColor: 'rgba(255,255,255,0.10)',
+          borderWidth: 1,
+          cornerRadius: 10,
+          padding: 10,
+          displayColors: true,
+          boxWidth: 8,
+          boxHeight: 8,
+          boxPadding: 4,
+          titleFont: { family: 'Poppins', size: 12, weight: 'bold' as const },
+          bodyFont: { family: 'Poppins', size: 11, weight: 'normal' as const },
+          callbacks: {
+            label: (context: { parsed: { y: number | null } }) =>
+              ` SKUs: ${formatCompactNumber(context.parsed.y ?? 0)}`,
+            afterLabel: (context: { dataIndex: number }) =>
+              `Inventory value: ${formatCompactCurrency(daysUntilStockoutRows[context.dataIndex]?.inventoryValue ?? 0)}`
+          }
+        }
+      }
+    }),
+    [daysUntilStockoutRows]
+  );
+
+  const abcSkuTierRows = useMemo(() => {
+    const totalSkus = inventoryHealthProducts.length;
+    const classASkus = Math.round(totalSkus * 0.2);
+    const classBSkus = Math.round(totalSkus * 0.3);
+
+    return abcSkuTierBlueprint.map((tier, index) => ({
+      ...tier,
+      skuCount: index === 0 ? classASkus : index === 1 ? classBSkus : Math.max(0, totalSkus - classASkus - classBSkus)
+    }));
   }, []);
 
   const inventoryAgingProductsInScope = useMemo(
@@ -7755,6 +7915,113 @@ export default function App() {
                     </article>
                   ))}
                 </div>
+                <div className="tu-mt-5 tu-grid tu-gap-4 xl:tu-grid-cols-2">
+                  <article className="tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                    <div className="tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row sm:tu-items-start sm:tu-justify-between">
+                      <div>
+                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">Days Until Stockout</h3>
+                          <InfoTooltip
+                            text={{
+                              title: 'Days Until Stockout',
+                              blocks: [
+                                {
+                                  type: 'text',
+                                  text: 'Groups SKUs by how soon available inventory is expected to run out based on current sales velocity.'
+                                },
+                                { type: 'spacer' },
+                                { type: 'formula', text: 'Days Until Stockout = Available Quantity / Sales Velocity' }
+                              ]
+                            }}
+                            widthClass="tu-w-[320px]"
+                          />
+                        </div>
+                        <p className="tu-mt-1 tu-text-[12px] tu-text-[#8f949b]">
+                          SKU count by stockout-risk window
+                        </p>
+                      </div>
+                      <span className="tu-inline-flex tu-w-fit tu-rounded-full tu-border tu-border-[#dfe8dd] tu-bg-[#f8faf7] tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
+                        Number of SKUs
+                      </span>
+                    </div>
+
+                    <div className="tu-mt-5 tu-h-[260px]">
+                      <Bar
+                        data={daysUntilStockoutChartData}
+                        options={daysUntilStockoutChartOptions}
+                        plugins={[daysUntilStockoutValueLabelPlugin]}
+                      />
+                    </div>
+                  </article>
+
+                  <article className="tu-rounded-[16px] tu-border tu-border-[#dfe8dd] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
+                    <div className="tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row sm:tu-items-start sm:tu-justify-between">
+                      <div>
+                        <div className="tu-group/tooltip tu-relative tu-inline-block">
+                          <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">ABC SKU Analysis</h3>
+                          <InfoTooltip
+                            text="ABC analysis classifies SKUs by revenue contribution so high-impact Class A items receive the most planning attention, while lower-impact Class C items can be reviewed for rationalization."
+                            widthClass="tu-w-[320px]"
+                          />
+                        </div>
+                        <p className="tu-mt-1 tu-text-[12px] tu-text-[#8f949b]">ABC inventory classification</p>
+                      </div>
+                      <div className="tu-flex tu-shrink-0 tu-items-center tu-justify-start tu-text-left sm:tu-justify-end sm:tu-text-right">
+                        <span className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-leading-5 tu-text-[#5f656c]">
+                          Revenue contribution by SKU tier (Pareto principle{' '}
+                          <span className="tu-group/tooltip tu-relative tu-inline-flex tu-align-middle">
+                            <button
+                              type="button"
+                              aria-label="Pareto principle"
+                              className="tu-inline-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d5dacd] tu-bg-white tu-text-[10px] tu-font-semibold tu-leading-none tu-text-[#7f838a]"
+                            >
+                              ?
+                            </button>
+                            <InfoTooltip
+                              text="Pareto principle means a small group of SKUs often contributes the majority of revenue, helping teams focus inventory control on the highest-impact items."
+                              widthClass="tu-w-[280px]"
+                              alignRight
+                            />
+                          </span>
+                          )
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#edf0ea] tu-bg-white tu-p-4">
+                      <div className="tu-space-y-4">
+                        {abcSkuTierRows.map((tier, tierIndex) => (
+                          <div key={tier.label} className="tu-grid tu-grid-cols-[86px_minmax(0,1fr)_72px] tu-items-center tu-gap-3">
+                            <div>
+                              <p className="tu-text-[13px] tu-font-semibold tu-text-[#333538]">{tier.label}</p>
+                              <p className="tu-text-[11px] tu-text-[#8f949b]">({tier.scope})</p>
+                            </div>
+                            <div className="tu-h-9 tu-overflow-hidden tu-rounded-[8px] tu-bg-[#eef3ec]">
+                              <div
+                                className={`tu-flex tu-h-full tu-items-center tu-rounded-[8px] tu-px-3 tu-text-[12px] tu-font-semibold ${
+                                  tierIndex === 2 ? 'tu-text-[#0b5f36]' : 'tu-text-white'
+                                }`}
+                                style={{ width: `${tier.revenuePercent}%`, backgroundColor: tier.color }}
+                              >
+                                {tierIndex === 0 ? `${tier.revenuePercent}% of revenue` : `${tier.revenuePercent}%`}
+                              </div>
+                            </div>
+                            <p className="tu-text-right tu-text-[12px] tu-font-medium tu-text-[#6f747b]">
+                              {formatCompactNumber(tier.skuCount)} SKUs
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="tu-mt-5 tu-rounded-[10px] tu-bg-[#eef3ec] tu-px-4 tu-py-3">
+                        <p className="tu-text-[12px] tu-leading-5 tu-text-[#5f656c]">
+                          Class A requires tighter procurement control and safety stock. Class C has low revenue contribution
+                          and is a strong candidate for liquidation or range reduction.
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                </div>
                 <section className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Aging Insights</h2>
@@ -8228,6 +8495,7 @@ export default function App() {
                   </div>
                 </section>
                 ) : null}
+                {false ? (
                 <section id="inventory-health-tracking" className="tu-mt-5 tu-rounded-[16px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <div className="tu-group/tooltip tu-relative tu-inline-flex tu-items-center tu-gap-2">
@@ -8651,14 +8919,15 @@ export default function App() {
                   {inventoryHealthHeaderTooltip ? (
                     <div
                       className="tu-pointer-events-none tu-fixed tu-z-[120] tu-w-[270px] -tu-translate-y-full tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)]"
-                      style={{ left: inventoryHealthHeaderTooltip.x, top: inventoryHealthHeaderTooltip.y }}
+                      style={{ left: inventoryHealthHeaderTooltip!.x, top: inventoryHealthHeaderTooltip!.y }}
                     >
                       {renderFloatingTooltipBody(
-                        inventoryHealthHeaderTooltips[inventoryHealthHeaderTooltip.key] ?? 'No tooltip available'
+                        inventoryHealthHeaderTooltips[inventoryHealthHeaderTooltip!.key] ?? 'No tooltip available'
                       )}
                     </div>
                   ) : null}
                 </section>
+                ) : null}
                 </>
               ) : null}
               {activeTab !== 'inventory' ? (
