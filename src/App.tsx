@@ -2210,6 +2210,7 @@ const productPerformanceViewOptions = ['Top Performing', 'Under Performing'];
 const productTableViewOptions = ['Top Sellers', 'Most Improved', 'Most Declined'];
 const locationShowByOptions = ['City', 'Province'];
 const productTableDisplayOptions = ['5 Products', '10 Products', '20 Products', '30 Products'];
+const productBrandOptions = ['Auralux', 'Northstar', 'Trailmark', 'Urban Loom', 'Vita Home'];
 const productTableLazyChunk = 20;
 
 const productKpiTooltips: Record<string, string | TooltipContent> = {
@@ -2321,12 +2322,12 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Average Selling Price = Gross Sales / Total Products' }
     ]
   },
-  'Units Sold per Order': {
-    title: 'Units Sold per Order',
+  'Units Sold per Product': {
+    title: 'Units Sold per Product',
     blocks: [
-      { type: 'text', text: 'Average units sold for each product in the selected period.' },
+      { type: 'text', text: 'Average number of units sold per active product in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Units Sold per Order = Total Units Sold / Total Orders' }
+      { type: 'formula', text: 'Units Sold per Product = Total Units Sold / Total Active Products' }
     ]
   }
 };
@@ -2488,6 +2489,8 @@ const productTableData = Array.from({ length: 120 }, (_, index) => {
     ...base,
     product: cycle === 0 ? base.product : `${base.product} ${cycle + 1}`,
     sku: `${base.sku}-${String(cycle + 1).padStart(2, '0')}`,
+    tableIndex: index,
+    brand: productBrandOptions[index % productBrandOptions.length],
     tableProductType: productTypeOptions[index % productTypeOptions.length],
     unitsCurrent,
     unitsPrevious,
@@ -3573,16 +3576,19 @@ export default function App() {
   const [productRegionProvince, setProductRegionProvince] = useState<string | null>(null);
   const [productTableMenus, setProductTableMenus] = useState<{
     show: boolean;
+    brand: boolean;
     metric: boolean;
     date: boolean;
     region: boolean;
   }>({
     show: false,
+    brand: false,
     metric: false,
     date: false,
     region: false
   });
   const [selectedProductTableDisplayLimit, setSelectedProductTableDisplayLimit] = useState('20 Products');
+  const [selectedProductTableBrands, setSelectedProductTableBrands] = useState<string[]>([...productBrandOptions]);
   const [selectedProductTableMetric, setSelectedProductTableMetric] = useState('Gross Sales');
   const [selectedProductTableDate, setSelectedProductTableDate] = useState('Last 30 Days');
   const [selectedProductTableView, setSelectedProductTableView] = useState(productTableViewOptions[0]);
@@ -3595,6 +3601,7 @@ export default function App() {
   });
   const [productTableMenuSearch, setProductTableMenuSearch] = useState({
     show: '',
+    brand: '',
     metric: '',
     date: '',
     region: ''
@@ -3766,8 +3773,8 @@ export default function App() {
       'Average Gross Profit Margin per Product is missing because gross profit or gross sales is missing.',
     'Average Selling Price':
       'Average Selling Price is missing because product gross sales or units sold are missing.',
-    'Units Sold per Order':
-      'Units Sold per Order is missing because product quantities or order counts were not imported.',
+    'Units Sold per Product':
+      'Units Sold per Product is missing because product quantities or active product data were not imported.',
     'Top Gross Sales Product':
       'Top Gross Sales Product is missing because product-level gross sales were not imported.',
     'Most Improved Gross Sales Product':
@@ -6953,7 +6960,7 @@ export default function App() {
     () => ({
       id: `locationChartDecorPlugin-${selectedLocationPerformanceView}-${selectedLocationMetric}`,
       afterDatasetsDraw: (chart: any) => {
-        const badgeDatasetIndex = selectedLocationPerformanceView === 'Most Declined' ? 1 : 0;
+        const badgeDatasetIndex = 0;
         const currentMeta = chart.getDatasetMeta(badgeDatasetIndex);
         const previousMeta = chart.getDatasetMeta(badgeDatasetIndex === 0 ? 1 : 0);
         if (!currentMeta?.data?.length) return;
@@ -7086,14 +7093,6 @@ export default function App() {
         labels: declinedLocationChartRows.map((item) => item.location),
         datasets: [
           {
-            label: 'Previous Period',
-            data: declinedLocationChartRows.map((item) => (item.location === 'Others' ? 30 : item.previousChartValue)),
-            backgroundColor: '#D5DAE0',
-            borderRadius: 4,
-            borderSkipped: false,
-            maxBarThickness: locationBarThickness
-          },
-          {
             label: 'Current Period',
             data: declinedLocationChartRows.map((item) => (item.location === 'Others' ? 30 : item.currentChartValue)),
             badgeLabels: declinedLocationChartRows.map(
@@ -7101,6 +7100,14 @@ export default function App() {
             ),
             badgeTone: declinedLocationChartRows.map(() => 'negative'),
             backgroundColor: '#10c562',
+            borderRadius: 4,
+            borderSkipped: false,
+            maxBarThickness: locationBarThickness
+          },
+          {
+            label: 'Previous Period',
+            data: declinedLocationChartRows.map((item) => (item.location === 'Others' ? 30 : item.previousChartValue)),
+            backgroundColor: '#D5DAE0',
             borderRadius: 4,
             borderSkipped: false,
             maxBarThickness: locationBarThickness
@@ -7113,14 +7120,6 @@ export default function App() {
       labels: declinedLocationDisplayRows.map((item) => item.location),
       datasets: [
         {
-          label: 'Previous Period',
-          data: declinedLocationDisplayRows.map((item) => (item.location === 'Others' ? 30 : item.displayPreviousValue)),
-          backgroundColor: '#D5DAE0',
-          borderRadius: 4,
-          borderSkipped: false,
-          maxBarThickness: locationBarThickness
-        },
-        {
           label: 'Current Period',
           data: declinedLocationDisplayRows.map((item) => (item.location === 'Others' ? 30 : item.displayCurrentValue)),
           badgeLabels: declinedLocationDisplayRows.map((item) =>
@@ -7128,6 +7127,14 @@ export default function App() {
           ),
           badgeTone: declinedLocationDisplayRows.map(() => 'negative'),
           backgroundColor: '#10c562',
+          borderRadius: 4,
+          borderSkipped: false,
+          maxBarThickness: locationBarThickness
+        },
+        {
+          label: 'Previous Period',
+          data: declinedLocationDisplayRows.map((item) => (item.location === 'Others' ? 30 : item.displayPreviousValue)),
+          backgroundColor: '#D5DAE0',
           borderRadius: 4,
           borderSkipped: false,
           maxBarThickness: locationBarThickness
@@ -7371,11 +7378,11 @@ export default function App() {
           comparison: { current: 'PKR 26,500', previous: 'PKR 24,400', change: 'PKR 2,100' }
         },
         {
-          label: 'Units Sold per Order',
-          value: '19',
+          label: 'Units Sold per Product',
+          value: '367',
           trend: '4.3%',
           direction: 'up' as const,
-          comparison: { current: '19', previous: '18', change: '1' }
+          comparison: { current: '367', previous: '352', change: '15' }
         }
       ];
     }
@@ -7518,18 +7525,19 @@ export default function App() {
     const dateScale = productDateScaleByRange[selectedProductTableDate] ?? productDateScaleByRange['Last 30 Days'];
     const selectedRegionCount = selectedProductTableRegion.length === 0 ? pakistanProvinceOptions.length : selectedProductTableRegion.length;
     const regionScale = Math.max(0.35, Math.min(1, selectedRegionCount / pakistanProvinceOptions.length));
-    const rows = productTableData.map((item, index) => {
-      const isServiceProduct = item.tableProductType === 'Service Product';
-      const unitsSold = isServiceProduct ? null : Math.round(item.unitsCurrent * dateScale * regionScale);
-      const previousUnits = isServiceProduct ? null : Math.round(item.unitsPrevious * dateScale * regionScale);
+    const selectedBrands = selectedProductTableBrands.length === 0 ? productBrandOptions : selectedProductTableBrands;
+    const rows = productTableData.filter((item) => selectedBrands.includes(item.brand)).map((item) => {
       const previousRevenue = Math.round(item.revenuePrevious * dateScale * regionScale);
       const grossSales = Math.round(item.revenueCurrent * dateScale * regionScale);
-      const cogsRatio = 0.44 + ((index % 3) * 0.05 + (index % 2) * 0.02);
+      const unitsSold = grossSales > 0 ? Math.max(1, Math.round(item.unitsCurrent * dateScale * regionScale)) : 0;
+      const previousUnits = previousRevenue > 0 ? Math.max(1, Math.round(item.unitsPrevious * dateScale * regionScale)) : 0;
+      const cogsRatio = 0.44 + ((item.tableIndex % 3) * 0.05 + (item.tableIndex % 2) * 0.02);
       const grossProfitValue = Math.round(grossSales * (1 - cogsRatio));
       const previousGrossProfitValue = Math.round(previousRevenue * (1 - cogsRatio));
+      const grossProfitMarginPercent = grossSales === 0 ? 0 : (grossProfitValue / grossSales) * 100;
 
-      const safeUnitsCurrent = unitsSold ?? 0;
-      const safeUnitsPrevious = previousUnits ?? 0;
+      const safeUnitsCurrent = unitsSold;
+      const safeUnitsPrevious = previousUnits;
       const unitsTrendPercent = getPercentDelta(safeUnitsCurrent, safeUnitsPrevious);
       const grossSalesTrendPercent = getPercentDelta(grossSales, previousRevenue);
       const grossProfitTrendPercent = getPercentDelta(grossProfitValue, previousGrossProfitValue);
@@ -7543,6 +7551,7 @@ export default function App() {
         previousUnits,
         grossSales,
         grossProfitValue,
+        grossProfitMarginPercent,
         previousGrossSales: previousRevenue,
         previousGrossProfitValue,
         unitsTrendPercent,
@@ -7582,6 +7591,7 @@ export default function App() {
   }, [
     selectedProductTableDate,
     selectedProductTableMetric,
+    selectedProductTableBrands,
     selectedProductTableRegion,
     selectedProductTableView
   ]);
@@ -7631,6 +7641,7 @@ export default function App() {
     selectedProductTableDisplayLimit,
     selectedProductTableMetric,
     selectedProductTableDate,
+    selectedProductTableBrands,
     selectedProductTableRegion,
     selectedProductTableView,
     productTableMaxRows
@@ -11577,7 +11588,7 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           setOpenProductTableColumnMenu((current) => !current);
-                          setProductTableMenus({ show: false, metric: false, date: false, region: false });
+                          setProductTableMenus({ show: false, brand: false, metric: false, date: false, region: false });
                         }}
                         className="tu-inline-flex tu-h-9 tu-w-9 tu-items-center tu-justify-center tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                         aria-label="Show or hide columns"
@@ -11630,7 +11641,7 @@ export default function App() {
                         </div>
                       ) : null}
                     </div>
-                    <span className="tu-text-[16px] tu-text-[#c7cdc2]">|</span>
+                    <span className="tu-inline-flex tu-h-6 tu-w-px tu-bg-[#d9ded7]" aria-hidden="true" />
                   </div>
                   {[
                     {
@@ -11639,6 +11650,14 @@ export default function App() {
                       options: productTableDisplayOptions
                     },
                     { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productMetricOptions },
+                    {
+                      key: 'brand',
+                      value:
+                        selectedProductTableBrands.length === productBrandOptions.length
+                          ? 'All Brands'
+                          : formatMultiSelectLabel(selectedProductTableBrands, 'All Brands', 'brand', 'brands'),
+                      options: productBrandOptions
+                    },
                     { key: 'date', value: selectedProductTableDate, options: productDateOptions },
                     {
                       key: 'region',
@@ -11654,6 +11673,7 @@ export default function App() {
                             setOpenProductTableColumnMenu(false);
                             setProductTableMenus((current) => ({
                               show: false,
+                              brand: false,
                               metric: false,
                               date: false,
                               region: false,
@@ -11686,21 +11706,42 @@ export default function App() {
                             selected={
                               menu.key === 'show'
                                 ? selectedProductTableDisplayLimit
+                                : menu.key === 'brand'
+                                  ? selectedProductTableBrands
                                 : menu.key === 'metric'
                                   ? selectedProductTableMetric
                                   : selectedProductTableDate
                             }
-                            searchable={false}
+                            multiSelect={menu.key === 'brand'}
+                            onToggleAll={
+                              menu.key === 'brand'
+                                ? (values) => setSelectedProductTableBrands((current) => setMultiSelectGroup(current, values))
+                                : undefined
+                            }
+                            searchable={menu.key === 'brand'}
+                            searchValue={menu.key === 'brand' ? productTableMenuSearch.brand : undefined}
+                            onSearchChange={
+                              menu.key === 'brand'
+                                ? (value) => setProductTableMenuSearch((current) => ({ ...current, brand: value }))
+                                : undefined
+                            }
                             widthClass={menu.key === 'show' ? 'tu-w-[170px]' : 'tu-w-[190px]'}
                             onSelect={(item) => {
                               if (menu.key === 'show') setSelectedProductTableDisplayLimit(item);
+                              if (menu.key === 'brand') {
+                                setSelectedProductTableBrands((current) => toggleMultiSelectValue(current, item));
+                                return;
+                              }
                               if (menu.key === 'metric') setSelectedProductTableMetric(item);
                               if (menu.key === 'date') setSelectedProductTableDate(item);
-                              setProductTableMenus({ show: false, metric: false, date: false, region: false });
+                              setProductTableMenus({ show: false, brand: false, metric: false, date: false, region: false });
                             }}
                           />
                         )}
                       </div>
+                      {menu.key === 'metric' ? (
+                        <span className="tu-inline-flex tu-h-6 tu-w-px tu-bg-[#d9ded7]" aria-hidden="true" />
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -11895,18 +11936,32 @@ export default function App() {
                                 </div>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                <div className="tu-flex tu-flex-col">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
                                   {selectedProductTableMetric === 'Gross Sales'
                                     ? formatPKR(row.priorPeriodValue)
                                     : formatCompactNumber(row.priorPeriodValue)}
-                                </span>
+                                  </span>
+                                  <span className="tu-mt-0.5 tu-text-[11px] tu-text-[#7d828a]">
+                                    {selectedProductTableMetric === 'Gross Sales'
+                                      ? `Units Sold: ${formatCompactNumber(row.previousUnits ?? 0)}`
+                                      : `Gross Sales: ${formatPKR(row.previousGrossSales)}`}
+                                  </span>
+                                </div>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                <div className="tu-flex tu-flex-col">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
                                   {selectedProductTableMetric === 'Gross Sales'
                                     ? formatPKR(row.currentPeriodValue)
                                     : formatCompactNumber(row.currentPeriodValue)}
-                                </span>
+                                  </span>
+                                  <span className="tu-mt-0.5 tu-text-[11px] tu-text-[#7d828a]">
+                                    {selectedProductTableMetric === 'Gross Sales'
+                                      ? `Units Sold: ${formatCompactNumber(row.unitsSold ?? 0)}`
+                                      : `Gross Sales: ${formatPKR(row.grossSales)}`}
+                                  </span>
+                                </div>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
                                 <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
@@ -11925,9 +11980,17 @@ export default function App() {
                               ) : null}
                               {productTableVisibleColumns.grossProfit ? (
                                 <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                    {formatPKR(row.grossProfitValue)}
-                                  </span>
+                                  <div className="tu-flex tu-flex-col">
+                                    <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                      {formatPKR(row.grossProfitValue)}
+                                    </span>
+                                    <div className="tu-group/tooltip tu-relative tu-mt-0.5 tu-w-fit">
+                                      <span className="tu-cursor-help tu-text-[11px] tu-text-[#7d828a]">
+                                        {row.grossProfitMarginPercent.toFixed(1)}%
+                                      </span>
+                                      <InfoTooltip text="Gross Profit Margin" widthClass="tu-w-max" />
+                                    </div>
+                                  </div>
                                 </td>
                               ) : null}
                             </tr>
