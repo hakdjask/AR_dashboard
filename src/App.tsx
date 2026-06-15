@@ -60,7 +60,14 @@ type ComparisonData = {
   currentPeriodLabel?: string;
   previousPeriodLabel?: string;
 };
-type ProductTableColumnKey = 'product' | 'priorPeriod' | 'currentPeriod' | 'change' | 'contribution' | 'grossProfit';
+type ProductTableColumnKey =
+  | 'product'
+  | 'priorPeriod'
+  | 'currentPeriod'
+  | 'change'
+  | 'contribution'
+  | 'grossProfit'
+  | 'grossProfitMargin';
 
 const customerLtvColumnTooltips: Partial<Record<CustomerLtvSortKey, TooltipContent>> = {
   avgAov: {
@@ -591,9 +598,7 @@ const sectionSixKpiTooltips: Record<string, string | TooltipContent> = {
   'Return Initiated': {
     title: 'Returned Initiated',
     blocks: [
-      { type: 'text', text: 'Daraz orders where the customer return process has been initiated. This KPI is available for Daraz stores only.' },
-      { type: 'spacer' },
-      { type: 'formula', text: 'Returned Initiated = Count of Daraz Orders with Return-Initiated Status' }
+      { type: 'text', text: 'Daraz orders where the customer return process has been initiated. This KPI is available for Daraz stores only.' }
     ]
   },
   Restock: {
@@ -2209,7 +2214,7 @@ const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const productPerformanceViewOptions = ['Top Performing', 'Under Performing'];
 const productTableViewOptions = ['Top Sellers', 'Most Improved', 'Most Declined'];
 const locationShowByOptions = ['City', 'Province'];
-const productTableDisplayOptions = ['5 Products', '10 Products', '20 Products', '30 Products'];
+const productTableDisplayOptions = ['5', '10', '20', '30'];
 const productBrandOptions = ['Auralux', 'Northstar', 'Trailmark', 'Urban Loom', 'Vita Home'];
 const productTableLazyChunk = 20;
 
@@ -2250,12 +2255,12 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Top Gross Sales Product = Product with MAX(Gross Sales)' }
     ]
   },
-  'Avg. Gross Profit Margin per Product': {
-    title: 'Avg. Gross Profit Margin per Product',
+  'Avg. Gross Profit Margin': {
+    title: 'Avg. Gross Profit Margin',
     blocks: [
-      { type: 'text', text: 'Average gross profit margin generated per product in the selected period.' },
+      { type: 'text', text: 'Average gross profit margin generated in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Avg. Gross Profit Margin per Product = ((Total Gross Sales - Total COGS) / Total Gross Sales) x 100' }
+      { type: 'formula', text: 'Avg. Gross Profit Margin = ((Total Gross Sales - Total COGS) / Total Gross Sales) x 100' }
     ]
   },
   'Most Improved Product': {
@@ -2377,6 +2382,14 @@ const productTableColumnTooltips: Record<ProductTableColumnKey, string | Tooltip
       { type: 'text', text: 'Profit remaining after product cost of goods sold (COGS).' },
       { type: 'spacer' },
       { type: 'formula', text: 'Gross Profit = Gross Sales - COGS' }
+    ]
+  },
+  grossProfitMargin: {
+    title: 'Gross Profit Margin per Product',
+    blocks: [
+      { type: 'text', text: 'Gross profit as a percentage of gross sales for each product.' },
+      { type: 'spacer' },
+      { type: 'formula', text: 'Gross Profit Margin = (Gross Profit / Gross Sales) x 100' }
     ]
   }
 };
@@ -3587,7 +3600,7 @@ export default function App() {
     date: false,
     region: false
   });
-  const [selectedProductTableDisplayLimit, setSelectedProductTableDisplayLimit] = useState('20 Products');
+  const [selectedProductTableDisplayLimit, setSelectedProductTableDisplayLimit] = useState('20');
   const [selectedProductTableBrands, setSelectedProductTableBrands] = useState<string[]>([...productBrandOptions]);
   const [selectedProductTableMetric, setSelectedProductTableMetric] = useState('Gross Sales');
   const [selectedProductTableDate, setSelectedProductTableDate] = useState('Last 30 Days');
@@ -3597,7 +3610,8 @@ export default function App() {
   const [openProductTableColumnMenu, setOpenProductTableColumnMenu] = useState(false);
   const [productTableVisibleColumns, setProductTableVisibleColumns] = useState({
     contribution: true,
-    grossProfit: true
+    grossProfit: true,
+    grossProfitMargin: true
   });
   const [productTableMenuSearch, setProductTableMenuSearch] = useState({
     show: '',
@@ -3608,8 +3622,6 @@ export default function App() {
   });
   const [productTableVisibleCount, setProductTableVisibleCount] = useState(productTableLazyChunk);
   const productTableScrollRef = useRef<HTMLDivElement | null>(null);
-  const productTableKpiInnerCardRef = useRef<HTMLDivElement | null>(null);
-  const [productTableKpiInnerCardHeight, setProductTableKpiInnerCardHeight] = useState<number>(520);
   const showSalesCityChart = true;
   const showSalesProductsChart = true;
   const [productHeaderTooltip, setProductHeaderTooltip] = useState<{
@@ -3769,7 +3781,7 @@ export default function App() {
     'Total Units Sold': 'Total Units Sold is missing because product-level sales quantities were not imported.',
     'Gross Profit per Product':
       'Gross Profit per Product is missing because product sales or product cost price is missing.',
-    'Avg. Gross Profit Margin per Product':
+    'Avg. Gross Profit Margin':
       'Average Gross Profit Margin per Product is missing because gross profit or gross sales is missing.',
     'Average Selling Price':
       'Average Selling Price is missing because product gross sales or units sold are missing.',
@@ -7371,6 +7383,13 @@ export default function App() {
           comparison: { current: 'PKR 11,800', previous: 'PKR 11,200', change: 'PKR 600' }
         },
         {
+          label: 'Avg. Gross Profit Margin',
+          value: '48.2%',
+          trend: '2.1%',
+          direction: 'up' as const,
+          comparison: { current: '48.2%', previous: '47.2%', change: '1.0 pp' }
+        },
+        {
           label: 'Average Selling Price',
           value: 'PKR 26,500',
           trend: '8.6%',
@@ -7396,7 +7415,7 @@ export default function App() {
         comparison: { current: '44,000', previous: '40,000', change: '4,000' }
       },
       {
-        label: 'Avg. Gross Profit Margin per Product',
+        label: 'Avg. Gross Profit Margin',
         value: '42.6%',
         trend: '3.2%',
         direction: 'up' as const,
@@ -7510,16 +7529,10 @@ export default function App() {
     () => Number.parseInt(selectedProductTableDisplayLimit, 10) || 20,
     [selectedProductTableDisplayLimit]
   );
-  const productTableOptionalVisibleCount =
-    (productTableVisibleColumns.contribution ? 1 : 0) + (productTableVisibleColumns.grossProfit ? 1 : 0);
-  const productTableProductColWidthClass =
-    productTableOptionalVisibleCount === 2 ? 'tu-w-[25%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[29%]' : 'tu-w-[34%]';
-  const productTablePeriodColWidthClass =
-    productTableOptionalVisibleCount === 2 ? 'tu-w-[15%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[16%]' : 'tu-w-[18%]';
-  const productTableCurrentPeriodColWidthClass =
-    productTableOptionalVisibleCount === 2 ? 'tu-w-[15%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[16%]' : 'tu-w-[18%]';
-  const productTableChangeColWidthClass =
-    productTableOptionalVisibleCount === 2 ? 'tu-w-[18%]' : productTableOptionalVisibleCount === 1 ? 'tu-w-[18%]' : 'tu-w-[24%]';
+  const productTableProductColWidthClass = 'tu-w-[25%]';
+  const productTablePeriodColWidthClass = 'tu-w-[14%]';
+  const productTableCurrentPeriodColWidthClass = 'tu-w-[14%]';
+  const productTableChangeColWidthClass = 'tu-w-[13%]';
 
   const allProductTableRows = useMemo(() => {
     const dateScale = productDateScaleByRange[selectedProductTableDate] ?? productDateScaleByRange['Last 30 Days'];
@@ -7646,20 +7659,6 @@ export default function App() {
     selectedProductTableView,
     productTableMaxRows
   ]);
-
-  useEffect(() => {
-    const cardNode = productTableKpiInnerCardRef.current;
-    if (!cardNode) return;
-
-    const updateHeight = () => {
-      setProductTableKpiInnerCardHeight(cardNode.getBoundingClientRect().height);
-    };
-
-    updateHeight();
-    const resizeObserver = new ResizeObserver(updateHeight);
-    resizeObserver.observe(cardNode);
-    return () => resizeObserver.disconnect();
-  }, []);
 
   return (
     <div className="tu-min-h-screen tu-overflow-x-hidden tu-bg-[#f4f5f2]">
@@ -10919,8 +10918,8 @@ export default function App() {
                         key={metric.label}
                         className="tu-group/card tu-relative tu-z-0 tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-[300] hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
-                        <div className="tu-group/tooltip tu-relative tu-inline-block">
-                          <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
+                        <div className="tu-group/tooltip tu-relative tu-block tu-min-w-0 tu-w-full">
+                          <button type="button" className="tu-block tu-w-full tu-truncate tu-text-left tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
                             {metric.label}
                           </button>
                           <InfoTooltip
@@ -11017,7 +11016,7 @@ export default function App() {
 
                           return (
                             <tr key={row.name} className="hover:tu-bg-[#fbfcfa]">
-                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3">
                                 <div className="tu-flex tu-items-center tu-gap-2.5">
                                   <img
                                     src={row.logo}
@@ -11037,7 +11036,7 @@ export default function App() {
                                   {formatStoreMetricValue(selectedSalesMetric, row.currentValue)}
                                 </span>
                               </td>
-                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
                                 <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
                                   <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
                                     {formatStoreMetricDelta(selectedSalesMetric, row.changeValue)}
@@ -11300,18 +11299,35 @@ export default function App() {
                         : view === 'Top'
                           ? `Top by ${selectedLocationMetric}`
                           : view;
+                    const returnViewTooltip =
+                      view === 'Top'
+                        ? `Locations with the highest ${selectedLocationReturnShowBy.toLowerCase()} in the current period.`
+                        : view === 'Most Improved'
+                          ? `Locations with the largest reduction in ${selectedLocationReturnShowBy.toLowerCase()} compared with the previous period.`
+                          : `Locations with the largest increase in ${selectedLocationReturnShowBy.toLowerCase()} compared with the previous period.`;
                     return (
                       <button
                         key={view}
                         type="button"
                         onClick={() => setSelectedLocationPerformanceView(view)}
-                        className={`tu-h-8 tu-w-full tu-rounded-[6px] tu-px-3 tu-text-center tu-text-[12px] tu-font-medium tu-transition-colors ${
+                        className={`tu-flex tu-h-8 tu-w-full tu-items-center tu-justify-center tu-gap-1.5 tu-rounded-[6px] tu-px-3 tu-text-center tu-text-[12px] tu-font-medium tu-transition-colors ${
                           selected
                             ? 'tu-bg-[#e9f8f0] tu-text-[#109257]'
                             : 'tu-bg-transparent tu-text-[#707780] hover:tu-bg-white hover:tu-text-[#333538]'
                         }`}
                       >
-                        {label}
+                        <span>{label}</span>
+                        {selectedLocationMetric === 'Order Returns' ? (
+                          <span className="tu-group/tooltip tu-relative tu-inline-flex tu-shrink-0">
+                            <span
+                              aria-label={`${label} explanation`}
+                              className="tu-inline-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#98a19c] tu-bg-white tu-text-[9px] tu-font-semibold tu-leading-none tu-text-[#7d8580]"
+                            >
+                              ?
+                            </span>
+                            <InfoTooltip text={returnViewTooltip} widthClass="tu-w-[280px]" />
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -11600,8 +11616,8 @@ export default function App() {
                         <div className="tu-absolute tu-right-0 tu-z-20 tu-mt-2 tu-w-[230px] tu-rounded-[12px] tu-border tu-border-[#dde4db] tu-bg-white tu-p-2 tu-shadow-[0_18px_35px_rgba(31,41,55,0.15)]">
                           {[
                             { key: 'product', label: 'Product', checked: true, disabled: true },
-                            { key: 'priorPeriod', label: 'Previous Period', checked: true, disabled: true },
                             { key: 'currentPeriod', label: 'Current Period', checked: true, disabled: true },
+                            { key: 'priorPeriod', label: 'Previous Period', checked: true, disabled: true },
                             { key: 'change', label: 'Change', checked: true, disabled: true },
                             {
                               key: 'contribution',
@@ -11613,6 +11629,12 @@ export default function App() {
                               key: 'grossProfit',
                               label: 'Gross Profit',
                               checked: productTableVisibleColumns.grossProfit,
+                              disabled: false
+                            },
+                            {
+                              key: 'grossProfitMargin',
+                              label: 'Gross Profit Margin',
+                              checked: productTableVisibleColumns.grossProfitMargin,
                               disabled: false
                             }
                           ].map((column) => (
@@ -11627,7 +11649,11 @@ export default function App() {
                                 checked={column.checked}
                                 disabled={column.disabled}
                                 onChange={(event) => {
-                                  if (column.key !== 'contribution' && column.key !== 'grossProfit') return;
+                                  if (
+                                    column.key !== 'contribution' &&
+                                    column.key !== 'grossProfit' &&
+                                    column.key !== 'grossProfitMargin'
+                                  ) return;
                                   const checked = event.target.checked;
                                   setProductTableVisibleColumns((current) => ({ ...current, [column.key]: checked }));
                                 }}
@@ -11644,11 +11670,6 @@ export default function App() {
                     <span className="tu-inline-flex tu-h-6 tu-w-px tu-bg-[#d9ded7]" aria-hidden="true" />
                   </div>
                   {[
-                    {
-                      key: 'show',
-                      value: `Show: ${selectedProductTableDisplayLimit.split(' ')[0]}`,
-                      options: productTableDisplayOptions
-                    },
                     { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productMetricOptions },
                     {
                       key: 'brand',
@@ -11684,7 +11705,6 @@ export default function App() {
                           }}
                           className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
                         >
-                          {menu.key === 'show' ? <LayoutGrid className="tu-h-3.5 tu-w-3.5" /> : null}
                           <span>{menu.value}</span>
                           <ChevronDown className="tu-h-3 tu-w-3" />
                         </button>
@@ -11704,9 +11724,7 @@ export default function App() {
                             open={productTableMenus[menu.key as keyof typeof productTableMenus]}
                             options={menu.options}
                             selected={
-                              menu.key === 'show'
-                                ? selectedProductTableDisplayLimit
-                                : menu.key === 'brand'
+                              menu.key === 'brand'
                                   ? selectedProductTableBrands
                                 : menu.key === 'metric'
                                   ? selectedProductTableMetric
@@ -11725,9 +11743,8 @@ export default function App() {
                                 ? (value) => setProductTableMenuSearch((current) => ({ ...current, brand: value }))
                                 : undefined
                             }
-                            widthClass={menu.key === 'show' ? 'tu-w-[170px]' : 'tu-w-[190px]'}
+                            widthClass="tu-w-[190px]"
                             onSelect={(item) => {
-                              if (menu.key === 'show') setSelectedProductTableDisplayLimit(item);
                               if (menu.key === 'brand') {
                                 setSelectedProductTableBrands((current) => toggleMultiSelectValue(current, item));
                                 return;
@@ -11747,8 +11764,8 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="tu-mt-6 tu-grid tu-gap-5 xl:tu-grid-cols-[300px_minmax(0,1fr)] xl:tu-items-stretch">
-                <div ref={productTableKpiInnerCardRef} className="tu-grid tu-gap-3">
+              <div className="tu-mt-5">
+                <div className="tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
                   {dynamicProductTableMetricCards.map((metric) => {
                     const hasTrend = 'trend' in metric;
                     const TrendIcon = hasTrend && metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
@@ -11760,24 +11777,27 @@ export default function App() {
                     return (
                       <article
                         key={`${metric.label}-table`}
-                        className="tu-group/card tu-relative tu-z-0 tu-cursor-pointer tu-rounded-[14px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_8px_24px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-[300] hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
+                        className="tu-group tu-relative tu-z-0 tu-min-w-0 tu-rounded-[12px] tu-border tu-border-[#eceee8] tu-bg-white tu-p-3 tu-shadow-[0_8px_24px_rgba(31,41,55,0.08)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 hover:tu-border-[#d8e8db] hover:tu-bg-[#f8fcf9] hover:tu-shadow-[0_12px_28px_rgba(16,197,98,0.12)]"
                       >
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
-                          <button type="button" className="tu-text-[13px] tu-font-medium tu-text-[#8f9197]">
+                          <button type="button" className="tu-text-[13px] tu-text-[#9a9ca2]">
                             {metric.label}
                           </button>
                           <InfoTooltip
                             text={productKpiTooltips[metric.label]}
-                            widthClass="tu-w-[320px]"
+                            widthClass="tu-w-[280px]"
+                            alignRight={false}
                           />
                         </div>
 
-                        <div className="tu-mt-1.5 tu-flex tu-items-end tu-gap-2.5">
-                          <div className="tu-flex tu-items-end tu-gap-2">
+                        <div className="tu-mt-1">
+                          <div>
                             {emptyPreviewActive ? (
                               <EmptyMetricValue reason={getProductMissingReason(metric.label)} />
                             ) : (
-                              <p className="tu-text-[20px] tu-font-semibold tu-leading-none tu-text-[#333538]">{metric.value}</p>
+                              <p className={`tu-inline-flex tu-w-fit tu-items-center tu-whitespace-nowrap tu-text-left tu-text-[26px] tu-font-semibold tu-transition-all hover:tu-scale-[1.01] hover:tu-drop-shadow-[0_2px_10px_rgba(16,197,98,0.2)] ${metric.label === 'Units Sold' ? 'tu-text-[#10c562] hover:tu-text-[#0ea857]' : 'tu-text-[#333538] hover:tu-text-[#2a2c2f]'}`}>
+                                {metric.value}
+                              </p>
                             )}
                             {!emptyPreviewActive && 'extraItems' in metric && metric.extraItems?.length ? (
                               <div className="tu-group tu-relative tu-inline-flex tu-items-center">
@@ -11792,24 +11812,29 @@ export default function App() {
                             ) : null}
                           </div>
                           {!emptyPreviewActive && hasTrend ? (
-                            <div className="tu-relative">
-                              <button
-                                type="button"
-                                onMouseEnter={() => setHoveredProductKpi(metric.label)}
-                                onMouseLeave={() => setHoveredProductKpi(null)}
-                                className={`tu-inline-flex tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-px-1.5 tu-py-0.5 tu-text-[11px] tu-font-semibold ${trendPillClass}`}
-                              >
-                                {metric.trend}
-                                <TrendIcon className="tu-h-3 tu-w-3" />
-                              </button>
+                            <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
+                              <div className="tu-relative">
+                                <button
+                                  type="button"
+                                  onMouseEnter={() => setHoveredProductKpi(metric.label)}
+                                  onMouseLeave={() => setHoveredProductKpi(null)}
+                                  className={`tu-inline-flex tu-items-center tu-gap-1 tu-rounded-full tu-border tu-px-2 tu-py-1 tu-text-[12px] tu-font-semibold ${trendPillClass}`}
+                                >
+                                  {metric.trend}
+                                  <TrendIcon className="tu-h-3.5 tu-w-3.5" />
+                                </button>
 
-                              {hoveredProductKpi === metric.label ? (
-                                <ComparisonPopover
-                                  comparison={{ ...metric.comparison!, ...productTableComparisonLabels }}
-                                  trend={metric.trend!}
-                                  direction={metric.direction!}
-                                />
-                              ) : null}
+                                {hoveredProductKpi === metric.label ? (
+                                  <ComparisonPopover
+                                    comparison={{ ...metric.comparison!, ...productTableComparisonLabels }}
+                                    trend={metric.trend!}
+                                    direction={metric.direction!}
+                                  />
+                                ) : null}
+                              </div>
+                              <span className="tu-text-[12px] tu-text-[#9a9ca2]">
+                                vs {selectedProductTableDate.toLowerCase()}
+                              </span>
                             </div>
                           ) : null}
                         </div>
@@ -11818,7 +11843,7 @@ export default function App() {
                   })}
                 </div>
 
-                <div className="tu-min-w-0">
+                <div className="tu-mt-5 tu-min-w-0">
                   <div className="tu-mb-3 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1 tu-rounded-[8px] tu-border tu-border-[#e2e8df] tu-bg-[#fbfcfa] tu-p-0.5">
                     {productTableViewOptions.map((view) => {
                       const selected = selectedProductTableView === view;
@@ -11842,43 +11867,50 @@ export default function App() {
                     ref={productTableScrollRef}
                     onScroll={handleProductTableScroll}
                     className="tu-min-h-0 tu-flex-1 tu-overflow-y-auto tu-overflow-x-hidden tu-rounded-[10px] tu-border tu-border-[#eceee8] tu-bg-white"
-                    style={{ height: '386px' }}
+                    style={{ height: '440px' }}
                   >
                     <table className="tu-w-full tu-table-fixed tu-border-separate tu-border-spacing-0">
                       <colgroup>
                         <col className={productTableProductColWidthClass} />
-                        <col className={productTablePeriodColWidthClass} />
                         <col className={productTableCurrentPeriodColWidthClass} />
+                        <col className={productTablePeriodColWidthClass} />
                         <col className={productTableChangeColWidthClass} />
-                        {productTableVisibleColumns.contribution ? <col className="tu-w-[12%]" /> : null}
-                        {productTableVisibleColumns.grossProfit ? (
-                          <col className={productTableVisibleColumns.contribution ? 'tu-w-[14%]' : 'tu-w-[20%]'} />
-                        ) : null}
+                        {productTableVisibleColumns.contribution ? <col className="tu-w-[10%]" /> : null}
+                        {productTableVisibleColumns.grossProfit ? <col className="tu-w-[12%]" /> : null}
+                        {productTableVisibleColumns.grossProfitMargin ? <col className="tu-w-[12%]" /> : null}
                       </colgroup>
                       <thead>
                         <tr>
                           {[
                             { key: 'product', label: 'Product' },
                             {
-                              key: 'priorPeriod',
-                              label: 'Previous Period'
-                            },
-                            {
                               key: 'currentPeriod',
                               label: 'Current Period'
                             },
+                            {
+                              key: 'priorPeriod',
+                              label: 'Previous Period'
+                            },
                             { key: 'change', label: 'Change' },
                             ...(productTableVisibleColumns.contribution ? [{ key: 'contribution', label: '% of Sales' }] : []),
-                            ...(productTableVisibleColumns.grossProfit ? [{ key: 'grossProfit', label: 'Gross Profit' }] : [])
+                            ...(productTableVisibleColumns.grossProfit ? [{ key: 'grossProfit', label: 'Gross Profit' }] : []),
+                            ...(productTableVisibleColumns.grossProfitMargin
+                              ? [{ key: 'grossProfitMargin', label: 'Gross Profit Margin' }]
+                              : [])
                           ].map((column) => {
                             return (
                               <th
                                 key={column.key}
-                                className="tu-sticky tu-top-0 tu-z-10 tu-border-b tu-border-[#eceee8] tu-bg-[#f8faf7] tu-px-3.5 tu-py-2.5 tu-text-left"
+                                className="tu-sticky tu-top-0 tu-z-10 tu-border-b tu-border-[#eceee8] tu-bg-[#f8faf7] tu-px-4 tu-py-2.5 tu-text-left"
                               >
                                 <div
-                                  className="tu-relative tu-inline-flex"
+                                  className="tu-relative tu-inline-flex tu-items-center tu-gap-2"
                                   onMouseEnter={(event) => {
+                                    if (
+                                      column.key === 'product' ||
+                                      column.key === 'currentPeriod' ||
+                                      column.key === 'priorPeriod'
+                                    ) return;
                                     const tooltipWidth = 270;
                                     const viewportPadding = 12;
                                     const targetRect = event.currentTarget.getBoundingClientRect();
@@ -11891,11 +11923,50 @@ export default function App() {
                                       top: targetRect.top - 8
                                     });
                                   }}
-                                  onMouseLeave={() => setProductHeaderTooltip(null)}
+                                  onMouseLeave={() => {
+                                    if (
+                                      column.key !== 'product' &&
+                                      column.key !== 'currentPeriod' &&
+                                      column.key !== 'priorPeriod'
+                                    ) setProductHeaderTooltip(null);
+                                  }}
                                 >
                                   <span className="tu-inline-flex tu-items-center tu-text-[12px] tu-font-semibold tu-text-[#6f747a]">
                                     {column.label}
                                   </span>
+                                  {column.key === 'product' ? (
+                                    <div className="tu-relative tu-inline-flex tu-items-center">
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setOpenProductTableColumnMenu(false);
+                                          setProductTableMenus((current) => ({
+                                            show: !current.show,
+                                            brand: false,
+                                            metric: false,
+                                            date: false,
+                                            region: false
+                                          }));
+                                        }}
+                                        className="tu-inline-flex tu-h-6 tu-items-center tu-gap-0.5 tu-rounded-full tu-border tu-border-[#e0e6dc] tu-bg-white tu-px-2 tu-text-[10px] tu-font-normal tu-leading-none tu-text-[#7b827a] hover:tu-border-[#cbd6c8] hover:tu-text-[#2a2c2f]"
+                                      >
+                                        <span>Show {selectedProductTableDisplayLimit}</span>
+                                        <ChevronDown className="tu-h-2.5 tu-w-2.5" />
+                                      </button>
+                                      <SearchableDropdownMenu
+                                        open={productTableMenus.show}
+                                        options={productTableDisplayOptions}
+                                        selected={selectedProductTableDisplayLimit}
+                                        searchable={false}
+                                        widthClass="tu-w-[92px] [&_button]:tu-h-7 [&_button]:tu-text-[11px] [&_button]:tu-font-normal [&_button]:tu-leading-none"
+                                        onSelect={(item) => {
+                                          setSelectedProductTableDisplayLimit(item);
+                                          setProductTableMenus((current) => ({ ...current, show: false }));
+                                        }}
+                                      />
+                                    </div>
+                                  ) : null}
                                 </div>
                               </th>
                             );
@@ -11905,7 +11976,14 @@ export default function App() {
                       <tbody>
                         {emptyPreviewActive ? (
                           <tr>
-                            <td colSpan={4 + (productTableVisibleColumns.contribution ? 1 : 0) + (productTableVisibleColumns.grossProfit ? 1 : 0)}>
+                            <td
+                              colSpan={
+                                4 +
+                                (productTableVisibleColumns.contribution ? 1 : 0) +
+                                (productTableVisibleColumns.grossProfit ? 1 : 0) +
+                                (productTableVisibleColumns.grossProfitMargin ? 1 : 0)
+                              }
+                            >
                               <EmptyDataNotice reason={emptyDataReasons.salesProduct} className="tu-min-h-[320px]" />
                             </td>
                           </tr>
@@ -11935,22 +12013,8 @@ export default function App() {
                                   </div>
                                 </div>
                               </td>
-                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                <div className="tu-flex tu-flex-col">
-                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                  {selectedProductTableMetric === 'Gross Sales'
-                                    ? formatPKR(row.priorPeriodValue)
-                                    : formatCompactNumber(row.priorPeriodValue)}
-                                  </span>
-                                  <span className="tu-mt-0.5 tu-text-[11px] tu-text-[#7d828a]">
-                                    {selectedProductTableMetric === 'Gross Sales'
-                                      ? `Units Sold: ${formatCompactNumber(row.previousUnits ?? 0)}`
-                                      : `Gross Sales: ${formatPKR(row.previousGrossSales)}`}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                <div className="tu-flex tu-flex-col">
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
+                                <div className="tu-flex tu-flex-col tu-items-start">
                                   <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
                                   {selectedProductTableMetric === 'Gross Sales'
                                     ? formatPKR(row.currentPeriodValue)
@@ -11963,7 +12027,21 @@ export default function App() {
                                   </span>
                                 </div>
                               </td>
-                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
+                                <div className="tu-flex tu-flex-col tu-items-start">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                  {selectedProductTableMetric === 'Gross Sales'
+                                    ? formatPKR(row.priorPeriodValue)
+                                    : formatCompactNumber(row.priorPeriodValue)}
+                                  </span>
+                                  <span className="tu-mt-0.5 tu-text-[11px] tu-text-[#7d828a]">
+                                    {selectedProductTableMetric === 'Gross Sales'
+                                      ? `Units Sold: ${formatCompactNumber(row.previousUnits ?? 0)}`
+                                      : `Gross Sales: ${formatPKR(row.previousGrossSales)}`}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
                                 <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
                                   <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">{productTableChangeValue}</span>
                                   <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#a8b0aa]" />
@@ -11974,23 +12052,22 @@ export default function App() {
                                 </div>
                               </td>
                               {productTableVisibleColumns.contribution ? (
-                                <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3 tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
                                   {row.contributionPercent.toFixed(1)}%
                                 </td>
                               ) : null}
                               {productTableVisibleColumns.grossProfit ? (
-                                <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
-                                  <div className="tu-flex tu-flex-col">
-                                    <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                      {formatPKR(row.grossProfitValue)}
-                                    </span>
-                                    <div className="tu-group/tooltip tu-relative tu-mt-0.5 tu-w-fit">
-                                      <span className="tu-cursor-help tu-text-[11px] tu-text-[#7d828a]">
-                                        {row.grossProfitMarginPercent.toFixed(1)}%
-                                      </span>
-                                      <InfoTooltip text="Gross Profit Margin" widthClass="tu-w-max" />
-                                    </div>
-                                  </div>
+                                <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                    {formatPKR(row.grossProfitValue)}
+                                  </span>
+                                </td>
+                              ) : null}
+                              {productTableVisibleColumns.grossProfitMargin ? (
+                                <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
+                                  <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
+                                    {row.grossProfitMarginPercent.toFixed(1)}%
+                                  </span>
                                 </td>
                               ) : null}
                             </tr>
@@ -12139,7 +12216,7 @@ export default function App() {
                           );
                         const shippedOrdersInfoTooltipText =
                           metric.label === 'Net Profit Margin'
-                            ? sectionSixKpiTooltips['Net Profit Margin']
+                            ? 'Net Profit Margin in this section is calculated using net profit and net sales from shipped orders only.'
                             : 'Gross profit, gross profit margin, and net profit metrics in this section are calculated based on shipped orders only.';
                         const breakdownRows =
                           metricSection.title === 'Sales' &&
