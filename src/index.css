@@ -46,6 +46,14 @@ body {
   background: #b8c0c9;
 }
 
+.filter-rail-scroll {
+  scrollbar-width: none;
+}
+
+.filter-rail-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 #root {
   min-height: 100vh;
 }

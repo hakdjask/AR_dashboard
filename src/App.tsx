@@ -1400,6 +1400,7 @@ const salesMetricOptions = ['Gross Sales', 'Order Volume', 'Units Sold', 'Order 
 const salesDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const salesGroupByOptions = ['Days', 'Weeks', 'Months', 'Quarters', 'Years'];
 const salesOrderShowByOptions = ['Orders Volume', 'Gross Sales'];
+const salesStoreReturnShowByOptions = ['Return Volume', 'Return Value'];
 const inventoryDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Last 365 Days', 'Custom'];
 const inventoryStatusOptions = ['On-hand', 'Committed', 'Available', 'Inbound', 'Unfulfillable'];
 const inventoryGroupByOptions = ['Days', 'Weeks', 'Months', 'Years'];
@@ -2210,9 +2211,15 @@ const locationMetricConfig: Record<
 };
 
 const productMetricOptions = ['Units Sold', 'Gross Sales'];
+const productTableMetricOptions = ['Units Sold', 'Gross Sales', 'Return Volume', 'Return Value'];
 const productDateOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days'];
 const productPerformanceViewOptions = ['Top Performing', 'Under Performing'];
 const productTableViewOptions = ['Top Sellers', 'Most Improved', 'Most Declined'];
+const productReturnTableViewTooltips: Record<string, string> = {
+  'Top Sellers': 'Products with the highest return volume or return value in the current period.',
+  'Most Improved': 'Products with the largest reduction in return volume or return value versus the previous period.',
+  'Most Declined': 'Products with the largest increase in return volume or return value versus the previous period.'
+};
 const locationShowByOptions = ['City', 'Province'];
 const productTableDisplayOptions = ['5', '10', '20', '30'];
 const productBrandOptions = ['Auralux', 'Northstar', 'Trailmark', 'Urban Loom', 'Vita Home'];
@@ -2873,18 +2880,23 @@ const formatCompactNumber = (value: number) => compactNumberFormatter.format(val
 const formatCompactCurrency = (value: number) => `PKR ${formatCompactNumber(value)}`;
 
 const formatStoreMetricValue = (metric: string, value: number) =>
-  metric === 'Gross Sales' ? formatCompactCurrency(value) : formatCompactNumber(value);
+  metric === 'Gross Sales' || metric === 'Return Value' ? formatCompactCurrency(value) : formatCompactNumber(value);
 
 const formatStoreMetricDelta = (metric: string, value: number) =>
-  metric === 'Gross Sales' ? formatCompactCurrency(Math.abs(value)) : formatCompactNumber(Math.abs(value));
+  metric === 'Gross Sales' || metric === 'Return Value'
+    ? formatCompactCurrency(Math.abs(value))
+    : formatCompactNumber(Math.abs(value));
 
-const getStoreMetricDirection = (metric: string, current: number, previous: number) => {
-  if (metric === 'Order Returns') {
-    return current <= previous ? ('down' as const) : ('up' as const);
-  }
+const getStoreMetricDirection = (_metric: string, current: number, previous: number) =>
+  current >= previous ? ('up' as const) : ('down' as const);
 
-  return current >= previous ? ('up' as const) : ('down' as const);
-};
+const getTrendColorClass = (direction: 'up' | 'down', inverse = false) =>
+  (direction === 'up') === !inverse ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+
+const getTrendPillClass = (direction: 'up' | 'down', inverse = false) =>
+  (direction === 'up') === !inverse
+    ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
+    : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
 
 const getPercentDelta = (current: number, previous: number) => {
   if (previous === 0) return current === 0 ? 0 : 100;
@@ -2939,7 +2951,8 @@ function InfoTooltip({
     <div
       className={`tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] ${
         alignRight ? 'tu-right-0' : 'tu-left-0'
-      } tu-z-[200] ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
+      } tu-z-[200] ${widthClass} tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-font-normal tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-opacity group-hover/tooltip:tu-opacity-100`}
+      style={{ fontFamily: 'Poppins, sans-serif' }}
     >
       {typeof text === 'string' ? text : <TooltipRichContent text={text} />}
     </div>
@@ -2971,6 +2984,78 @@ function TooltipRichContent({ text }: { text: TooltipContent }) {
           </p>
         );
       })}
+    </div>
+  );
+}
+
+function FilterRail({
+  children,
+  className = '',
+  enabled = true
+}: {
+  children: any;
+  className?: string;
+  enabled?: boolean;
+}) {
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const [scrollState, setScrollState] = useState({ left: false, right: false });
+
+  const updateScrollState = useCallback(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    setScrollState({
+      left: rail.scrollLeft > 2,
+      right: rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 2
+    });
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+    window.addEventListener('resize', updateScrollState);
+    return () => window.removeEventListener('resize', updateScrollState);
+  }, [updateScrollState]);
+
+  useEffect(() => {
+    updateScrollState();
+  });
+
+  const scrollBy = (direction: -1 | 1) => {
+    railRef.current?.scrollBy({ left: direction * 220, behavior: 'smooth' });
+  };
+
+  if (!enabled) {
+    return <div className={`tu-flex tu-flex-wrap tu-items-center tu-justify-end tu-gap-2.5 sm:tu-gap-3 ${className}`}>{children}</div>;
+  }
+
+  return (
+    <div className={`tu-relative tu-flex tu-min-w-0 tu-flex-1 tu-justify-end ${className}`}>
+      {scrollState.left ? (
+        <button
+          type="button"
+          aria-label="Scroll filters left"
+          onClick={() => scrollBy(-1)}
+          className="tu-absolute tu-left-0 tu-top-1/2 tu-z-20 -tu-translate-y-1/2 tu-rounded-full tu-border tu-border-[#dfe5dc] tu-bg-white/90 tu-p-1 tu-text-[#7c8580] tu-shadow-[0_4px_12px_rgba(31,41,55,0.10)]"
+        >
+          <ChevronLeft className="tu-h-3.5 tu-w-3.5" />
+        </button>
+      ) : null}
+      <div
+        ref={railRef}
+        onScroll={updateScrollState}
+        className="filter-rail-scroll tu-flex tu-w-fit tu-max-w-full tu-items-center tu-gap-2.5 tu-overflow-x-auto tu-overflow-y-visible tu-whitespace-nowrap tu-px-0.5 tu-py-1 sm:tu-gap-3"
+      >
+        {children}
+      </div>
+      {scrollState.right ? (
+        <button
+          type="button"
+          aria-label="Scroll filters right"
+          onClick={() => scrollBy(1)}
+          className="tu-absolute tu-right-0 tu-top-1/2 tu-z-20 -tu-translate-y-1/2 tu-rounded-full tu-border tu-border-[#dfe5dc] tu-bg-white/90 tu-p-1 tu-text-[#7c8580] tu-shadow-[0_4px_12px_rgba(31,41,55,0.10)]"
+        >
+          <ChevronRight className="tu-h-3.5 tu-w-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -3117,6 +3202,32 @@ function SearchableDropdownMenu({
   widthClass?: string;
   showChevronForCustom?: boolean;
 }) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updateMenuPosition = () => {
+      const menu = menuRef.current;
+      const anchor = menu?.parentElement;
+      if (!menu || !anchor) return;
+      const anchorRect = anchor.getBoundingClientRect();
+      setMenuPosition({
+        top: anchorRect.bottom + 10,
+        right: Math.max(12, window.innerWidth - anchorRect.right)
+      });
+    };
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const filteredOptions = searchable ? getFilteredOptions(options, searchValue ?? '') : options;
@@ -3126,7 +3237,13 @@ function SearchableDropdownMenu({
 
   return (
     <div
-      className={`tu-absolute tu-right-0 tu-top-[calc(100%+10px)] tu-z-30 ${widthClass} tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]`}
+      ref={menuRef}
+      className={`tu-fixed tu-z-[260] ${widthClass} tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2.5 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]`}
+      style={{
+        top: menuPosition?.top ?? 0,
+        right: menuPosition?.right ?? 12,
+        visibility: menuPosition ? 'visible' : 'hidden'
+      }}
     >
       {searchable ? (
         <div className="tu-relative">
@@ -3217,6 +3334,32 @@ function HierarchicalLocationDropdown({
   onProvinceChange: (value: string | null) => void;
   widthClass?: string;
 }) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updateMenuPosition = () => {
+      const menu = menuRef.current;
+      const anchor = menu?.parentElement;
+      if (!menu || !anchor) return;
+      const anchorRect = anchor.getBoundingClientRect();
+      setMenuPosition({
+        top: anchorRect.bottom + 8,
+        right: Math.max(12, window.innerWidth - anchorRect.right)
+      });
+    };
+
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const provinceRecord = pakistanLocationHierarchy.find((item) => item.province === activeProvince);
@@ -3228,7 +3371,13 @@ function HierarchicalLocationDropdown({
 
   return (
     <div
-      className={`tu-absolute tu-right-0 tu-top-[calc(100%+8px)] tu-z-30 ${widthClass} tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]`}
+      ref={menuRef}
+      className={`tu-fixed tu-z-[260] ${widthClass} tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-2 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)]`}
+      style={{
+        top: menuPosition?.top ?? 0,
+        right: menuPosition?.right ?? 12,
+        visibility: menuPosition ? 'visible' : 'hidden'
+      }}
     >
       <div className="tu-sticky tu-top-0 tu-z-10 tu-rounded-[10px] tu-bg-white">
         <div className="tu-flex tu-items-center tu-justify-between tu-gap-2 tu-px-1 tu-pb-2">
@@ -3355,12 +3504,14 @@ export default function App() {
   const [salesMenus, setSalesMenus] = useState<{
     store: boolean;
     metric: boolean;
+    returnShowBy: boolean;
     date: boolean;
     region: boolean;
     groupBy: boolean;
   }>({
     store: false,
     metric: false,
+    returnShowBy: false,
     date: false,
     region: false,
     groupBy: false
@@ -3490,11 +3641,12 @@ export default function App() {
   const inventoryHealthTableScrollRef = useRef<HTMLDivElement | null>(null);
   const [selectedSalesStore, setSelectedSalesStore] = useState<string[]>([salesStoreOptions[0]]);
   const [selectedSalesMetric, setSelectedSalesMetric] = useState('Gross Sales');
+  const [selectedSalesStoreReturnShowBy, setSelectedSalesStoreReturnShowBy] = useState('Return Volume');
   const [selectedSalesDate, setSelectedSalesDate] = useState('Last 30 Days');
   const [selectedSalesGroupBy, setSelectedSalesGroupBy] = useState('Days');
   const [salesStoreView, setSalesStoreView] = useState<'table' | 'chart'>('table');
   const [selectedSalesRegion, setSelectedSalesRegion] = useState<string[]>([...pakistanProvinceOptions]);
-  const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', date: '', region: '', groupBy: '' });
+  const [salesMenuSearch, setSalesMenuSearch] = useState({ store: '', metric: '', returnShowBy: '', date: '', region: '', groupBy: '' });
   const [salesRegionProvince, setSalesRegionProvince] = useState<string | null>(null);
   const [salesOrderMenus, setSalesOrderMenus] = useState<{
     date: boolean;
@@ -4564,13 +4716,19 @@ export default function App() {
     const currentSnapshot = dayBreakdown[dayBreakdown.length - 1]?.stores ?? [];
     const previousSnapshot = dayBreakdown[dayBreakdown.length - 2]?.stores ?? [];
     const metricKey = selectedStoreMetricConfig.key;
+    const tableMetric = selectedSalesMetric === 'Order Returns' ? selectedSalesStoreReturnShowBy : selectedSalesMetric;
 
     return currentSnapshot
       .map((store) => {
         const previousStore = previousSnapshot.find((item) => item.name === store.name);
-        const currentValue = store[metricKey];
-        const previousValue = previousStore?.[metricKey] ?? 0;
-        const trendDirection = getStoreMetricDirection(selectedSalesMetric, currentValue, previousValue);
+        const currentReturnValue = Math.round(store.orderReturns * (store.totalOrders > 0 ? store.grossRevenue / store.totalOrders : 0));
+        const previousReturnValue = Math.round(
+          (previousStore?.orderReturns ?? 0) *
+            ((previousStore?.totalOrders ?? 0) > 0 ? (previousStore?.grossRevenue ?? 0) / (previousStore?.totalOrders ?? 1) : 0)
+        );
+        const currentValue = tableMetric === 'Return Value' ? currentReturnValue : store[metricKey];
+        const previousValue = tableMetric === 'Return Value' ? previousReturnValue : previousStore?.[metricKey] ?? 0;
+        const trendDirection = getStoreMetricDirection(tableMetric, currentValue, previousValue);
 
         return {
           name: store.name,
@@ -4583,7 +4741,7 @@ export default function App() {
         };
       })
       .sort((a, b) => b.currentValue - a.currentValue);
-  }, [selectedSalesMetric, selectedStoreMetricConfig]);
+  }, [selectedSalesMetric, selectedSalesStoreReturnShowBy, selectedStoreMetricConfig]);
 
   const salesStoreTableTotals = useMemo(() => {
     const previousValue = salesStoreTableRows.reduce((sum, row) => sum + row.previousValue, 0);
@@ -4594,21 +4752,28 @@ export default function App() {
       currentValue,
       changeValue: currentValue - previousValue,
       trendPercent: getPercentDelta(currentValue, previousValue),
-      trendDirection: getStoreMetricDirection(selectedSalesMetric, currentValue, previousValue)
+      trendDirection: getStoreMetricDirection(
+        selectedSalesMetric === 'Order Returns' ? selectedSalesStoreReturnShowBy : selectedSalesMetric,
+        currentValue,
+        previousValue
+      )
     };
-  }, [salesStoreTableRows, selectedSalesMetric]);
+  }, [salesStoreTableRows, selectedSalesMetric, selectedSalesStoreReturnShowBy]);
 
+  const salesStoreTableMetricLabel =
+    selectedSalesMetric === 'Order Returns' ? selectedSalesStoreReturnShowBy : selectedSalesMetric;
+  const isSalesStoreReturnTable = selectedSalesMetric === 'Order Returns';
   const salesStoreTableColumnLabels = useMemo(
     () => [
       'Store Name',
-      `Previous Period ${selectedSalesMetric}`,
-      `Current Period ${selectedSalesMetric}`,
-      `Change in ${selectedSalesMetric}`
+      `Previous Period ${salesStoreTableMetricLabel}`,
+      `Current Period ${salesStoreTableMetricLabel}`,
+      `Change in ${salesStoreTableMetricLabel}`
     ],
-    [selectedSalesMetric]
+    [salesStoreTableMetricLabel]
   );
 
-  const salesStoreSummaryLabel = selectedSalesStoreName;
+  const salesStoreSummaryLabel = `Store: ${selectedSalesStoreName}`;
 
   const inventoryLocationSummaryLabel =
     selectedInventoryRegion.length === inventoryLocationOptions.length
@@ -7329,6 +7494,7 @@ export default function App() {
             ? `${declinedDisplay.displayPercent.toFixed(0)}%`
             : `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
           positive: declinedDisplay ? false : isLocationReturnsMetric ? changeValue <= 0 : changeValue >= 0,
+          changeDirection: changeValue >= 0 ? ('up' as const) : ('down' as const),
           supportMetricLabel,
           supportCurrent,
           supportPrevious,
@@ -7539,11 +7705,18 @@ export default function App() {
     const selectedRegionCount = selectedProductTableRegion.length === 0 ? pakistanProvinceOptions.length : selectedProductTableRegion.length;
     const regionScale = Math.max(0.35, Math.min(1, selectedRegionCount / pakistanProvinceOptions.length));
     const selectedBrands = selectedProductTableBrands.length === 0 ? productBrandOptions : selectedProductTableBrands;
+    const isReturnMetric = selectedProductTableMetric === 'Return Volume' || selectedProductTableMetric === 'Return Value';
     const rows = productTableData.filter((item) => selectedBrands.includes(item.brand)).map((item) => {
       const previousRevenue = Math.round(item.revenuePrevious * dateScale * regionScale);
       const grossSales = Math.round(item.revenueCurrent * dateScale * regionScale);
       const unitsSold = grossSales > 0 ? Math.max(1, Math.round(item.unitsCurrent * dateScale * regionScale)) : 0;
       const previousUnits = previousRevenue > 0 ? Math.max(1, Math.round(item.unitsPrevious * dateScale * regionScale)) : 0;
+      const currentReturnRate = 0.06 + (item.tableIndex % 7) * 0.008;
+      const previousReturnRate = 0.052 + (item.tableIndex % 5) * 0.009;
+      const returnVolume = unitsSold > 0 ? Math.max(1, Math.round(unitsSold * currentReturnRate)) : 0;
+      const previousReturnVolume = previousUnits > 0 ? Math.max(1, Math.round(previousUnits * previousReturnRate)) : 0;
+      const returnValue = Math.round(returnVolume * (unitsSold > 0 ? grossSales / unitsSold : 0));
+      const previousReturnValue = Math.round(previousReturnVolume * (previousUnits > 0 ? previousRevenue / previousUnits : 0));
       const cogsRatio = 0.44 + ((item.tableIndex % 3) * 0.05 + (item.tableIndex % 2) * 0.02);
       const grossProfitValue = Math.round(grossSales * (1 - cogsRatio));
       const previousGrossProfitValue = Math.round(previousRevenue * (1 - cogsRatio));
@@ -7554,15 +7727,55 @@ export default function App() {
       const unitsTrendPercent = getPercentDelta(safeUnitsCurrent, safeUnitsPrevious);
       const grossSalesTrendPercent = getPercentDelta(grossSales, previousRevenue);
       const grossProfitTrendPercent = getPercentDelta(grossProfitValue, previousGrossProfitValue);
+      const returnVolumeTrendPercent = getPercentDelta(returnVolume, previousReturnVolume);
+      const returnValueTrendPercent = getPercentDelta(returnValue, previousReturnValue);
       const unitsTrendDirection = safeUnitsCurrent >= safeUnitsPrevious ? ('up' as const) : ('down' as const);
       const grossSalesTrendDirection = grossSales >= previousRevenue ? ('up' as const) : ('down' as const);
       const grossProfitTrendDirection = grossProfitValue >= previousGrossProfitValue ? ('up' as const) : ('down' as const);
+      const returnVolumeTrendDirection = returnVolume >= previousReturnVolume ? ('up' as const) : ('down' as const);
+      const returnValueTrendDirection = returnValue >= previousReturnValue ? ('up' as const) : ('down' as const);
+      const priorPeriodValue =
+        selectedProductTableMetric === 'Units Sold'
+          ? safeUnitsPrevious
+          : selectedProductTableMetric === 'Return Volume'
+            ? previousReturnVolume
+            : selectedProductTableMetric === 'Return Value'
+              ? previousReturnValue
+              : previousRevenue;
+      const currentPeriodValue =
+        selectedProductTableMetric === 'Units Sold'
+          ? safeUnitsCurrent
+          : selectedProductTableMetric === 'Return Volume'
+            ? returnVolume
+            : selectedProductTableMetric === 'Return Value'
+              ? returnValue
+              : grossSales;
+      const currentPeriodTrendPercent =
+        selectedProductTableMetric === 'Units Sold'
+          ? unitsTrendPercent
+          : selectedProductTableMetric === 'Return Volume'
+            ? returnVolumeTrendPercent
+            : selectedProductTableMetric === 'Return Value'
+              ? returnValueTrendPercent
+              : grossSalesTrendPercent;
+      const currentPeriodTrendDirection =
+        selectedProductTableMetric === 'Units Sold'
+          ? unitsTrendDirection
+          : selectedProductTableMetric === 'Return Volume'
+            ? returnVolumeTrendDirection
+            : selectedProductTableMetric === 'Return Value'
+              ? returnValueTrendDirection
+              : grossSalesTrendDirection;
 
       return {
         ...item,
         unitsSold,
         previousUnits,
         grossSales,
+        returnVolume,
+        previousReturnVolume,
+        returnValue,
+        previousReturnValue,
         grossProfitValue,
         grossProfitMarginPercent,
         previousGrossSales: previousRevenue,
@@ -7573,12 +7786,14 @@ export default function App() {
         unitsTrendDirection,
         grossSalesTrendDirection,
         grossProfitTrendDirection,
-        priorPeriodValue: selectedProductTableMetric === 'Units Sold' ? safeUnitsPrevious : previousRevenue,
-        currentPeriodValue: selectedProductTableMetric === 'Units Sold' ? safeUnitsCurrent : grossSales,
-        currentPeriodTrendPercent:
-          selectedProductTableMetric === 'Units Sold' ? unitsTrendPercent : grossSalesTrendPercent,
-        currentPeriodTrendDirection:
-          selectedProductTableMetric === 'Units Sold' ? unitsTrendDirection : grossSalesTrendDirection
+        returnVolumeTrendPercent,
+        returnValueTrendPercent,
+        returnVolumeTrendDirection,
+        returnValueTrendDirection,
+        priorPeriodValue,
+        currentPeriodValue,
+        currentPeriodTrendPercent,
+        currentPeriodTrendDirection
       };
     });
 
@@ -7592,10 +7807,10 @@ export default function App() {
       const changeA = a.currentPeriodValue - a.priorPeriodValue;
       const changeB = b.currentPeriodValue - b.priorPeriodValue;
       if (selectedProductTableView === 'Most Improved') {
-        return changeB - changeA;
+        return isReturnMetric ? changeA - changeB : changeB - changeA;
       }
       if (selectedProductTableView === 'Most Declined') {
-        return changeA - changeB;
+        return isReturnMetric ? changeB - changeA : changeA - changeB;
       }
       return b.currentPeriodValue - a.currentPeriodValue;
     });
@@ -7620,6 +7835,36 @@ export default function App() {
   );
 
   const productTableHasMoreRows = productTableVisibleRows.length < productTableMaxRows;
+  const isProductTableReturnMetric =
+    selectedProductTableMetric === 'Return Volume' || selectedProductTableMetric === 'Return Value';
+  const formatProductTablePrimaryValue = (value: number) =>
+    selectedProductTableMetric === 'Gross Sales' || selectedProductTableMetric === 'Return Value'
+      ? formatPKR(value)
+      : formatCompactNumber(value);
+  const getProductTableSupportText = (
+    row: {
+      unitsSold: number;
+      previousUnits: number;
+      grossSales: number;
+      previousGrossSales: number;
+      returnVolume: number;
+      previousReturnVolume: number;
+      returnValue: number;
+      previousReturnValue: number;
+    },
+    period: 'current' | 'previous'
+  ) => {
+    if (selectedProductTableMetric === 'Gross Sales') {
+      return `Units Sold: ${formatCompactNumber(period === 'current' ? row.unitsSold : row.previousUnits)}`;
+    }
+    if (selectedProductTableMetric === 'Units Sold') {
+      return `Gross Sales: ${formatPKR(period === 'current' ? row.grossSales : row.previousGrossSales)}`;
+    }
+    if (selectedProductTableMetric === 'Return Volume') {
+      return `Return Value: ${formatPKR(period === 'current' ? row.returnValue : row.previousReturnValue)}`;
+    }
+    return `Return Volume: ${formatCompactNumber(period === 'current' ? row.returnVolume : row.previousReturnVolume)}`;
+  };
 
   const formatPKR = (value: number) => formatCompactCurrency(Math.round(value));
   const dashboardLastUpdatedLabel = useMemo(
@@ -7873,7 +8118,7 @@ export default function App() {
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Insights</h2>
 
-                    <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                    <FilterRail enabled={false}>
                         {[
                           { key: 'date', value: selectedInventoryDate, options: inventoryDateOptions },
                           {
@@ -7929,7 +8174,7 @@ export default function App() {
                           />
                         </div>
                       ))}
-                    </div>
+                    </FilterRail>
                   </div>
 
                   <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
@@ -8113,7 +8358,7 @@ export default function App() {
                   <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                     <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Inventory Snapshot</h2>
 
-                    <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                    <FilterRail enabled={false}>
                       <div className="tu-relative">
                         <button
                           type="button"
@@ -8172,7 +8417,7 @@ export default function App() {
                           onSelect={(item) => setSelectedInventorySnapshotLocation((current) => toggleMultiSelectValue(current, item))}
                         />
                       </div>
-                    </div>
+                    </FilterRail>
                   </div>
 
                   <div className="tu-mt-6 tu-grid tu-gap-3 md:tu-grid-cols-2 xl:tu-grid-cols-5">
@@ -10005,7 +10250,7 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <SectionTitleWithReportLink title="Orders Overview and Insights" />
 
-                <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                <FilterRail enabled={false}>
                   <div className="tu-relative">
                     <button
                       type="button"
@@ -10134,7 +10379,7 @@ export default function App() {
                       onProvinceChange={setSalesOrderRegionProvince}
                     />
                   </div>
-                </div>
+                </FilterRail>
               </div>
 
               <div className="tu-mt-4 tu-grid tu-gap-3 lg:tu-grid-cols-5">
@@ -10177,10 +10422,9 @@ export default function App() {
 
                   const TrendIcon = metric.direction === 'up' ? ArrowUpRight : ArrowDownRight;
                   const isSelectedStatus = selectedSalesOrderStatus === metric.label;
-                  const trendPillClass =
-                    metric.direction === 'up'
-                      ? 'tu-border-[#cdeedc] tu-bg-[#ecfbf3] tu-text-[#10c562]'
-                      : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
+                  const isReturnStatus =
+                    metric.label === 'Return Initiated' || metric.label === 'Returned' || metric.label === 'Restock';
+                  const trendPillClass = getTrendPillClass(metric.direction, isReturnStatus);
                   const hoverKey = `sales-order-${metric.label}`;
 
                   return (
@@ -10367,7 +10611,15 @@ export default function App() {
                         <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
                         <span
                           className={`tu-inline-flex tu-items-center tu-gap-1 ${
-                            salesOrderTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'
+                            selectedSalesOrderStatus === 'Return Initiated' ||
+                            selectedSalesOrderStatus === 'Returned' ||
+                            selectedSalesOrderStatus === 'Restock'
+                              ? salesOrderTooltipData.change >= 0
+                                ? 'tu-text-[#d14b47]'
+                                : 'tu-text-[#10a85d]'
+                              : salesOrderTooltipData.change >= 0
+                                ? 'tu-text-[#10a85d]'
+                                : 'tu-text-[#d14b47]'
                           }`}
                         >
                           {salesOrderTooltipData.change >= 0 ? (
@@ -10392,7 +10644,7 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <h2 className="tu-text-[20px] tu-font-semibold tu-text-[#2a2c2f]">Customers Overview and Insights</h2>
 
-                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                <FilterRail>
                   {[
                     {
                       key: 'store',
@@ -10451,7 +10703,7 @@ export default function App() {
                       />
                     </div>
                   ))}
-                </div>
+                </FilterRail>
               </div>
 
               <div className="tu-mt-4">
@@ -10755,7 +11007,7 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <SectionTitleWithReportLink title="Sales Performance by Store" />
 
-                <div className="tu-flex tu-flex-wrap tu-items-center tu-gap-2.5 sm:tu-gap-3">
+                <FilterRail>
                   <div className="tu-inline-flex tu-h-9 tu-items-center tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f4f7f3] tu-p-1">
                     {[
                       { key: 'table' as const, label: 'Table', icon: LayoutGrid },
@@ -10770,7 +11022,7 @@ export default function App() {
                           onClick={() => {
                             setSalesStoreView(view.key);
                             setHoveredSalesPoint(null);
-                            setSalesMenus({ store: false, metric: false, date: false, region: false, groupBy: false });
+                            setSalesMenus({ store: false, metric: false, returnShowBy: false, date: false, region: false, groupBy: false });
                           }}
                           className={`tu-inline-flex tu-h-7 tu-items-center tu-gap-1.5 tu-rounded-[7px] tu-px-2.5 tu-text-[11px] tu-font-medium tu-transition-colors ${
                             selected
@@ -10799,6 +11051,7 @@ export default function App() {
                             setSalesMenus((current) => ({
                               store: false,
                               metric: false,
+                              returnShowBy: false,
                               date: false,
                               region: false,
                               groupBy: !current.groupBy
@@ -10818,7 +11071,7 @@ export default function App() {
                           widthClass="tu-w-[190px]"
                           onSelect={(item) => {
                             setSelectedSalesGroupBy(item);
-                            setSalesMenus({ store: false, metric: false, date: false, region: false, groupBy: false });
+                            setSalesMenus({ store: false, metric: false, returnShowBy: false, date: false, region: false, groupBy: false });
                           }}
                         />
                       </div>
@@ -10831,76 +11084,94 @@ export default function App() {
                       value: salesStoreSummaryLabel,
                       options: salesStoreOptions
                     },
+                    ...(selectedSalesMetric === 'Order Returns'
+                      ? [
+                          {
+                            key: 'returnShowBy',
+                            value: `Show by: ${selectedSalesStoreReturnShowBy}`,
+                            options: salesStoreReturnShowByOptions
+                          }
+                        ]
+                      : []),
                     { key: 'metric', value: selectedSalesMetric, options: salesMetricOptions },
                     { key: 'date', value: selectedSalesDate, options: salesDateOptions }
                   ].map((menu) => (
-                    <div key={menu.key} className="tu-relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSalesMenus((current) => ({
-                            store: false,
-                            metric: false,
-                            date: false,
-                            region: false,
-                            groupBy: false,
-                            [menu.key]: !current[menu.key as keyof typeof current]
-                          }));
-                          setSalesMenuSearch((current) => ({ ...current, [menu.key]: '' }));
-                          if (menu.key === 'region') setSalesRegionProvince(null);
-                        }}
-                        className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
-                      >
-                        <span>{menu.value}</span>
-                        <ChevronDown className="tu-h-3 tu-w-3" />
-                      </button>
-
-                      {menu.key === 'region' ? (
-                        <HierarchicalLocationDropdown
-                          open={salesMenus.region}
-                          selected={selectedSalesRegion}
-                          onChange={setSelectedSalesRegion}
-                          searchValue={salesMenuSearch.region}
-                          onSearchChange={(value) => setSalesMenuSearch((current) => ({ ...current, region: value }))}
-                          activeProvince={salesRegionProvince}
-                          onProvinceChange={setSalesRegionProvince}
-                        />
-                      ) : (
-                        <SearchableDropdownMenu
-                          open={salesMenus[menu.key as keyof typeof salesMenus]}
-                          options={menu.options}
-                          selected={
-                            menu.key === 'store'
-                              ? selectedSalesStoreName
-                              : menu.key === 'metric'
-                                ? selectedSalesMetric
-                                : selectedSalesDate
-                          }
-                          multiSelect={false}
-                          searchable={menu.key !== 'date'}
-                          searchValue={salesMenuSearch[menu.key as keyof typeof salesMenuSearch]}
-                          onSearchChange={
-                            menu.key !== 'date'
-                              ? (value) => setSalesMenuSearch((current) => ({ ...current, [menu.key]: value }))
-                              : undefined
-                          }
-                          widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
-                          showChevronForCustom={menu.key === 'date'}
-                          onSelect={(item) => {
-                            if (menu.key === 'store') {
-                              setSelectedSalesStore([item]);
-                              setSalesMenus({ store: false, metric: false, date: false, region: false, groupBy: false });
-                              return;
-                            }
-                            if (menu.key === 'metric') setSelectedSalesMetric(item);
-                            if (menu.key === 'date') setSelectedSalesDate(item);
-                            setSalesMenus({ store: false, metric: false, date: false, region: false, groupBy: false });
+                    <div key={menu.key} className="tu-flex tu-items-center tu-gap-2.5">
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSalesMenus((current) => ({
+                              store: false,
+                              metric: false,
+                              returnShowBy: false,
+                              date: false,
+                              region: false,
+                              groupBy: false,
+                              [menu.key]: !current[menu.key as keyof typeof current]
+                            }));
+                            setSalesMenuSearch((current) => ({ ...current, [menu.key]: '' }));
+                            if (menu.key === 'region') setSalesRegionProvince(null);
                           }}
-                        />
-                      )}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          <span>{menu.value}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+
+                        {menu.key === 'region' ? (
+                          <HierarchicalLocationDropdown
+                            open={salesMenus.region}
+                            selected={selectedSalesRegion}
+                            onChange={setSelectedSalesRegion}
+                            searchValue={salesMenuSearch.region}
+                            onSearchChange={(value) => setSalesMenuSearch((current) => ({ ...current, region: value }))}
+                            activeProvince={salesRegionProvince}
+                            onProvinceChange={setSalesRegionProvince}
+                          />
+                        ) : (
+                          <SearchableDropdownMenu
+                            open={salesMenus[menu.key as keyof typeof salesMenus]}
+                            options={menu.options}
+                            selected={
+                              menu.key === 'store'
+                                ? selectedSalesStoreName
+                                : menu.key === 'metric'
+                                  ? selectedSalesMetric
+                                  : menu.key === 'returnShowBy'
+                                    ? selectedSalesStoreReturnShowBy
+                                  : selectedSalesDate
+                            }
+                            multiSelect={false}
+                            searchable={menu.key !== 'date'}
+                            searchValue={salesMenuSearch[menu.key as keyof typeof salesMenuSearch]}
+                            onSearchChange={
+                              menu.key !== 'date'
+                                ? (value) => setSalesMenuSearch((current) => ({ ...current, [menu.key]: value }))
+                                : undefined
+                            }
+                            widthClass={menu.key === 'store' ? 'tu-w-[220px]' : 'tu-w-[190px]'}
+                            showChevronForCustom={menu.key === 'date'}
+                            onSelect={(item) => {
+                              if (menu.key === 'store') {
+                                setSelectedSalesStore([item]);
+                                setSalesMenus({ store: false, metric: false, returnShowBy: false, date: false, region: false, groupBy: false });
+                                return;
+                              }
+                              if (menu.key === 'metric') setSelectedSalesMetric(item);
+                              if (menu.key === 'returnShowBy') setSelectedSalesStoreReturnShowBy(item);
+                              if (menu.key === 'date') setSelectedSalesDate(item);
+                              setSalesMenus({ store: false, metric: false, returnShowBy: false, date: false, region: false, groupBy: false });
+                            }}
+                          />
+                        )}
+                      </div>
+                      {menu.key === 'store' ? (
+                        <span className="tu-inline-flex tu-h-6 tu-w-px tu-shrink-0 tu-bg-[#d9ded7]" aria-hidden="true" />
+                      ) : null}
                     </div>
                   ))}
-                </div>
+                </FilterRail>
               </div>
 
               {salesStoreView === 'table' ? (
@@ -11012,7 +11283,7 @@ export default function App() {
                         ) : (
                         salesStoreTableRows.map((row) => {
                           const StoreTrendIcon = row.trendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
-                          const storeTrendColor = row.trendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                          const storeTrendColor = getTrendColorClass(row.trendDirection, isSalesStoreReturnTable);
 
                           return (
                             <tr key={row.name} className="hover:tu-bg-[#fbfcfa]">
@@ -11028,18 +11299,18 @@ export default function App() {
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
                                 <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                  {formatStoreMetricValue(selectedSalesMetric, row.previousValue)}
+                                  {formatStoreMetricValue(salesStoreTableMetricLabel, row.previousValue)}
                                 </span>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-3.5 tu-py-3">
                                 <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                  {formatStoreMetricValue(selectedSalesMetric, row.currentValue)}
+                                  {formatStoreMetricValue(salesStoreTableMetricLabel, row.currentValue)}
                                 </span>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
                                 <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
                                   <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                    {formatStoreMetricDelta(selectedSalesMetric, row.changeValue)}
+                                    {formatStoreMetricDelta(salesStoreTableMetricLabel, row.changeValue)}
                                   </span>
                                   <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#a8b0aa]" />
                                   <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${storeTrendColor}`}>
@@ -11054,8 +11325,10 @@ export default function App() {
                         )}
                         {!emptyPreviewActive ? (() => {
                           const TotalTrendIcon = salesStoreTableTotals.trendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
-                          const totalTrendColor =
-                            salesStoreTableTotals.trendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                          const totalTrendColor = getTrendColorClass(
+                            salesStoreTableTotals.trendDirection,
+                            isSalesStoreReturnTable
+                          );
 
                           return (
                             <tr>
@@ -11064,18 +11337,18 @@ export default function App() {
                               </td>
                               <td className="tu-sticky tu-bottom-0 tu-z-10 tu-border-t tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-py-3">
                                 <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">
-                                  {formatStoreMetricValue(selectedSalesMetric, salesStoreTableTotals.previousValue)}
+                                  {formatStoreMetricValue(salesStoreTableMetricLabel, salesStoreTableTotals.previousValue)}
                                 </span>
                               </td>
                               <td className="tu-sticky tu-bottom-0 tu-z-10 tu-border-t tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-py-3">
                                 <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">
-                                  {formatStoreMetricValue(selectedSalesMetric, salesStoreTableTotals.currentValue)}
+                                  {formatStoreMetricValue(salesStoreTableMetricLabel, salesStoreTableTotals.currentValue)}
                                 </span>
                               </td>
                               <td className="tu-sticky tu-bottom-0 tu-z-10 tu-border-t tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-py-3">
                                 <div className="tu-inline-flex tu-items-center tu-gap-1.5 tu-whitespace-nowrap">
                                   <span className="tu-text-[13px] tu-font-semibold tu-text-[#2f3133]">
-                                    {formatStoreMetricDelta(selectedSalesMetric, salesStoreTableTotals.changeValue)}
+                                    {formatStoreMetricDelta(salesStoreTableMetricLabel, salesStoreTableTotals.changeValue)}
                                   </span>
                                   <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#a8b0aa]" />
                                   <span className={`tu-inline-flex tu-items-center tu-gap-1 tu-text-[12px] tu-font-semibold ${totalTrendColor}`}>
@@ -11165,7 +11438,17 @@ export default function App() {
                         <span className="tu-inline-flex tu-items-center tu-gap-1.5 tu-text-[11px] tu-font-semibold">
                           <span className="tu-text-[#333538]">{salesTooltipData.metric.formatValue(Math.abs(salesTooltipData.change))}</span>
                           <span className="tu-inline-flex tu-h-1 tu-w-1 tu-rounded-full tu-bg-[#98a19c]" />
-                          <span className={`tu-inline-flex tu-items-center tu-gap-1 ${salesTooltipData.change >= 0 ? 'tu-text-[#10a85d]' : 'tu-text-[#d14b47]'}`}>
+                          <span
+                            className={`tu-inline-flex tu-items-center tu-gap-1 ${
+                              selectedSalesMetric === 'Order Returns'
+                                ? salesTooltipData.change >= 0
+                                  ? 'tu-text-[#d14b47]'
+                                  : 'tu-text-[#10a85d]'
+                                : salesTooltipData.change >= 0
+                                  ? 'tu-text-[#10a85d]'
+                                  : 'tu-text-[#d14b47]'
+                            }`}
+                          >
                             {salesTooltipData.change >= 0 ? <ArrowUpRight className="tu-h-3.5 tu-w-3.5" /> : <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />}
                             {salesTooltipData.changePercent}
                           </span>
@@ -11182,7 +11465,7 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <SectionTitleWithReportLink title="Sales Performance by Location" />
 
-                <div className="tu-flex tu-flex-wrap tu-gap-2.5 sm:tu-gap-3">
+                <FilterRail>
                   {[
                     {
                       key: 'showBy',
@@ -11281,7 +11564,7 @@ export default function App() {
                       ) : null}
                     </div>
                   ))}
-                </div>
+                </FilterRail>
               </div>
 
               {showSalesCityChart ? (
@@ -11413,7 +11696,7 @@ export default function App() {
                               locationTooltipData.positive ? 'tu-text-[#14a95f]' : 'tu-text-[#d94f4f]'
                             }`}
                           >
-                            {locationTooltipData.positive ? (
+                            {locationTooltipData.changeDirection === 'up' ? (
                               <ArrowUpRight className="tu-h-3.5 tu-w-3.5" />
                             ) : (
                               <ArrowDownRight className="tu-h-3.5 tu-w-3.5" />
@@ -11597,7 +11880,7 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <SectionTitleWithReportLink title="Sales Performance by Products" />
 
-                <div className="tu-flex tu-flex-wrap tu-justify-end tu-gap-2.5 sm:tu-gap-3">
+                <FilterRail>
                   <div className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
                     <div className="tu-relative">
                       <button
@@ -11670,7 +11953,7 @@ export default function App() {
                     <span className="tu-inline-flex tu-h-6 tu-w-px tu-bg-[#d9ded7]" aria-hidden="true" />
                   </div>
                   {[
-                    { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productMetricOptions },
+                    { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productTableMetricOptions },
                     {
                       key: 'brand',
                       value:
@@ -11761,7 +12044,7 @@ export default function App() {
                       ) : null}
                     </div>
                   ))}
-                </div>
+                </FilterRail>
               </div>
 
               <div className="tu-mt-5">
@@ -11847,18 +12130,30 @@ export default function App() {
                   <div className="tu-mb-5 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1.5 tu-rounded-[8px] tu-border tu-border-[#edf1eb] tu-bg-[#fdfefd] tu-p-1">
                     {productTableViewOptions.map((view) => {
                       const selected = selectedProductTableView === view;
+                      const label = isProductTableReturnMetric && view === 'Top Sellers' ? 'Top Returns' : view;
                       return (
                         <button
                           key={view}
                           type="button"
                           onClick={() => setSelectedProductTableView(view)}
-                          className={`tu-h-9 tu-w-full tu-rounded-[6px] tu-border tu-px-3 tu-text-center tu-text-[12px] tu-font-semibold tu-transition-all ${
+                          className={`tu-flex tu-h-9 tu-w-full tu-items-center tu-justify-center tu-gap-1.5 tu-rounded-[6px] tu-border tu-px-3 tu-text-center tu-text-[12px] tu-font-semibold tu-transition-all ${
                             selected
                               ? 'tu-border-[#8fdcaf] tu-bg-[#d8f6e6] tu-text-[#008a4f] tu-shadow-[0_1px_3px_rgba(31,41,55,0.08)]'
                               : 'tu-border-[#e6ebe3] tu-bg-white tu-text-[#4f5863] hover:tu-border-[#d5ded4] hover:tu-bg-[#fcfdfb] hover:tu-text-[#2f3133]'
                           }`}
                         >
-                          {view}
+                          <span>{label}</span>
+                          {isProductTableReturnMetric ? (
+                            <span className="tu-group/tooltip tu-relative tu-inline-flex tu-shrink-0">
+                              <span
+                                aria-label={`${label} explanation`}
+                                className="tu-inline-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#98a19c] tu-bg-white tu-text-[9px] tu-font-semibold tu-leading-none tu-text-[#7d8580]"
+                              >
+                                ?
+                              </span>
+                              <InfoTooltip text={productReturnTableViewTooltips[view]} widthClass="tu-w-[280px]" />
+                            </span>
+                          ) : null}
                         </button>
                       );
                     })}
@@ -11990,10 +12285,12 @@ export default function App() {
                         ) : (
                         productTableVisibleRows.map((row) => {
                           const CurrentPeriodTrendIcon = row.currentPeriodTrendDirection === 'up' ? ArrowUpRight : ArrowDownRight;
-                          const currentPeriodTrendColor =
-                            row.currentPeriodTrendDirection === 'up' ? 'tu-text-[#10c562]' : 'tu-text-[#de524c]';
+                          const currentPeriodTrendColor = getTrendColorClass(
+                            row.currentPeriodTrendDirection,
+                            isProductTableReturnMetric
+                          );
                           const productTableChangeValue =
-                            selectedProductTableMetric === 'Gross Sales'
+                            selectedProductTableMetric === 'Gross Sales' || selectedProductTableMetric === 'Return Value'
                               ? formatPKR(Math.abs(row.currentPeriodValue - row.priorPeriodValue))
                               : formatCompactNumber(Math.abs(row.currentPeriodValue - row.priorPeriodValue));
                           return (
@@ -12016,28 +12313,20 @@ export default function App() {
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
                                 <div className="tu-flex tu-flex-col tu-items-start">
                                   <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                  {selectedProductTableMetric === 'Gross Sales'
-                                    ? formatPKR(row.currentPeriodValue)
-                                    : formatCompactNumber(row.currentPeriodValue)}
+                                    {formatProductTablePrimaryValue(row.currentPeriodValue)}
                                   </span>
                                   <span className="tu-mt-0.5 tu-text-[11px] tu-text-[#7d828a]">
-                                    {selectedProductTableMetric === 'Gross Sales'
-                                      ? `Units Sold: ${formatCompactNumber(row.unitsSold ?? 0)}`
-                                      : `Gross Sales: ${formatPKR(row.grossSales)}`}
+                                    {getProductTableSupportText(row, 'current')}
                                   </span>
                                 </div>
                               </td>
                               <td className="tu-border-b tu-border-[#f0f2ed] tu-px-4 tu-py-3 tu-text-left">
                                 <div className="tu-flex tu-flex-col tu-items-start">
                                   <span className="tu-text-[13px] tu-font-medium tu-text-[#2f3133]">
-                                  {selectedProductTableMetric === 'Gross Sales'
-                                    ? formatPKR(row.priorPeriodValue)
-                                    : formatCompactNumber(row.priorPeriodValue)}
+                                    {formatProductTablePrimaryValue(row.priorPeriodValue)}
                                   </span>
                                   <span className="tu-mt-0.5 tu-text-[11px] tu-text-[#7d828a]">
-                                    {selectedProductTableMetric === 'Gross Sales'
-                                      ? `Units Sold: ${formatCompactNumber(row.previousUnits ?? 0)}`
-                                      : `Gross Sales: ${formatPKR(row.previousGrossSales)}`}
+                                    {getProductTableSupportText(row, 'previous')}
                                   </span>
                                 </div>
                               </td>
