@@ -2311,28 +2311,28 @@ const productKpiTooltips: Record<string, string | TooltipContent> = {
       { type: 'formula', text: 'Avg. Gross Sales Per Product = Gross Sales / Total Products' }
     ]
   },
-  'Gross Profit per Product': {
-    title: 'Gross Profit per Product',
+  'Avg. Gross Profit per Product': {
+    title: 'Avg. Gross Profit per Product',
     blocks: [
       { type: 'text', text: 'Average gross profit generated per product in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Gross Profit per Product = Total Gross Profit / Total Products' }
+      { type: 'formula', text: 'Avg. Gross Profit per Product = Total Gross Profit / Total Products' }
     ]
   },
-  'Average Selling Price': {
-    title: 'Average Selling Price',
+  'Avg. Sales Price': {
+    title: 'Avg. Sales Price',
     blocks: [
-      { type: 'text', text: 'Average Average Selling Price product in the selected period.' },
+      { type: 'text', text: 'Average Avg. Sales Price product in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Average Selling Price = Gross Sales / Total Products' }
+      { type: 'formula', text: 'Avg. Sales Price = Gross Sales / Total Products' }
     ]
   },
-  'Units Sold per Product': {
-    title: 'Units Sold per Product',
+  'Avg. Units Sold per Product': {
+    title: 'Avg. Units Sold per Product',
     blocks: [
       { type: 'text', text: 'Average number of units sold per active product in the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Units Sold per Product = Total Units Sold / Total Active Products' }
+      { type: 'formula', text: 'Avg. Units Sold per Product = Total Units Sold / Total Active Products' }
     ]
   }
 };
@@ -3779,14 +3779,14 @@ export default function App() {
   const productMissingReasons: Record<string, string> = {
     'Units Sold': 'Units Sold is missing because product-level sales quantities were not imported.',
     'Total Units Sold': 'Total Units Sold is missing because product-level sales quantities were not imported.',
-    'Gross Profit per Product':
-      'Gross Profit per Product is missing because product sales or product cost price is missing.',
+    'Avg. Gross Profit per Product':
+      'Average Gross Profit per Product is missing because product sales or product cost price is missing.',
     'Avg. Gross Profit Margin':
       'Average Gross Profit Margin per Product is missing because gross profit or gross sales is missing.',
-    'Average Selling Price':
-      'Average Selling Price is missing because product gross sales or units sold are missing.',
-    'Units Sold per Product':
-      'Units Sold per Product is missing because product quantities or active product data were not imported.',
+    'Avg. Sales Price':
+      'Avg. Sales Price is missing because product gross sales or units sold are missing.',
+    'Avg. Units Sold per Product':
+      'Avg. Units Sold per Product is missing because product quantities or active product data were not imported.',
     'Top Gross Sales Product':
       'Top Gross Sales Product is missing because product-level gross sales were not imported.',
     'Most Improved Gross Sales Product':
@@ -7376,7 +7376,7 @@ export default function App() {
           comparison: { current: '44,000', previous: '40,000', change: '4,000' }
         },
         {
-          label: 'Gross Profit per Product',
+          label: 'Avg. Gross Profit per Product',
           value: 'PKR 11,800',
           trend: '5.4%',
           direction: 'up' as const,
@@ -7390,14 +7390,14 @@ export default function App() {
           comparison: { current: '48.2%', previous: '47.2%', change: '1.0 pp' }
         },
         {
-          label: 'Average Selling Price',
+          label: 'Avg. Sales Price',
           value: 'PKR 26,500',
           trend: '8.6%',
           direction: 'up' as const,
           comparison: { current: 'PKR 26,500', previous: 'PKR 24,400', change: 'PKR 2,100' }
         },
         {
-          label: 'Units Sold per Product',
+          label: 'Avg. Units Sold per Product',
           value: '367',
           trend: '4.3%',
           direction: 'up' as const,
@@ -10160,9 +10160,9 @@ export default function App() {
                           </div>
                           <div className="tu-flex tu-min-h-0 tu-items-center tu-justify-between tu-gap-3 tu-rounded-[12px] tu-border tu-border-[#f2e3ce] tu-bg-[#fffaf3] tu-px-4 tu-py-2 tu-shadow-[0_6px_18px_rgba(31,41,55,0.06)]">
                             <div className="tu-min-w-0">
-                              <p className="tu-text-[13px] tu-font-medium tu-text-[#7e756b]">Pre-paid Orders</p>
+                              <p className="tu-text-[13px] tu-font-medium tu-text-[#7e756b]">Paid Orders</p>
                             {emptyPreviewActive ? (
-                              <EmptyMetricValue reason="Pre-paid Orders is missing because payment method or order data was not imported." />
+                              <EmptyMetricValue reason="Paid Orders is missing because payment method or order data was not imported." />
                             ) : (
                               <p className="tu-mt-1 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.nonCodShare.toFixed(1)}% of total orders`}</p>
                             )}
@@ -11276,7 +11276,7 @@ export default function App() {
                           />
                         )}
                       </div>
-                      {menu.key === 'showBy' || (selectedLocationMetric === 'Order Returns' && menu.key === 'returnShowBy') ? (
+                      {menu.key === 'showBy' ? (
                         <span className="tu-inline-flex tu-h-6 tu-w-px tu-bg-[#d9ded7]" aria-hidden="true" />
                       ) : null}
                     </div>
@@ -11286,7 +11286,7 @@ export default function App() {
 
               {showSalesCityChart ? (
                 <>
-                <div className="tu-mt-4 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1 tu-rounded-[8px] tu-border tu-border-[#e2e8df] tu-bg-[#fbfcfa] tu-p-0.5">
+                <div className="tu-mt-4 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1.5 tu-rounded-[8px] tu-border tu-border-[#edf1eb] tu-bg-[#fdfefd] tu-p-1">
                   {locationPerformanceViewOptions.map((view) => {
                     const selected = selectedLocationPerformanceView === view;
                     const label =
@@ -11310,10 +11310,10 @@ export default function App() {
                         key={view}
                         type="button"
                         onClick={() => setSelectedLocationPerformanceView(view)}
-                        className={`tu-flex tu-h-8 tu-w-full tu-items-center tu-justify-center tu-gap-1.5 tu-rounded-[6px] tu-px-3 tu-text-center tu-text-[12px] tu-font-medium tu-transition-colors ${
+                        className={`tu-flex tu-h-9 tu-w-full tu-items-center tu-justify-center tu-gap-1.5 tu-rounded-[6px] tu-border tu-px-3 tu-text-center tu-text-[12px] tu-font-semibold tu-transition-all ${
                           selected
-                            ? 'tu-bg-[#e9f8f0] tu-text-[#109257]'
-                            : 'tu-bg-transparent tu-text-[#707780] hover:tu-bg-white hover:tu-text-[#333538]'
+                            ? 'tu-border-[#8fdcaf] tu-bg-[#d8f6e6] tu-text-[#008a4f] tu-shadow-[0_1px_3px_rgba(31,41,55,0.08)]'
+                            : 'tu-border-[#e6ebe3] tu-bg-white tu-text-[#4f5863] hover:tu-border-[#d5ded4] hover:tu-bg-[#fcfdfb] hover:tu-text-[#2f3133]'
                         }`}
                       >
                         <span>{label}</span>
@@ -11333,7 +11333,7 @@ export default function App() {
                   })}
                 </div>
                 <div
-                  className="tu-relative tu-mt-3 tu-rounded-[14px] tu-border tu-border-[#e9eef1] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] tu-p-4 tu-shadow-[0_10px_26px_rgba(31,41,55,0.08)]"
+                  className="tu-relative tu-mt-5 tu-rounded-[14px] tu-border tu-border-[#e9eef1] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] tu-p-4 tu-shadow-[0_10px_26px_rgba(31,41,55,0.08)]"
                   onMouseLeave={() => setHoveredLocationPoint(null)}
                 >
                   <div className="tu-h-[420px]">
@@ -11844,7 +11844,7 @@ export default function App() {
                 </div>
 
                 <div className="tu-mt-5 tu-min-w-0">
-                  <div className="tu-mb-3 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1 tu-rounded-[8px] tu-border tu-border-[#e2e8df] tu-bg-[#fbfcfa] tu-p-0.5">
+                  <div className="tu-mb-5 tu-grid tu-w-full tu-grid-cols-3 tu-gap-1.5 tu-rounded-[8px] tu-border tu-border-[#edf1eb] tu-bg-[#fdfefd] tu-p-1">
                     {productTableViewOptions.map((view) => {
                       const selected = selectedProductTableView === view;
                       return (
@@ -11852,10 +11852,10 @@ export default function App() {
                           key={view}
                           type="button"
                           onClick={() => setSelectedProductTableView(view)}
-                          className={`tu-h-8 tu-w-full tu-rounded-[6px] tu-px-3 tu-text-center tu-text-[12px] tu-font-medium tu-transition-colors ${
+                          className={`tu-h-9 tu-w-full tu-rounded-[6px] tu-border tu-px-3 tu-text-center tu-text-[12px] tu-font-semibold tu-transition-all ${
                             selected
-                              ? 'tu-bg-[#e9f8f0] tu-text-[#109257]'
-                              : 'tu-bg-transparent tu-text-[#707780] hover:tu-bg-white hover:tu-text-[#333538]'
+                              ? 'tu-border-[#8fdcaf] tu-bg-[#d8f6e6] tu-text-[#008a4f] tu-shadow-[0_1px_3px_rgba(31,41,55,0.08)]'
+                              : 'tu-border-[#e6ebe3] tu-bg-white tu-text-[#4f5863] hover:tu-border-[#d5ded4] hover:tu-bg-[#fcfdfb] hover:tu-text-[#2f3133]'
                           }`}
                         >
                           {view}
