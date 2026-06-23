@@ -1605,6 +1605,7 @@ const skuMovementTurnoverTooltip: TooltipContent = {
 };
 const skuMovementProductLimitOptions = ['5', '10', '15', '20'];
 const inventoryAgingProductLimitOptions = ['10', '20', '30'];
+const inventorySnapshotShowByOptions = ['Quantity', 'Value'];
 const stockoutRiskBuckets = [
   { label: '0-3 days', min: 0, max: 3 },
   { label: '4-8 days', min: 4, max: 8 },
@@ -3544,14 +3545,20 @@ export default function App() {
   const [inventoryMenuSearch, setInventoryMenuSearch] = useState({ date: '', region: '' });
   const [activeInventoryRibbonIndex, setActiveInventoryRibbonIndex] = useState(0);
   const [inventoryRibbonPaused, setInventoryRibbonPaused] = useState(false);
-  const [inventorySnapshotMenus, setInventorySnapshotMenus] = useState<{ location: boolean; stockoutDate: boolean }>({
+  const [inventorySnapshotMenus, setInventorySnapshotMenus] = useState<{
+    location: boolean;
+    stockoutDate: boolean;
+    showBy: boolean;
+  }>({
     location: false,
-    stockoutDate: false
+    stockoutDate: false,
+    showBy: false
   });
   const [selectedInventorySnapshotLocation, setSelectedInventorySnapshotLocation] = useState<string[]>([
     ...inventoryLocationOptions
   ]);
   const [selectedInventorySnapshotStockoutDate, setSelectedInventorySnapshotStockoutDate] = useState('Last 30 Days');
+  const [selectedInventorySnapshotShowBy, setSelectedInventorySnapshotShowBy] = useState('Quantity');
   const [inventorySnapshotMenuSearch, setInventorySnapshotMenuSearch] = useState({ location: '' });
   const [skuMovementMenus, setSkuMovementMenus] = useState<{
     fastDate: boolean;
@@ -4985,9 +4992,14 @@ export default function App() {
         label: 'Products Under Reorder Point',
         value: formatCompactNumber(reorderProducts.current),
         trend: `${getPercentDelta(reorderProducts.current, reorderProducts.previous).toFixed(1)}%`,
-        sublabel: 'vs previous period',
+        sublabel: '',
         secondaryLabel: 'Threshold',
         secondaryValue: 'At/below',
+        thresholdTooltip: `${formatCompactNumber(reorderProducts.current)} of ${formatCompactNumber(
+          totalProducts.current
+        )} products (${getRate(reorderProducts.current, totalProducts.current).toFixed(
+          1
+        )}%) are at or below reorder threshold. Benchmark: available quantity is less than or equal to the product's configured reorder point in the selected inventory locations.`,
         direction: reorderProducts.current >= reorderProducts.previous ? ('up' as const) : ('down' as const),
         comparison: {
           current: formatCompactNumber(reorderProducts.current),
@@ -5030,21 +5042,48 @@ export default function App() {
     [selectedInventorySnapshotLocation]
   );
 
+  const getInventoryAgingUnitCost = useCallback((product: InventoryHealthProduct) => {
+    const skuSeed = Number(product.sku.replace(/\D/g, '')) || 1;
+    return 850 + (skuSeed % 9) * 175;
+  }, []);
+
   const inventorySnapshotCards = useMemo(() => {
     const dateMultiplier =
       inventoryDateMultipliers[selectedInventorySnapshotStockoutDate] ?? inventoryDateMultipliers['Last 30 Days'];
+    const showValue = selectedInventorySnapshotShowBy === 'Value';
     const sumHealthMetric = (
       metricKey: keyof Pick<
         InventoryHealthProduct,
         'onHandQuantity' | 'committedQuantity' | 'availableQuantity' | 'deadStocks' | 'inventoryAging'
       >
     ) => activeInventorySnapshotHealthProducts.reduce((sum, product) => sum + product[metricKey], 0);
+    const sumHealthValue = (
+      metricKey: keyof Pick<
+        InventoryHealthProduct,
+        'onHandQuantity' | 'committedQuantity' | 'availableQuantity' | 'deadStocks' | 'inventoryAging'
+      >,
+      multiplier = dateMultiplier.current
+    ) =>
+      activeInventorySnapshotHealthProducts.reduce(
+        (sum, product) => sum + product[metricKey] * getInventoryAgingUnitCost(product) * multiplier,
+        0
+      );
 
     const onHand = Math.round(sumHealthMetric('onHandQuantity') * dateMultiplier.current);
     const committed = Math.round(sumHealthMetric('committedQuantity'));
     const availableForSale = Math.round(sumHealthMetric('availableQuantity') * dateMultiplier.current);
     const deadStocks = Math.round(sumHealthMetric('deadStocks') * dateMultiplier.current);
     const agingRiskUnits = Math.round(sumHealthMetric('inventoryAging') * 0.1 * dateMultiplier.current);
+    const onHandValue = Math.round(sumHealthValue('onHandQuantity'));
+    const committedValue = Math.round(sumHealthValue('committedQuantity', 1));
+    const availableValue = Math.round(sumHealthValue('availableQuantity'));
+    const deadStockValue = Math.round(sumHealthValue('deadStocks'));
+    const agingRiskValue = Math.round(sumHealthValue('inventoryAging') * 0.1);
+    const averageUnitCost =
+      activeInventorySnapshotHealthProducts.length === 0
+        ? 0
+        : activeInventorySnapshotHealthProducts.reduce((sum, product) => sum + getInventoryAgingUnitCost(product), 0) /
+          activeInventorySnapshotHealthProducts.length;
     const inbound = Math.round(
       activeInventorySnapshotStores.reduce(
         (sum, snapshot) => sum + snapshot.inboundQuantity.current * dateMultiplier.current,
@@ -5052,15 +5091,47 @@ export default function App() {
       )
     );
     const unfulfilled = Math.round(deadStocks + agingRiskUnits);
+    const inboundValue = Math.round(inbound * averageUnitCost);
+    const unfulfilledValue = Math.round(deadStockValue + agingRiskValue);
+    const formatSnapshotValue = (quantity: number, value: number) =>
+      showValue ? formatCompactCurrency(value) : formatCompactNumber(quantity);
+    const labelSuffix = showValue ? 'Value' : 'Quantity';
 
     return [
-      { label: 'On-hand Quantity', value: formatCompactNumber(onHand) },
-      { label: 'Committed Quantity', value: formatCompactNumber(committed), currentOnly: true },
-      { label: 'Available Quantity', value: formatCompactNumber(availableForSale) },
-      { label: 'Inbound Quantity', value: formatCompactNumber(inbound) },
-      { label: 'Unfulfillable / Damaged Quantity', value: formatCompactNumber(unfulfilled) }
+      {
+        label: `On-hand ${labelSuffix}`,
+        tooltipKey: 'On-hand Quantity',
+        value: formatSnapshotValue(onHand, onHandValue)
+      },
+      {
+        label: `Committed ${labelSuffix}`,
+        tooltipKey: 'Committed Quantity',
+        value: formatSnapshotValue(committed, committedValue),
+        currentOnly: true
+      },
+      {
+        label: `Available ${labelSuffix}`,
+        tooltipKey: 'Available Quantity',
+        value: formatSnapshotValue(availableForSale, availableValue)
+      },
+      {
+        label: `Inbound ${labelSuffix}`,
+        tooltipKey: 'Inbound Quantity',
+        value: formatSnapshotValue(inbound, inboundValue)
+      },
+      {
+        label: `Unfulfillable / Damaged ${labelSuffix}`,
+        tooltipKey: 'Unfulfillable / Damaged Quantity',
+        value: formatSnapshotValue(unfulfilled, unfulfilledValue)
+      }
     ];
-  }, [activeInventorySnapshotHealthProducts, activeInventorySnapshotStores, selectedInventorySnapshotStockoutDate]);
+  }, [
+    activeInventorySnapshotHealthProducts,
+    activeInventorySnapshotStores,
+    getInventoryAgingUnitCost,
+    selectedInventorySnapshotShowBy,
+    selectedInventorySnapshotStockoutDate
+  ]);
 
   const inventorySnapshotAlertMetrics = useMemo(() => {
     const dateMultiplier =
@@ -5185,11 +5256,6 @@ export default function App() {
     selectedInventoryAgingLocations.length === inventoryLocationOptions.length
       ? 'Inventory Locations'
       : formatMultiSelectLabel(selectedInventoryAgingLocations, 'Inventory Locations', 'location', 'locations');
-
-  const getInventoryAgingUnitCost = useCallback((product: InventoryHealthProduct) => {
-    const skuSeed = Number(product.sku.replace(/\D/g, '')) || 1;
-    return 850 + (skuSeed % 9) * 175;
-  }, []);
 
   const daysUntilStockoutRows = useMemo(() => {
     const bucketCounts = stockoutRiskBuckets.map((bucket) => ({
@@ -8264,6 +8330,10 @@ export default function App() {
                               : 'tu-border-[#f4d5d4] tu-bg-[#fff1f1] tu-text-[#de524c]';
                           const hasSupportingPill = Boolean(metric.secondaryLabel && metric.secondaryValue);
                           const isReorderThresholdPill = metric.label === 'Products Under Reorder Point';
+                          const thresholdTooltip =
+                            'thresholdTooltip' in metric
+                              ? metric.thresholdTooltip
+                              : 'Criteria: SKU available quantity is at or below its configured reorder threshold for the selected location.';
 
                           return (
                             <article
@@ -8295,13 +8365,13 @@ export default function App() {
                                         {metric.value}
                                       </p>
                                     )}
-                                    {!emptyPreviewActive && hasSupportingPill ? (
+                                    {!emptyPreviewActive && hasSupportingPill && !isReorderThresholdPill ? (
                                       <span className="tu-group/reorder-criteria tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-border tu-border-[#dfe8dd] tu-bg-white tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
                                         <span className="tu-font-semibold tu-text-[#333538]">{metric.secondaryValue}</span>
                                         <span>{metric.secondaryLabel}</span>
                                         {isReorderThresholdPill ? (
                                           <span className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-1/2 tu-z-30 tu-w-[260px] -tu-translate-x-1/2 tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-font-medium tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/reorder-criteria:tu-opacity-100">
-                                            Criteria: SKU available quantity is at or below its configured reorder threshold for the selected location.
+                                            {thresholdTooltip}
                                           </span>
                                         ) : null}
                                       </span>
@@ -8310,7 +8380,16 @@ export default function App() {
                                 </div>
                               </div>
                               <div className="tu-mt-3 tu-flex tu-items-center tu-gap-2">
-                                {!emptyPreviewActive ? (
+                                {!emptyPreviewActive && isReorderThresholdPill ? (
+                                  <span className="tu-group/reorder-criteria tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-border tu-border-[#dfe8dd] tu-bg-white tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
+                                    <span className="tu-font-semibold tu-text-[#333538]">{metric.secondaryValue}</span>
+                                    <span>{metric.secondaryLabel}</span>
+                                    <span className="tu-pointer-events-none tu-absolute tu-bottom-[calc(100%+8px)] tu-left-1/2 tu-z-30 tu-w-[300px] -tu-translate-x-1/2 tu-rounded-md tu-bg-[#111111] tu-px-2.5 tu-py-2 tu-text-[11px] tu-font-medium tu-leading-4 tu-text-white tu-opacity-0 tu-shadow-[0_10px_24px_rgba(0,0,0,0.28)] tu-transition-opacity group-hover/reorder-criteria:tu-opacity-100">
+                                      {thresholdTooltip}
+                                    </span>
+                                  </span>
+                                ) : null}
+                                {!emptyPreviewActive && !isReorderThresholdPill ? (
                                 <div className="tu-relative">
                                   <button
                                     type="button"
@@ -8330,7 +8409,7 @@ export default function App() {
                                   ) : null}
                                 </div>
                                 ) : null}
-                                {!emptyPreviewActive ? (
+                                {!emptyPreviewActive && !isReorderThresholdPill ? (
                                   <span className="tu-text-[12px] tu-text-[#9a9ca2]">{metric.sublabel}</span>
                                 ) : null}
                               </div>
@@ -8443,7 +8522,36 @@ export default function App() {
                           onClick={() => {
                             setInventorySnapshotMenus((current) => ({
                               location: false,
-                              stockoutDate: !current.stockoutDate
+                              stockoutDate: false,
+                              showBy: !current.showBy
+                            }));
+                          }}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          <span>Show by: {selectedInventorySnapshotShowBy}</span>
+                          <ChevronDown className="tu-h-3 tu-w-3" />
+                        </button>
+                        <SearchableDropdownMenu
+                          open={inventorySnapshotMenus.showBy}
+                          options={inventorySnapshotShowByOptions}
+                          selected={selectedInventorySnapshotShowBy}
+                          searchable={false}
+                          widthClass="tu-w-[150px]"
+                          onSelect={(item) => {
+                            setSelectedInventorySnapshotShowBy(item);
+                            setInventorySnapshotMenus((current) => ({ ...current, showBy: false }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="tu-relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInventorySnapshotMenus((current) => ({
+                              location: false,
+                              stockoutDate: !current.stockoutDate,
+                              showBy: false
                             }));
                           }}
                           className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
@@ -8470,7 +8578,8 @@ export default function App() {
                           onClick={() => {
                             setInventorySnapshotMenus((current) => ({
                               location: !current.location,
-                              stockoutDate: false
+                              stockoutDate: false,
+                              showBy: false
                             }));
                             setInventorySnapshotMenuSearch({ location: '' });
                           }}
@@ -8514,7 +8623,7 @@ export default function App() {
                           <div className="tu-group/tooltip tu-relative tu-inline-block">
                             <span className="tu-text-[13px] tu-text-[#9a9ca2]">{card.label}</span>
                             <InfoTooltip
-                              text={inventorySnapshotKpiTooltips[card.label]}
+                              text={inventorySnapshotKpiTooltips[card.tooltipKey]}
                               widthClass={card.label.includes('Stockout') ? 'tu-w-[280px]' : 'tu-w-[240px]'}
                             />
                           </div>
@@ -8523,7 +8632,7 @@ export default function App() {
 
                         <div className="tu-mt-2 tu-flex tu-items-center tu-gap-2.5">
                           {emptyPreviewActive ? (
-                            <EmptyMetricValue reason={getInventorySnapshotMissingReason(card.label)} />
+                            <EmptyMetricValue reason={getInventorySnapshotMissingReason(card.tooltipKey)} />
                           ) : (
                             <p className="tu-text-[26px] tu-font-semibold tu-text-[#333538]">{card.value}</p>
                           )}
