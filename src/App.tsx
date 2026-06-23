@@ -21,6 +21,7 @@ import {
   ChevronRight,
   ChevronUp,
   Download,
+  ExternalLink,
   LayoutGrid,
   Menu,
   Package2,
@@ -1615,6 +1616,24 @@ const abcSkuTierBlueprint = [
   { label: 'Class A', scope: 'top 20%', revenuePercent: 78, color: '#10C562' },
   { label: 'Class B', scope: 'next 30%', revenuePercent: 17, color: '#57D990' },
   { label: 'Class C', scope: 'bottom 50%', revenuePercent: 5, color: '#D0F6DF' }
+];
+const abcProductClassificationOptions = [
+  {
+    label: 'Inventory Value',
+    description: 'Rank products by the total amount of money invested in the stock currently on hand.'
+  },
+  {
+    label: 'Usage Value',
+    description: 'Rank products by the cost value of the stock sold during the selected period.'
+  },
+  {
+    label: 'Quantity Sold',
+    description: 'Rank products by the number of units sold during the selected period to see which items sell fastest.'
+  },
+  {
+    label: 'Gross Sales',
+    description: 'Rank products by the total sales revenue they generated during the selected period.'
+  }
 ];
 const inventoryAgingBucketLabels = ['0-30 days', '31-60 days', '61-90 days', '90+ days'];
 const inventoryAgingLocationColors: Record<string, string> = {
@@ -3568,6 +3587,11 @@ export default function App() {
   const [selectedInventoryAgingProductLimit, setSelectedInventoryAgingProductLimit] = useState('10');
   const [selectedInventoryAgingChartMetric, setSelectedInventoryAgingChartMetric] = useState<'value' | 'quantity'>('value');
   const [inventoryAgingMenuSearch, setInventoryAgingMenuSearch] = useState('');
+  const [abcProductClassificationModalOpen, setAbcProductClassificationModalOpen] = useState(false);
+  const [abcPercentageModalOpen, setAbcPercentageModalOpen] = useState(false);
+  const [selectedAbcProductClassification, setSelectedAbcProductClassification] = useState('Inventory Value');
+  const [abcPercentageConfig, setAbcPercentageConfig] = useState({ classA: 80, classB: 15, classC: 5 });
+  const [abcPercentageDraft, setAbcPercentageDraft] = useState({ classA: 80, classB: 15, classC: 5 });
   const [inventoryMovementMenus, setInventoryMovementMenus] = useState<{
     date: boolean;
     region: boolean;
@@ -5305,15 +5329,67 @@ export default function App() {
   );
 
   const abcSkuTierRows = useMemo(() => {
-    const totalSkus = inventoryHealthProducts.length;
-    const classASkus = Math.round(totalSkus * 0.2);
-    const classBSkus = Math.round(totalSkus * 0.3);
+    const getClassificationValue = (product: InventoryHealthProduct) => {
+      const unitCost = getInventoryAgingUnitCost(product);
+
+      if (selectedAbcProductClassification === 'Usage Value') {
+        return product.quantityOut * unitCost;
+      }
+      if (selectedAbcProductClassification === 'Quantity Sold') {
+        return product.quantityOut;
+      }
+      if (selectedAbcProductClassification === 'Gross Sales') {
+        return Math.round(product.quantityOut * unitCost * 1.45);
+      }
+      return product.onHandQuantity * unitCost;
+    };
+
+    const rankedProducts = inventoryHealthProducts
+      .map((product) => ({ product, value: getClassificationValue(product) }))
+      .sort((first, second) => second.value - first.value);
+    const totalValue = rankedProducts.reduce((sum, item) => sum + item.value, 0);
+    const classAThreshold = abcPercentageConfig.classA;
+    const classBThreshold = abcPercentageConfig.classA + abcPercentageConfig.classB;
+    const tierTotals = [
+      { skuCount: 0, value: 0 },
+      { skuCount: 0, value: 0 },
+      { skuCount: 0, value: 0 }
+    ];
+    let cumulativePercent = 0;
+
+    rankedProducts.forEach((item, index) => {
+      const contributionPercent = totalValue > 0 ? (item.value / totalValue) * 100 : 0;
+      const tierIndex =
+        index === 0 || cumulativePercent < classAThreshold ? 0 : cumulativePercent < classBThreshold ? 1 : 2;
+
+      tierTotals[tierIndex].skuCount += 1;
+      tierTotals[tierIndex].value += item.value;
+      cumulativePercent += contributionPercent;
+    });
+
+    const scopes = [
+      `top ${abcPercentageConfig.classA}%`,
+      `next ${abcPercentageConfig.classB}%`,
+      `bottom ${abcPercentageConfig.classC}%`
+    ];
 
     return abcSkuTierBlueprint.map((tier, index) => ({
       ...tier,
-      skuCount: index === 0 ? classASkus : index === 1 ? classBSkus : Math.max(0, totalSkus - classASkus - classBSkus)
+      scope: scopes[index],
+      contributionPercent: totalValue > 0 ? Number(((tierTotals[index].value / totalValue) * 100).toFixed(1)) : 0,
+      skuCount: tierTotals[index].skuCount
     }));
-  }, []);
+  }, [abcPercentageConfig, getInventoryAgingUnitCost, selectedAbcProductClassification]);
+
+  const abcClassificationMetricLabel =
+    selectedAbcProductClassification === 'Quantity Sold'
+      ? 'units sold'
+      : selectedAbcProductClassification === 'Gross Sales'
+        ? 'gross sales'
+        : selectedAbcProductClassification === 'Usage Value'
+          ? 'usage value'
+          : 'inventory value';
+  const abcClassificationNote = `Using ${abcClassificationMetricLabel}, Class A is the highest-impact group and should get priority planning. Class C has the lowest impact in this setup, so review it for replenishment, discounting, or assortment changes.`;
 
   const inventoryAgingProductsInScope = useMemo(
     () => inventoryHealthProducts.filter((product) => selectedInventoryAgingLocations.includes(product.location)),
@@ -7890,6 +7966,8 @@ export default function App() {
     }
   };
 
+  const abcPercentageTotal = abcPercentageDraft.classA + abcPercentageDraft.classB + abcPercentageDraft.classC;
+
   useEffect(() => {
     setProductTableVisibleCount(productTableMaxRows);
     if (productTableScrollRef.current) {
@@ -8628,13 +8706,13 @@ export default function App() {
                                   </div>
                                 </div>
                               </th>
-                              <th className="tu-w-[22%] tu-px-3 tu-py-2.5 tu-text-right">
+                              <th className="tu-w-[22%] tu-px-3 tu-py-2.5 tu-text-left">
                                 <span className="tu-block tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">
                                   Sales<br />Velocity
                                 </span>
                               </th>
-                              <th className="tu-w-[26%] tu-px-3 tu-py-2.5 tu-text-right">
-                                <div className="tu-flex tu-min-h-9 tu-items-center tu-justify-end tu-gap-1.5">
+                              <th className="tu-w-[26%] tu-px-3 tu-py-2.5 tu-text-left">
+                                <div className="tu-flex tu-min-h-9 tu-items-center tu-justify-start tu-gap-1.5">
                                   <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">
                                     Inventory Turnover<br />Ratio
                                   </span>
@@ -8673,12 +8751,12 @@ export default function App() {
                                     </div>
                                   </div>
                                 </td>
-                                <td className="tu-w-[22%] tu-px-3 tu-py-2.5 tu-text-right">
+                                <td className="tu-w-[22%] tu-px-3 tu-py-2.5 tu-text-left">
                                   <span className="tu-whitespace-nowrap tu-text-[13px] tu-font-medium tu-text-[#333538]">
                                     {product.salesVelocity.toFixed(1)} units/day
                                   </span>
                                 </td>
-                                <td className="tu-w-[26%] tu-px-3 tu-py-2.5 tu-text-right">
+                                <td className="tu-w-[26%] tu-px-3 tu-py-2.5 tu-text-left">
                                   <span className="tu-whitespace-nowrap tu-text-[13px] tu-font-medium tu-text-[#333538]">
                                     {product.periodInventoryTurnoverRatio.toFixed(2)} times
                                   </span>
@@ -8714,20 +8792,18 @@ export default function App() {
                               widthClass="tu-w-[320px]"
                             />
                           </div>
-                          <button
-                            type="button"
-                            className="tu-inline-flex tu-h-7 tu-items-center tu-rounded-full tu-border tu-border-transparent tu-bg-transparent tu-px-2.5 tu-text-[11px] tu-font-semibold tu-text-[#7c838c] transition-colors hover:tu-border-[#e5e9e2] hover:tu-bg-[#fafbf8] hover:tu-text-[#2a2c2f]"
-                          >
-                            Show SKUs
-                          </button>
                         </div>
                         <p className="tu-mt-1 tu-text-[12px] tu-text-[#8f949b]">
                           SKU count by stockout-risk window
                         </p>
                       </div>
-                      <span className="tu-inline-flex tu-w-fit tu-rounded-full tu-border tu-border-[#dfe8dd] tu-bg-[#f8faf7] tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
-                        Number of SKUs
-                      </span>
+                      <button
+                        type="button"
+                        className="tu-inline-flex tu-h-9 tu-w-fit tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                      >
+                        <span>Show SKUs</span>
+                        <ExternalLink className="tu-h-3.5 tu-w-3.5" />
+                      </button>
                     </div>
 
                     <div className="tu-mt-5 tu-h-[260px]">
@@ -8744,7 +8820,7 @@ export default function App() {
                   </article>
 
                   <article className="tu-rounded-[16px] tu-border tu-border-[#dfe8dd] tu-bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfa_100%)] tu-p-4 tu-shadow-[0_10px_30px_rgba(31,41,55,0.08)] sm:tu-p-5">
-                    <div className="tu-flex tu-flex-col tu-gap-2 sm:tu-flex-row sm:tu-items-start sm:tu-justify-between">
+                    <div className="tu-flex tu-flex-col tu-gap-3 sm:tu-flex-row sm:tu-items-start sm:tu-justify-between">
                       <div>
                         <div className="tu-group/tooltip tu-relative tu-inline-block">
                           <h3 className="tu-text-[18px] tu-font-semibold tu-text-[#2a2c2f]">ABC SKU Analysis</h3>
@@ -8755,25 +8831,26 @@ export default function App() {
                         </div>
                         <p className="tu-mt-1 tu-text-[12px] tu-text-[#8f949b]">ABC inventory classification</p>
                       </div>
-                      <div className="tu-flex tu-shrink-0 tu-items-center tu-justify-start tu-text-left sm:tu-justify-end sm:tu-text-right">
-                        <span className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-leading-5 tu-text-[#5f656c]">
-                          Revenue contribution by SKU tier (Pareto principle{' '}
-                          <span className="tu-group/tooltip tu-relative tu-inline-flex tu-align-middle">
-                            <button
-                              type="button"
-                              aria-label="Pareto principle"
-                              className="tu-inline-flex tu-h-4 tu-w-4 tu-items-center tu-justify-center tu-rounded-full tu-border tu-border-[#d5dacd] tu-bg-white tu-text-[10px] tu-font-semibold tu-leading-none tu-text-[#7f838a]"
-                            >
-                              ?
-                            </button>
-                            <InfoTooltip
-                              text="Pareto principle means a small group of SKUs often contributes the majority of revenue, helping teams focus inventory control on the highest-impact items."
-                              widthClass="tu-w-[280px]"
-                              alignRight
-                            />
-                          </span>
-                          )
-                        </span>
+                      <div className="tu-flex tu-shrink-0 tu-flex-wrap tu-items-center tu-gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAbcProductClassificationModalOpen(true)}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          <span>Product Classification</span>
+                          <ChevronDown className="tu-h-3.5 tu-w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAbcPercentageDraft(abcPercentageConfig);
+                            setAbcPercentageModalOpen(true);
+                          }}
+                          className="tu-inline-flex tu-h-9 tu-items-center tu-gap-1.5 tu-rounded-[10px] tu-border tu-border-[#dfe5dc] tu-bg-[#f8faf7] tu-px-3.5 tu-text-[12px] tu-font-medium tu-text-[#5f656c] tu-shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-colors hover:tu-border-[#ccd7c9] hover:tu-bg-white hover:tu-text-[#2a2c2f]"
+                        >
+                          <SlidersHorizontal className="tu-h-3.5 tu-w-3.5" />
+                          <span>Configure Percentage</span>
+                        </button>
                       </div>
                     </div>
 
@@ -8794,9 +8871,11 @@ export default function App() {
                                 className={`tu-flex tu-h-full tu-items-center tu-rounded-[8px] tu-px-3 tu-text-[12px] tu-font-semibold ${
                                   tierIndex === 2 ? 'tu-text-[#0b5f36]' : 'tu-text-white'
                                 }`}
-                                style={{ width: `${tier.revenuePercent}%`, backgroundColor: tier.color }}
+                                style={{ width: `${Math.max(tier.contributionPercent, 3)}%`, backgroundColor: tier.color }}
                               >
-                                {tierIndex === 0 ? `${tier.revenuePercent}% of revenue` : `${tier.revenuePercent}%`}
+                                {tierIndex === 0
+                                  ? `${formatCompactNumber(tier.contributionPercent)}% of ${abcClassificationMetricLabel}`
+                                  : `${formatCompactNumber(tier.contributionPercent)}%`}
                               </div>
                             </div>
                             <p className="tu-text-right tu-text-[12px] tu-font-medium tu-text-[#6f747b]">
@@ -8808,8 +8887,7 @@ export default function App() {
 
                       <div className="tu-mt-5 tu-rounded-[10px] tu-bg-[#eef3ec] tu-px-4 tu-py-3">
                         <p className="tu-text-[12px] tu-leading-5 tu-text-[#5f656c]">
-                          Class A requires tighter procurement control and safety stock. Class C has low revenue contribution
-                          and is a strong candidate for liquidation or range reduction.
+                          {abcClassificationNote}
                         </p>
                       </div>
                       </>
@@ -8951,25 +9029,25 @@ export default function App() {
                               </div>
                             </div>
                           </th>
-                          <th className="tu-w-[9%] tu-px-3 tu-py-2.5 tu-text-right">
+                          <th className="tu-w-[9%] tu-px-3 tu-py-2.5 tu-text-left">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Total Units</span>
                           </th>
-                          <th className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-right">
+                          <th className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-left">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Total Inventory Value</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-left">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">0-30 Days</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-left">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">31-60 Days</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-left">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">61-90 Days</span>
                           </th>
-                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-pr-6 tu-text-right">
+                          <th className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-left">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">90+ Days</span>
                           </th>
-                          <th className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-pr-8 tu-text-right">
+                          <th className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-text-left">
                             <span className="tu-text-[12px] tu-font-semibold tu-leading-4 tu-text-[#5f656c]">Dead Stock Value</span>
                           </th>
                         </tr>
@@ -9001,13 +9079,13 @@ export default function App() {
                                 </div>
                               </div>
                             </td>
-                            <td className="tu-w-[9%] tu-px-3 tu-py-2.5 tu-text-right">
-                              <div className="tu-flex tu-w-full tu-justify-end">
+                            <td className="tu-w-[9%] tu-px-3 tu-py-2.5 tu-text-left">
+                              <div className="tu-flex tu-w-full tu-justify-start">
                                 <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">{formatCompactNumber(product.totalUnits)}</span>
                               </div>
                             </td>
-                            <td className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-right">
-                              <div className="tu-flex tu-w-full tu-justify-end">
+                            <td className="tu-w-[14%] tu-px-3 tu-py-2.5 tu-text-left">
+                              <div className="tu-flex tu-w-full tu-justify-start">
                                 <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
                                   {formatCompactCurrency(product.totalInventoryValue)}
                                 </span>
@@ -9021,11 +9099,11 @@ export default function App() {
                             ].map((bucket, index) => (
                               <td
                                 key={`${product.id}-aging-bucket-${index}`}
-                                className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-right"
+                                className="tu-w-[10%] tu-px-3 tu-py-2.5 tu-text-left"
                               >
-                                <div className="tu-flex tu-w-full tu-justify-end">
+                                <div className="tu-flex tu-w-full tu-justify-start">
                                   {bucket.value > 0 ? (
-                                    <span className={`tu-ml-auto tu-inline-flex tu-justify-end tu-rounded-[7px] tu-px-2.5 tu-py-1 tu-text-right tu-text-[12px] tu-font-semibold ${bucket.className}`}>
+                                    <span className={`tu-inline-flex tu-justify-start tu-rounded-[7px] tu-px-2.5 tu-py-1 tu-text-left tu-text-[12px] tu-font-semibold ${bucket.className}`}>
                                       {formatCompactNumber(bucket.value)}
                                       {bucket.suffix ?? ''}
                                     </span>
@@ -9035,8 +9113,8 @@ export default function App() {
                                 </div>
                               </td>
                             ))}
-                            <td className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-pr-8 tu-text-right">
-                              <div className="tu-flex tu-w-full tu-justify-end">
+                            <td className="tu-w-[13%] tu-px-3 tu-py-2.5 tu-text-left">
+                              <div className="tu-flex tu-w-full tu-justify-start">
                                 <span className="tu-text-[13px] tu-font-medium tu-text-[#333538]">
                                   {formatCompactCurrency(product.deadStockInventoryValue)}
                                 </span>
@@ -12735,6 +12813,154 @@ export default function App() {
             style={{ left: customerLtvHeaderTooltip.left, top: customerLtvHeaderTooltip.top }}
           >
             <TooltipRichContent text={customerLtvHeaderTooltip.text} />
+          </div>
+        ) : null}
+        {abcProductClassificationModalOpen ? (
+          <div className="tu-fixed tu-inset-0 tu-z-[180] tu-flex tu-items-center tu-justify-center tu-bg-black/40 tu-p-4">
+            <div className="tu-w-full tu-max-w-[500px] tu-overflow-hidden tu-rounded-[14px] tu-border tu-border-[#dfe5dc] tu-bg-white tu-shadow-[0_24px_70px_rgba(31,41,55,0.28)]">
+              <div className="tu-flex tu-items-center tu-justify-between tu-gap-3 tu-border-b tu-border-[#e8ede6] tu-px-4 tu-py-3">
+                <div>
+                  <h3 className="tu-text-[16px] tu-font-semibold tu-text-[#1f2937]">Product Classification</h3>
+                  <p className="tu-mt-1 tu-text-[12px] tu-text-[#6f7782]">Choose how products are ranked for ABC analysis.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAbcProductClassificationModalOpen(false)}
+                  className="tu-inline-flex tu-h-8 tu-w-8 tu-items-center tu-justify-center tu-rounded-[9px] tu-border tu-border-[#e1e6dd] tu-bg-white tu-text-[#6f7782] hover:tu-bg-[#f8faf7] hover:tu-text-[#2a2c2f]"
+                  aria-label="Close product classification modal"
+                >
+                  <X className="tu-h-4 tu-w-4" />
+                </button>
+              </div>
+              <div className="tu-max-h-[420px] tu-overflow-y-auto tu-p-4">
+                <div className="tu-space-y-2">
+                  {abcProductClassificationOptions.map((option) => {
+                    const selected = selectedAbcProductClassification === option.label;
+                    return (
+                      <label
+                        key={option.label}
+                        className={`tu-flex tu-cursor-pointer tu-items-start tu-gap-2.5 tu-rounded-[10px] tu-border tu-p-3 tu-transition-colors ${
+                          selected
+                            ? 'tu-border-[#ccebd8] tu-bg-[#eaf8f0]'
+                            : 'tu-border-[#e8ede6] tu-bg-white hover:tu-border-[#d7e4d6] hover:tu-bg-[#fbfcfa]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="abc-product-classification"
+                          checked={selected}
+                          onChange={() => setSelectedAbcProductClassification(option.label)}
+                          className="tu-mt-1 tu-h-4 tu-w-4 tu-accent-[#0ea857]"
+                        />
+                        <span>
+                          <span className={`tu-block tu-text-[14px] tu-font-semibold ${selected ? 'tu-text-[#0b7a44]' : 'tu-text-[#263241]'}`}>
+                            {option.label}
+                          </span>
+                          <span className="tu-mt-0.5 tu-block tu-text-[12px] tu-leading-5 tu-text-[#6f7782]">
+                            {option.description}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="tu-flex tu-justify-end tu-gap-2 tu-border-t tu-border-[#e8ede6] tu-bg-[#fbfcfa] tu-px-4 tu-py-3">
+                <button
+                  type="button"
+                  onClick={() => setAbcProductClassificationModalOpen(false)}
+                  className="tu-inline-flex tu-h-9 tu-items-center tu-rounded-[9px] tu-border tu-border-[#dfe5dc] tu-bg-white tu-px-3.5 tu-text-[12px] tu-font-semibold tu-text-[#4f5965] hover:tu-bg-[#f8faf7]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAbcProductClassificationModalOpen(false)}
+                  className="tu-inline-flex tu-h-9 tu-items-center tu-rounded-[9px] tu-bg-[#10c562] tu-px-3.5 tu-text-[12px] tu-font-semibold tu-text-white hover:tu-bg-[#0ea857]"
+                >
+                  Apply Classification
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {abcPercentageModalOpen ? (
+          <div className="tu-fixed tu-inset-0 tu-z-[180] tu-flex tu-items-center tu-justify-center tu-bg-black/40 tu-p-4">
+            <div className="tu-w-full tu-max-w-[460px] tu-overflow-hidden tu-rounded-[14px] tu-border tu-border-[#dfe5dc] tu-bg-white tu-shadow-[0_24px_70px_rgba(31,41,55,0.28)]">
+              <div className="tu-flex tu-items-center tu-justify-between tu-gap-3 tu-border-b tu-border-[#e8ede6] tu-px-4 tu-py-3">
+                <div>
+                  <h3 className="tu-text-[16px] tu-font-semibold tu-text-[#1f2937]">Configure Percentages</h3>
+                  <p className="tu-mt-1 tu-text-[12px] tu-text-[#6f7782]">Set the cumulative contribution assigned to each ABC class.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAbcPercentageModalOpen(false)}
+                  className="tu-inline-flex tu-h-8 tu-w-8 tu-items-center tu-justify-center tu-rounded-[9px] tu-border tu-border-[#e1e6dd] tu-bg-white tu-text-[#6f7782] hover:tu-bg-[#f8faf7] hover:tu-text-[#2a2c2f]"
+                  aria-label="Close configure percentages modal"
+                >
+                  <X className="tu-h-4 tu-w-4" />
+                </button>
+              </div>
+              <div className="tu-space-y-3 tu-p-4">
+                {[
+                  { key: 'classA' as const, label: 'Class A', note: 'Highest priority' },
+                  { key: 'classB' as const, label: 'Class B', note: 'Medium priority' },
+                  { key: 'classC' as const, label: 'Class C', note: 'Lower priority' }
+                ].map((item) => (
+                  <div key={item.key} className="tu-grid tu-grid-cols-[minmax(0,1fr)_104px] tu-items-center tu-gap-3">
+                    <div>
+                      <p className="tu-text-[14px] tu-font-semibold tu-text-[#263241]">{item.label}</p>
+                      <p className="tu-text-[12px] tu-text-[#6f7782]">{item.note}</p>
+                    </div>
+                    <label className="tu-flex tu-h-10 tu-w-[104px] tu-items-center tu-rounded-[9px] tu-border tu-border-[#d5ded2] tu-bg-white tu-px-3 focus-within:tu-border-[#10c562]">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={abcPercentageDraft[item.key]}
+                        onChange={(event) =>
+                          setAbcPercentageDraft((current) => ({
+                            ...current,
+                            [item.key]: Math.max(0, Math.min(100, Number(event.target.value || 0)))
+                          }))
+                        }
+                        className="tu-w-full tu-bg-transparent tu-text-[14px] tu-font-semibold tu-text-[#263241] tu-outline-none"
+                      />
+                      <span className="tu-text-[12px] tu-font-medium tu-text-[#6f7782]">%</span>
+                    </label>
+                  </div>
+                ))}
+                <div
+                  className={`tu-rounded-[10px] tu-border tu-px-3 tu-py-2.5 tu-text-[12px] tu-font-medium ${
+                    abcPercentageTotal === 100
+                      ? 'tu-border-[#cfe8d6] tu-bg-[#f2fbf5] tu-text-[#507263]'
+                      : 'tu-border-[#f0d2c8] tu-bg-[#fff6f2] tu-text-[#9a4d2a]'
+                  }`}
+                >
+                  Total: {abcPercentageTotal}% {abcPercentageTotal === 100 ? '- Ready to apply' : '- Values must total 100%'}
+                </div>
+              </div>
+              <div className="tu-flex tu-justify-end tu-gap-2 tu-border-t tu-border-[#e8ede6] tu-bg-[#fbfcfa] tu-px-4 tu-py-3">
+                <button
+                  type="button"
+                  onClick={() => setAbcPercentageModalOpen(false)}
+                  className="tu-inline-flex tu-h-9 tu-items-center tu-rounded-[9px] tu-border tu-border-[#dfe5dc] tu-bg-white tu-px-3.5 tu-text-[12px] tu-font-semibold tu-text-[#4f5965] hover:tu-bg-[#f8faf7]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={abcPercentageTotal !== 100}
+                  onClick={() => {
+                    setAbcPercentageConfig(abcPercentageDraft);
+                    setAbcPercentageModalOpen(false);
+                  }}
+                  className="tu-inline-flex tu-h-9 tu-items-center tu-rounded-[9px] tu-bg-[#10c562] tu-px-3.5 tu-text-[12px] tu-font-semibold tu-text-white hover:tu-bg-[#0ea857] disabled:tu-cursor-not-allowed disabled:tu-bg-[#b8c8bd]"
+                >
+                  Apply Percentages
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
       </div>
