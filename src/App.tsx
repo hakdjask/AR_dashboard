@@ -4472,10 +4472,12 @@ export default function App() {
           previousNumeric: totalPrevious,
           isBreakdownCard: false,
           isCombinedReturned: false,
-          codShare: 0,
-          nonCodShare: 0,
-          codCount: 0,
-          nonCodCount: 0
+          paidShare: 0,
+          unpaidShare: 0,
+          partiallyPaidShare: 0,
+          paidCount: 0,
+          unpaidCount: 0,
+          partiallyPaidCount: 0
         };
       }
 
@@ -4536,10 +4538,12 @@ export default function App() {
         previousNumeric: previousValue,
         isBreakdownCard: false,
         isCombinedReturned: false,
-        codShare: 0,
-        nonCodShare: 0,
-        codCount: 0,
-        nonCodCount: 0
+        paidShare: 0,
+        unpaidShare: 0,
+        partiallyPaidShare: 0,
+        paidCount: 0,
+        unpaidCount: 0,
+        partiallyPaidCount: 0
       };
     });
 
@@ -4578,21 +4582,26 @@ export default function App() {
       isCombinedReturned: true
     };
 
-    const codShare = Math.max(
-      20,
+    const paidShare = Math.max(
+      45,
       Math.min(
-        90,
-        62 +
-          Math.sin(selectedSalesOrderDate.length * 0.7 + selectedSalesOrderGroupBy.length * 0.4) * 8 +
-          (selectedSalesOrderRegion.length - 2) * 1.2
+        75,
+        58 +
+          Math.sin(selectedSalesOrderDate.length * 0.7 + selectedSalesOrderGroupBy.length * 0.4) * 6 +
+          (selectedSalesOrderRegion.length - 2) * 0.8
       )
     );
-    const nonCodShare = Math.max(0, 100 - codShare);
-    const codCount = Math.round((currentTotalOrders * codShare) / 100);
-    const nonCodCount = Math.max(0, currentTotalOrders - codCount);
+    const partiallyPaidShare = Math.max(
+      6,
+      Math.min(18, 11 + Math.cos(selectedSalesOrderDate.length * 0.45 + selectedSalesOrderRegion.length) * 3)
+    );
+    const unpaidShare = Math.max(0, 100 - paidShare - partiallyPaidShare);
+    const paidCount = Math.round((currentTotalOrders * paidShare) / 100);
+    const partiallyPaidCount = Math.round((currentTotalOrders * partiallyPaidShare) / 100);
+    const unpaidCount = Math.max(0, currentTotalOrders - paidCount - partiallyPaidCount);
 
-    const codBreakdownCard = {
-      label: 'Order Type Breakdown',
+    const paymentStatusBreakdownCard = {
+      label: 'Payment Status Breakdown',
       value: '',
       trend: '',
       direction: 'up' as const,
@@ -4606,10 +4615,12 @@ export default function App() {
       showStoreSelect: false,
       isBreakdownCard: true,
       isCombinedReturned: false,
-      codShare,
-      nonCodShare,
-      codCount,
-      nonCodCount,
+      paidShare,
+      unpaidShare,
+      partiallyPaidShare,
+      paidCount,
+      unpaidCount,
+      partiallyPaidCount,
       currentNumeric: 0,
       previousNumeric: 0
     };
@@ -4626,9 +4637,9 @@ export default function App() {
     }
     const voidedIndex = filteredCards.findIndex((card) => card.label === 'Voided');
     if (voidedIndex >= 0) {
-      filteredCards.splice(voidedIndex + 1, 0, codBreakdownCard);
+      filteredCards.splice(voidedIndex + 1, 0, paymentStatusBreakdownCard);
     } else {
-      filteredCards.push(codBreakdownCard);
+      filteredCards.push(paymentStatusBreakdownCard);
     }
 
     return filteredCards;
@@ -10574,33 +10585,40 @@ export default function App() {
                   if (metric.isBreakdownCard) {
                     return (
                       <article
-                        key="sales-order-cod-breakdown"
-                        className="tu-grid tu-h-full tu-grid-rows-2 tu-gap-2"
+                        key="sales-order-payment-status-breakdown"
+                        className="tu-grid tu-h-full tu-grid-rows-3 tu-gap-1.5"
                       >
-                          <div className="tu-flex tu-min-h-0 tu-items-center tu-justify-between tu-gap-3 tu-rounded-[12px] tu-border tu-border-[#dbeee1] tu-bg-[#f3fcf6] tu-px-4 tu-py-2 tu-shadow-[0_6px_18px_rgba(31,41,55,0.06)]">
+                          <div className="tu-flex tu-min-h-0 tu-items-center tu-justify-between tu-gap-2 tu-rounded-[10px] tu-border tu-border-[#dbeee1] tu-bg-[#f4fbf6] tu-px-3 tu-py-1.5 tu-shadow-[0_4px_12px_rgba(31,41,55,0.045)]">
                             <div className="tu-min-w-0">
-                              <p className="tu-text-[13px] tu-font-medium tu-text-[#6f7d75]">COD Orders</p>
+                              <p className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#64756b]">Paid Orders</p>
                             {emptyPreviewActive ? (
-                              <EmptyMetricValue reason="COD Orders is missing because payment method or order data was not imported." />
-                            ) : (
-                              <p className="tu-mt-1 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.codShare.toFixed(1)}% of total orders`}</p>
-                            )}
+                              <EmptyMetricValue reason="Paid Orders is missing because payment status or order data was not imported." />
+                            ) : null}
                             </div>
                             {!emptyPreviewActive ? (
-                              <p className="tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.codCount)}</p>
+                              <p className="tu-shrink-0 tu-text-[21px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.paidCount)}</p>
                             ) : null}
                           </div>
-                          <div className="tu-flex tu-min-h-0 tu-items-center tu-justify-between tu-gap-3 tu-rounded-[12px] tu-border tu-border-[#f2e3ce] tu-bg-[#fffaf3] tu-px-4 tu-py-2 tu-shadow-[0_6px_18px_rgba(31,41,55,0.06)]">
+                          <div className="tu-flex tu-min-h-0 tu-items-center tu-justify-between tu-gap-2 tu-rounded-[10px] tu-border tu-border-[#e5e9e4] tu-bg-[#fafbf9] tu-px-3 tu-py-1.5 tu-shadow-[0_4px_12px_rgba(31,41,55,0.045)]">
                             <div className="tu-min-w-0">
-                              <p className="tu-text-[13px] tu-font-medium tu-text-[#7e756b]">Paid Orders</p>
+                              <p className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#707771]">Unpaid Orders</p>
                             {emptyPreviewActive ? (
-                              <EmptyMetricValue reason="Paid Orders is missing because payment method or order data was not imported." />
-                            ) : (
-                              <p className="tu-mt-1 tu-text-[11px] tu-font-medium tu-text-[#8f97a0]">{`${metric.nonCodShare.toFixed(1)}% of total orders`}</p>
-                            )}
+                              <EmptyMetricValue reason="Unpaid Orders is missing because payment status or order data was not imported." />
+                            ) : null}
                             </div>
                             {!emptyPreviewActive ? (
-                              <p className="tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.nonCodCount)}</p>
+                              <p className="tu-shrink-0 tu-text-[21px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.unpaidCount)}</p>
+                            ) : null}
+                          </div>
+                          <div className="tu-flex tu-min-h-0 tu-items-center tu-justify-between tu-gap-2 tu-rounded-[10px] tu-border tu-border-[#eee2cf] tu-bg-[#fffaf3] tu-px-3 tu-py-1.5 tu-shadow-[0_4px_12px_rgba(31,41,55,0.045)]">
+                            <div className="tu-min-w-0">
+                              <p className="tu-whitespace-nowrap tu-text-[12px] tu-font-medium tu-text-[#7b7164]">Partial Paid Orders</p>
+                            {emptyPreviewActive ? (
+                              <EmptyMetricValue reason="Partial Paid Orders is missing because payment status or order data was not imported." />
+                            ) : null}
+                            </div>
+                            {!emptyPreviewActive ? (
+                              <p className="tu-shrink-0 tu-text-[21px] tu-font-semibold tu-leading-none tu-text-[#2a2c2f]">{formatCompactNumber(metric.partiallyPaidCount)}</p>
                             ) : null}
                           </div>
                       </article>
