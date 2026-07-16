@@ -3011,11 +3011,13 @@ function TooltipRichContent({ text }: { text: TooltipContent }) {
 function FilterRail({
   children,
   className = '',
-  enabled = true
+  enabled = true,
+  expand = true
 }: {
   children: any;
   className?: string;
   enabled?: boolean;
+  expand?: boolean;
 }) {
   const railRef = useRef<HTMLDivElement | null>(null);
   const [scrollState, setScrollState] = useState({ left: false, right: false });
@@ -3048,7 +3050,9 @@ function FilterRail({
   }
 
   return (
-    <div className={`tu-relative tu-flex tu-min-w-0 tu-flex-1 tu-justify-end ${className}`}>
+    <div
+      className={`tu-relative tu-flex tu-min-w-0 tu-justify-end ${expand ? 'tu-flex-1' : 'tu-flex-[0_1_auto]'} ${className}`}
+    >
       {scrollState.left ? (
         <button
           type="button"
@@ -12085,7 +12089,7 @@ export default function App() {
               <div className="tu-flex tu-flex-col tu-gap-4 xl:tu-flex-row xl:tu-items-center xl:tu-justify-between">
                 <SectionTitleWithReportLink title="Sales Performance by Products" />
 
-                <FilterRail>
+                <div className="tu-flex tu-w-full tu-min-w-0 tu-items-center tu-justify-end tu-gap-2.5 sm:tu-gap-3 xl:tu-w-auto xl:tu-flex-1">
                   <div className="tu-flex tu-items-center tu-gap-2.5 sm:tu-gap-3">
                     <div className="tu-relative">
                       <button
@@ -12157,7 +12161,8 @@ export default function App() {
                     </div>
                     <span className="tu-inline-flex tu-h-6 tu-w-px tu-bg-[#d9ded7]" aria-hidden="true" />
                   </div>
-                  {[
+                  <FilterRail expand={false}>
+                    {[
                     { key: 'metric', value: `Show by: ${selectedProductTableMetric}`, options: productTableMetricOptions },
                     {
                       key: 'brand',
@@ -12248,8 +12253,9 @@ export default function App() {
                         <span className="tu-inline-flex tu-h-6 tu-w-px tu-bg-[#d9ded7]" aria-hidden="true" />
                       ) : null}
                     </div>
-                  ))}
-                </FilterRail>
+                    ))}
+                  </FilterRail>
+                </div>
               </div>
 
               <div className="tu-mt-5">
