@@ -1440,6 +1440,11 @@ type InventoryHealthProduct = {
   salesVelocity: number;
   stockToSalesRatio: number;
   inventoryTurnoverRatio: number;
+  beginningInventoryQuantity: number;
+  beginningInventoryValue: number;
+  endingInventoryQuantity: number;
+  endingInventoryValue: number;
+  cogs: number;
 };
 
 type InventoryHealthSortKey =
@@ -1779,7 +1784,12 @@ const inventoryHealthProducts: InventoryHealthProduct[] = Array.from({ length: 1
     deadStocks,
     salesVelocity,
     stockToSalesRatio,
-    inventoryTurnoverRatio
+    inventoryTurnoverRatio,
+    beginningInventoryQuantity: onHandQuantity,
+    beginningInventoryValue: startingInventoryValue,
+    endingInventoryQuantity: availableQuantity,
+    endingInventoryValue,
+    cogs
   };
 });
 
@@ -1825,6 +1835,8 @@ type InventoryStoreSnapshot = {
   reorderProducts: { current: number; previous: number };
   inboundQuantity: { current: number; previous: number };
   outboundQuantity: { current: number; previous: number };
+  totalOrdersPlaced: { current: number; previous: number };
+  completelyShippedOrders: { current: number; previous: number };
 };
 
 const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
@@ -1836,7 +1848,9 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     stockoutProducts: { current: 26, previous: 31 },
     reorderProducts: { current: 74, previous: 65 },
     inboundQuantity: { current: 2940, previous: 2680 },
-    outboundQuantity: { current: 2570, previous: 2410 }
+    outboundQuantity: { current: 2570, previous: 2410 },
+    totalOrdersPlaced: { current: 1000, previous: 940 },
+    completelyShippedOrders: { current: 875, previous: 850 }
   },
   {
     store: 'Shopify Lahore',
@@ -1846,7 +1860,9 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     stockoutProducts: { current: 21, previous: 25 },
     reorderProducts: { current: 66, previous: 61 },
     inboundQuantity: { current: 3310, previous: 3020 },
-    outboundQuantity: { current: 2890, previous: 2700 }
+    outboundQuantity: { current: 2890, previous: 2700 },
+    totalOrdersPlaced: { current: 1100, previous: 1000 },
+    completelyShippedOrders: { current: 970, previous: 908 }
   },
   {
     store: 'WooCommerce Peshawar',
@@ -1856,7 +1872,9 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     stockoutProducts: { current: 32, previous: 36 },
     reorderProducts: { current: 71, previous: 67 },
     inboundQuantity: { current: 2480, previous: 2320 },
-    outboundQuantity: { current: 2190, previous: 2080 }
+    outboundQuantity: { current: 2190, previous: 2080 },
+    totalOrdersPlaced: { current: 800, previous: 750 },
+    completelyShippedOrders: { current: 705, previous: 678 }
   },
   {
     store: 'Shopify Quetta',
@@ -1866,7 +1884,9 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     stockoutProducts: { current: 24, previous: 29 },
     reorderProducts: { current: 58, previous: 54 },
     inboundQuantity: { current: 2670, previous: 2440 },
-    outboundQuantity: { current: 2410, previous: 2260 }
+    outboundQuantity: { current: 2410, previous: 2260 },
+    totalOrdersPlaced: { current: 900, previous: 850 },
+    completelyShippedOrders: { current: 790, previous: 770 }
   },
   {
     store: 'Shopify Gilgit',
@@ -1876,7 +1896,9 @@ const inventoryStoreSnapshots: InventoryStoreSnapshot[] = [
     stockoutProducts: { current: 19, previous: 23 },
     reorderProducts: { current: 61, previous: 55 },
     inboundQuantity: { current: 3180, previous: 2870 },
-    outboundQuantity: { current: 2760, previous: 2620 }
+    outboundQuantity: { current: 2760, previous: 2620 },
+    totalOrdersPlaced: { current: 1000, previous: 960 },
+    completelyShippedOrders: { current: 880, previous: 869 }
   }
 ];
 
@@ -1966,15 +1988,15 @@ const inventoryKpiTooltips: Record<string, string | TooltipContent> = {
     blocks: [
       { type: 'text', text: 'Share of available supply that sold during the selected period.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Sell Through Rate (%) = Quantity Out / (Quantity Out + Ending On-hand Quantity) x 100' }
+      { type: 'formula', text: 'Sell Through Rate (%) = Total Units Sold / Total Units Available or Received x 100' }
     ]
   },
   'Average Fulfillment Rate': {
     title: 'Average Fulfillment Rate',
     blocks: [
-      { type: 'text', text: 'Share of outbound fulfillment versus inbound quantity for the selected scope.' },
+      { type: 'text', text: 'Share of placed orders that shipped completely with every item and unit fulfilled.' },
       { type: 'spacer' },
-      { type: 'formula', text: 'Fulfillment Rate (%) = (Quantity Out / Quantity In) x 100' }
+      { type: 'formula', text: 'Order Fill Rate (%) = Total Orders Shipped Completely / Total Orders Placed x 100' }
     ]
   },
   'Out of Stock Rate': {
@@ -2899,6 +2921,11 @@ const formatCompactNumber = (value: number) => compactNumberFormatter.format(val
 
 const formatCompactCurrency = (value: number) => `PKR ${formatCompactNumber(value)}`;
 
+const formatBreakdownNumber = (value: number) =>
+  value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+const formatBreakdownCurrency = (value: number) => `PKR ${formatBreakdownNumber(value)}`;
+
 const formatStoreMetricValue = (metric: string, value: number) =>
   metric === 'Gross Sales' || metric === 'Return Value' ? formatCompactCurrency(value) : formatCompactNumber(value);
 
@@ -3547,6 +3574,7 @@ export default function App() {
   const [selectedInventoryDate, setSelectedInventoryDate] = useState('Last 30 Days');
   const [selectedInventoryRegion, setSelectedInventoryRegion] = useState<string[]>([...inventoryLocationOptions]);
   const [inventoryMenuSearch, setInventoryMenuSearch] = useState({ date: '', region: '' });
+  const [hoveredInventoryKpiValue, setHoveredInventoryKpiValue] = useState<string | null>(null);
   const [activeInventoryRibbonIndex, setActiveInventoryRibbonIndex] = useState(0);
   const [inventoryRibbonPaused, setInventoryRibbonPaused] = useState(false);
   const [inventorySnapshotMenus, setInventorySnapshotMenus] = useState<{
@@ -3911,7 +3939,7 @@ export default function App() {
     'Sell Through Rate':
       'Sell Through Rate is missing because units sold are missing, inventory received is missing, or active SKU data is unavailable.',
     'Average Fulfillment Rate':
-      'Average Fulfillment Rate is missing because fulfilled order lines or total order line data has not been imported.',
+      'Average Fulfillment Rate is missing because completely shipped orders or total orders placed data has not been imported.',
     'Out of Stock Rate':
       'Out of Stock Rate is missing because active SKU count is missing or stockout status was not imported.',
     'Products Under Reorder Point':
@@ -4845,7 +4873,11 @@ export default function App() {
     const aggregate = (
       metricKey: keyof Pick<
         InventoryStoreSnapshot,
-        'totalInventoryValue' | 'inboundQuantity' | 'outboundQuantity'
+        | 'totalInventoryValue'
+        | 'inboundQuantity'
+        | 'outboundQuantity'
+        | 'totalOrdersPlaced'
+        | 'completelyShippedOrders'
       >
     ) => {
       const current = activeInventorySnapshots.reduce((sum, snapshot) => sum + snapshot[metricKey].current * multiplier.current, 0);
@@ -4869,17 +4901,31 @@ export default function App() {
     const reorderProducts = aggregateCount('reorderProducts');
     const quantityIn = aggregate('inboundQuantity');
     const quantityOut = aggregate('outboundQuantity');
-    const onHandQuantity = activeInventoryInsightProducts.reduce((sum, product) => sum + product.onHandQuantity, 0);
-    const previousOnHandQuantity = Math.round(onHandQuantity * 1.04);
-    const activeProductCount = Math.max(activeInventoryInsightProducts.length, 1);
-    const inventoryTurnoverCurrent =
-      activeInventoryInsightProducts.reduce((sum, product) => sum + product.inventoryTurnoverRatio, 0) /
-      activeProductCount;
+    const totalOrdersPlaced = aggregate('totalOrdersPlaced');
+    const completelyShippedOrders = aggregate('completelyShippedOrders');
+    const sumProductMetric = (
+      metricKey: keyof Pick<
+        InventoryHealthProduct,
+        | 'beginningInventoryQuantity'
+        | 'beginningInventoryValue'
+        | 'endingInventoryQuantity'
+        | 'endingInventoryValue'
+        | 'cogs'
+      >
+    ) => activeInventoryInsightProducts.reduce((sum, product) => sum + product[metricKey], 0);
+    const beginningInventoryQuantity = sumProductMetric('beginningInventoryQuantity');
+    const beginningInventoryValue = sumProductMetric('beginningInventoryValue');
+    const endingInventoryQuantity = sumProductMetric('endingInventoryQuantity');
+    const endingInventoryValue = sumProductMetric('endingInventoryValue');
+    const averageInventoryQuantity = (beginningInventoryQuantity + endingInventoryQuantity) / 2;
+    const averageInventoryValue = (beginningInventoryValue + endingInventoryValue) / 2;
+    const inventoryCogs = sumProductMetric('cogs');
+    const inventoryTurnoverCurrent = averageInventoryValue === 0 ? 0 : inventoryCogs / averageInventoryValue;
     const inventoryTurnoverPrevious = inventoryTurnoverCurrent * 0.94;
-    const sellThroughCurrent = getRate(quantityOut.current, quantityOut.current + onHandQuantity);
-    const sellThroughPrevious = getRate(quantityOut.previous, quantityOut.previous + previousOnHandQuantity);
-    const fulfillmentRateCurrent = quantityIn.current === 0 ? 0 : (quantityOut.current / quantityIn.current) * 100;
-    const fulfillmentRatePrevious = quantityIn.previous === 0 ? 0 : (quantityOut.previous / quantityIn.previous) * 100;
+    const sellThroughCurrent = getRate(quantityOut.current, quantityIn.current);
+    const sellThroughPrevious = getRate(quantityOut.previous, quantityIn.previous);
+    const fulfillmentRateCurrent = getRate(completelyShippedOrders.current, totalOrdersPlaced.current);
+    const fulfillmentRatePrevious = getRate(completelyShippedOrders.previous, totalOrdersPlaced.previous);
     const outOfStockRateCurrent = getRate(stockoutProducts.current, totalProducts.current);
     const outOfStockRatePrevious = getRate(stockoutProducts.previous, totalProducts.previous);
     const unfulfilledOrderLinesDueToZeroStock = stockoutProducts;
@@ -4959,7 +5005,22 @@ export default function App() {
           current: `${inventoryTurnoverCurrent.toFixed(2)}x`,
           previous: `${inventoryTurnoverPrevious.toFixed(2)}x`,
           change: `${Math.abs(inventoryTurnoverCurrent - inventoryTurnoverPrevious).toFixed(2)}x`
-        }
+        },
+        breakdownRows: [
+          { label: 'Beginning Inventory Quantity', value: formatBreakdownNumber(beginningInventoryQuantity) },
+          { label: 'Beginning Inventory Value', value: formatBreakdownCurrency(beginningInventoryValue) },
+          { label: 'Ending Inventory Quantity', value: formatBreakdownNumber(endingInventoryQuantity) },
+          { label: 'Ending Inventory Value', value: formatBreakdownCurrency(endingInventoryValue) },
+          { label: 'Average Inventory Quantity', value: formatBreakdownNumber(averageInventoryQuantity) },
+          { label: 'Average Inventory Value', value: formatBreakdownCurrency(averageInventoryValue) },
+          { label: 'COGS', value: formatBreakdownCurrency(inventoryCogs), dividerBefore: true },
+          {
+            label: 'Inventory Turnover Ratio',
+            value: `${inventoryTurnoverCurrent.toFixed(2)}x`,
+            medium: true,
+            dividerBefore: true
+          }
+        ] satisfies MetricPopoverRow[]
       },
       {
         label: 'Sell Through Rate',
@@ -4973,7 +5034,17 @@ export default function App() {
           current: `${sellThroughCurrent.toFixed(1)}%`,
           previous: `${sellThroughPrevious.toFixed(1)}%`,
           change: `${Math.abs(sellThroughCurrent - sellThroughPrevious).toFixed(1)} pp`
-        }
+        },
+        breakdownRows: [
+          { label: 'Total Units Sold', value: formatBreakdownNumber(quantityOut.current) },
+          { label: 'Total Units Available or Received', value: formatBreakdownNumber(quantityIn.current) },
+          {
+            label: 'Sell Through Rate',
+            value: `${sellThroughCurrent.toFixed(1)}%`,
+            medium: true,
+            dividerBefore: true
+          }
+        ] satisfies MetricPopoverRow[]
       },
       {
         label: 'Average Fulfillment Rate',
@@ -4987,7 +5058,17 @@ export default function App() {
           current: `${fulfillmentRateCurrent.toFixed(1)}%`,
           previous: `${fulfillmentRatePrevious.toFixed(1)}%`,
           change: `${Math.abs(fulfillmentRateCurrent - fulfillmentRatePrevious).toFixed(1)} pp`
-        }
+        },
+        breakdownRows: [
+          { label: 'Orders Shipped Completely', value: formatBreakdownNumber(completelyShippedOrders.current) },
+          { label: 'Total Orders Placed', value: formatBreakdownNumber(totalOrdersPlaced.current) },
+          {
+            label: 'Average Fulfillment Rate',
+            value: `${fulfillmentRateCurrent.toFixed(1)}%`,
+            medium: true,
+            dividerBefore: true
+          }
+        ] satisfies MetricPopoverRow[]
       },
       {
         label: 'Out of Stock Rate',
@@ -8349,13 +8430,17 @@ export default function App() {
                             'thresholdTooltip' in metric
                               ? metric.thresholdTooltip
                               : 'Criteria: SKU available quantity is at or below its configured reorder threshold for the selected location.';
+                          const breakdownRows =
+                            'breakdownRows' in metric ? (metric.breakdownRows as MetricPopoverRow[]) : [];
+                          const showBreakdownPopover =
+                            breakdownRows.length > 0 && hoveredInventoryKpiValue === metric.label;
 
                           return (
                             <article
                               key={metric.label}
                               role="button"
                               tabIndex={0}
-                              className="tu-group tu-relative tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-2.5 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] xl:tu-col-span-1"
+                              className="tu-group tu-relative tu-z-0 tu-cursor-pointer tu-rounded-[12px] tu-border tu-border-[#e9ece5] tu-bg-[linear-gradient(180deg,#ffffff_0%,#f8faf7_100%)] tu-p-2.5 tu-shadow-[0_12px_30px_rgba(31,41,55,0.06)] tu-transition-all hover:-tu-translate-y-0.5 hover:tu-z-20 hover:tu-border-[#d8e8db] hover:tu-bg-[linear-gradient(180deg,#ffffff_0%,#f3fbf6_100%)] hover:tu-shadow-[0_16px_34px_rgba(16,197,98,0.12)] xl:tu-col-span-1"
                             >
                               <div className="tu-flex tu-items-start tu-justify-between tu-gap-3">
                                 <div className="tu-min-w-0 tu-flex-1">
@@ -8376,9 +8461,62 @@ export default function App() {
                                     {emptyPreviewActive ? (
                                       <EmptyMetricValue reason={getInventoryKpiMissingReason(metric.label)} />
                                     ) : (
-                                      <p className="tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538]">
-                                        {metric.value}
-                                      </p>
+                                      <div className="tu-relative tu-w-fit">
+                                        <button
+                                          type="button"
+                                          onMouseEnter={() => setHoveredInventoryKpiValue(metric.label)}
+                                          onMouseLeave={() => setHoveredInventoryKpiValue(null)}
+                                          onFocus={() => setHoveredInventoryKpiValue(metric.label)}
+                                          onBlur={() => setHoveredInventoryKpiValue(null)}
+                                          className={`tu-text-[26px] tu-font-semibold tu-leading-none tu-text-[#333538] tu-transition-colors hover:tu-text-[#2a2c2f] ${
+                                            breakdownRows.length > 0
+                                              ? 'tu-decoration-dotted tu-underline tu-underline-offset-4'
+                                              : ''
+                                          }`}
+                                          style={
+                                            breakdownRows.length > 0
+                                              ? { textDecorationThickness: '1px', textDecorationColor: '#10c562' }
+                                              : undefined
+                                          }
+                                        >
+                                          {metric.value}
+                                        </button>
+                                        {showBreakdownPopover ? (
+                                          <div
+                                            className={`tu-absolute tu-top-[calc(100%+10px)] tu-z-[140] tu-w-[320px] tu-rounded-[12px] tu-border tu-border-[#ededed] tu-bg-white tu-p-3 tu-shadow-[0_16px_40px_rgba(31,41,55,0.18)] ${
+                                              metric.label === 'Inventory Turnover Ratio' ? 'tu-right-0' : 'tu-left-0'
+                                            }`}
+                                          >
+                                            <div className="tu-space-y-2">
+                                              {breakdownRows.map((item) => (
+                                                <div
+                                                  key={`${metric.label}-${item.label}`}
+                                                  className={`tu-flex tu-items-end tu-justify-between tu-gap-4 ${
+                                                    item.dividerBefore ? 'tu-border-t tu-border-[#eceee8] tu-pt-2' : ''
+                                                  }`}
+                                                >
+                                                  <span
+                                                    className={`tu-whitespace-nowrap tu-text-[12px] ${
+                                                      item.medium
+                                                        ? 'tu-font-semibold tu-text-[#292c30]'
+                                                        : 'tu-text-[#44464b]'
+                                                    }`}
+                                                  >
+                                                    {item.label}
+                                                  </span>
+                                                  <span
+                                                    className={`tu-whitespace-nowrap tu-text-[12px] tu-text-[#333538] ${
+                                                      item.medium ? 'tu-font-semibold' : 'tu-font-medium'
+                                                    }`}
+                                                  >
+                                                    {item.value}
+                                                  </span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ) : null}
+                                      </div>
                                     )}
                                     {!emptyPreviewActive && hasSupportingPill && !isReorderThresholdPill ? (
                                       <span className="tu-group/reorder-criteria tu-relative tu-inline-flex tu-items-center tu-gap-1.5 tu-rounded-full tu-border tu-border-[#dfe8dd] tu-bg-white tu-px-2.5 tu-py-1 tu-text-[11px] tu-font-medium tu-text-[#5f656c]">
